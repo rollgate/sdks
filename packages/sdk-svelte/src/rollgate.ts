@@ -1,4 +1,4 @@
-import { writable, derived, type Readable, type Writable } from 'svelte/store';
+import { writable, derived, type Readable, type Writable } from "svelte/store";
 import {
   // Retry
   fetchWithRetry,
@@ -22,13 +22,13 @@ import {
   // Tracing
   createTraceContext,
   getTraceHeaders,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 import type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
   MetricsSnapshot,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 
 export interface UserContext {
   id: string;
@@ -129,17 +129,23 @@ export interface CreateRollgateOptions extends RollgateConfig {
 export function createRollgate(options: CreateRollgateOptions): RollgateStores {
   // Configuration
   const apiKey = options.apiKey;
-  const baseUrl = options.baseUrl || 'https://api.rollgate.io';
+  const baseUrl = options.baseUrl || "https://api.rollgate.io";
   const sseUrl = options.sseUrl || baseUrl;
   const refreshInterval = options.refreshInterval ?? 30000;
   const enableStreaming = options.enableStreaming ?? options.streaming ?? false;
   const timeout = options.timeout ?? 5000;
-  const retryConfig: RetryConfig = { ...DEFAULT_RETRY_CONFIG, ...options.retry };
+  const retryConfig: RetryConfig = {
+    ...DEFAULT_RETRY_CONFIG,
+    ...options.retry,
+  };
   const circuitBreakerConfig: CircuitBreakerConfig = {
     ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
     ...options.circuitBreaker,
   };
-  const cacheConfig: CacheConfig = { ...DEFAULT_CACHE_CONFIG, ...options.cache };
+  const cacheConfig: CacheConfig = {
+    ...DEFAULT_CACHE_CONFIG,
+    ...options.cache,
+  };
 
   // Create instances
   const metrics = createMetrics();
@@ -153,7 +159,9 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
   const isLoadingStore: Writable<boolean> = writable(true);
   const isStaleStore: Writable<boolean> = writable(false);
   const errorStore: Writable<Error | null> = writable(null);
-  const circuitStateStore: Writable<CircuitState> = writable(CircuitState.CLOSED);
+  const circuitStateStore: Writable<CircuitState> = writable(
+    CircuitState.CLOSED,
+  );
 
   let currentUser: UserContext | undefined = options.user;
   let eventSource: EventSource | null = null;
@@ -161,12 +169,12 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
   let lastETag: string | null = null;
 
   // Track circuit state changes
-  circuitBreaker.on('state-change', (data) => {
+  circuitBreaker.on("state-change", (data) => {
     if (!data?.to) return;
     circuitStateStore.set(data.to);
-    let metricsState: 'closed' | 'open' | 'half-open' = 'closed';
-    if (data.to === CircuitState.OPEN) metricsState = 'open';
-    else if (data.to === CircuitState.HALF_OPEN) metricsState = 'half-open';
+    let metricsState: "closed" | "open" | "half-open" = "closed";
+    if (data.to === CircuitState.OPEN) metricsState = "open";
+    else if (data.to === CircuitState.HALF_OPEN) metricsState = "half-open";
     metrics.recordCircuitStateChange(metricsState);
   });
 
@@ -180,18 +188,18 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
 
   // Fetch flags function
   const fetchFlags = async () => {
-    return dedup.dedupe('fetch-flags', async () => {
+    return dedup.dedupe("fetch-flags", async () => {
       const url = new URL(`${baseUrl}/api/v1/sdk/flags`);
-      const endpoint = '/api/v1/sdk/flags';
+      const endpoint = "/api/v1/sdk/flags";
       const startTime = Date.now();
       let statusCode = 0;
 
       if (currentUser?.id) {
-        url.searchParams.set('user_id', currentUser.id);
+        url.searchParams.set("user_id", currentUser.id);
       }
 
       if (!circuitBreaker.isAllowingRequests()) {
-        console.warn('[Rollgate] Circuit breaker is open, using cached flags');
+        console.warn("[Rollgate] Circuit breaker is open, using cached flags");
         useCachedFallback();
         return;
       }
@@ -208,11 +216,11 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
 
               const headers: Record<string, string> = {
                 Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
                 ...traceHeaders,
               };
               if (lastETag) {
-                headers['If-None-Match'] = lastETag;
+                headers["If-None-Match"] = lastETag;
               }
 
               const response = await fetch(url.toString(), {
@@ -231,7 +239,7 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
                 throw err;
               }
 
-              const newETag = response.headers.get('ETag');
+              const newETag = response.headers.get("ETag");
               if (newETag) {
                 lastETag = newETag;
               }
@@ -291,13 +299,19 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
         });
 
         if (err instanceof CircuitOpenError) {
-          console.warn('[Rollgate] Circuit breaker is open:', err.message);
+          console.warn("[Rollgate] Circuit breaker is open:", err.message);
         } else if (classifiedError.category === ErrorCategory.AUTH) {
-          console.error('[Rollgate] Authentication error:', classifiedError.message);
+          console.error(
+            "[Rollgate] Authentication error:",
+            classifiedError.message,
+          );
         } else if (classifiedError.category === ErrorCategory.RATE_LIMIT) {
-          console.warn('[Rollgate] Rate limited:', classifiedError.message);
+          console.warn("[Rollgate] Rate limited:", classifiedError.message);
         } else {
-          console.error('[Rollgate] Error fetching flags:', classifiedError.message);
+          console.error(
+            "[Rollgate] Error fetching flags:",
+            classifiedError.message,
+          );
         }
 
         useCachedFallback();
@@ -321,14 +335,14 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
     if (!enableStreaming) return;
 
     const url = new URL(`${sseUrl}/api/v1/sdk/stream`);
-    url.searchParams.set('token', apiKey);
+    url.searchParams.set("token", apiKey);
     if (currentUser?.id) {
-      url.searchParams.set('user_id', currentUser.id);
+      url.searchParams.set("user_id", currentUser.id);
     }
 
     eventSource = new EventSource(url.toString());
 
-    eventSource.addEventListener('init', (event: MessageEvent) => {
+    eventSource.addEventListener("init", (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as FlagsResponse;
         flagsStore.set(data.flags || {});
@@ -336,26 +350,29 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
         errorStore.set(null);
         isReadyStore.set(true);
       } catch (e) {
-        console.error('[Rollgate] Failed to parse init event:', e);
+        console.error("[Rollgate] Failed to parse init event:", e);
       }
     });
 
-    eventSource.addEventListener('flag-changed', () => {
+    eventSource.addEventListener("flag-changed", () => {
       fetchFlags();
     });
 
-    eventSource.addEventListener('flag-update', (event: MessageEvent) => {
+    eventSource.addEventListener("flag-update", (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data) as { key: string; enabled: boolean };
+        const data = JSON.parse(event.data) as {
+          key: string;
+          enabled: boolean;
+        };
         flagsStore.update((flags) => ({ ...flags, [data.key]: data.enabled }));
       } catch (e) {
-        console.error('[Rollgate] Failed to parse flag-update event:', e);
+        console.error("[Rollgate] Failed to parse flag-update event:", e);
       }
     });
 
     eventSource.onerror = () => {
-      console.warn('[Rollgate] SSE connection error');
-      errorStore.set(new Error('SSE connection error'));
+      console.warn("[Rollgate] SSE connection error");
+      errorStore.set(new Error("SSE connection error"));
     };
   };
 
@@ -450,4 +467,4 @@ export function createRollgate(options: CreateRollgateOptions): RollgateStores {
   };
 }
 
-export { CircuitState } from '@rollgate/sdk-core';
+export { CircuitState } from "@rollgate/sdk-core";

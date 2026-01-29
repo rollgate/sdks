@@ -1,8 +1,8 @@
-import { getContext } from 'svelte';
-import { derived, type Readable } from 'svelte/store';
-import type { RollgateStores } from './rollgate';
+import { getContext } from "svelte";
+import { derived, type Readable } from "svelte/store";
+import type { RollgateStores } from "./rollgate";
 
-const ROLLGATE_KEY = 'rollgate';
+const ROLLGATE_KEY = "rollgate";
 
 /**
  * Get the Rollgate stores from context.
@@ -20,7 +20,7 @@ export function getRollgate(): RollgateStores {
   const rollgate = getContext<RollgateStores>(ROLLGATE_KEY);
   if (!rollgate) {
     throw new Error(
-      '[Rollgate] No Rollgate context found. Did you call createRollgate() and setContext()?'
+      "[Rollgate] No Rollgate context found. Did you call createRollgate() and setContext()?",
     );
   }
   return rollgate;
@@ -43,7 +43,10 @@ export function getRollgate(): RollgateStores {
  * {/if}
  * ```
  */
-export function getFlag(flagKey: string, defaultValue = false): Readable<boolean> {
+export function getFlag(
+  flagKey: string,
+  defaultValue = false,
+): Readable<boolean> {
   const rollgate = getRollgate();
   return rollgate.getFlag(flagKey, defaultValue);
 }

@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { FlagCache, DEFAULT_CACHE_CONFIG } from './cache';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { FlagCache, DEFAULT_CACHE_CONFIG } from "./cache";
 
-describe('FlagCache', () => {
+describe("FlagCache", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    if (typeof localStorage !== 'undefined') {
+    if (typeof localStorage !== "undefined") {
       localStorage.clear();
     }
   });
@@ -13,22 +13,22 @@ describe('FlagCache', () => {
     vi.useRealTimers();
   });
 
-  describe('DEFAULT_CACHE_CONFIG', () => {
-    it('should have sensible defaults', () => {
+  describe("DEFAULT_CACHE_CONFIG", () => {
+    it("should have sensible defaults", () => {
       expect(DEFAULT_CACHE_CONFIG.ttl).toBe(300000);
       expect(DEFAULT_CACHE_CONFIG.staleTtl).toBe(3600000);
     });
   });
 
-  describe('get/set', () => {
-    it('should return undefined for empty cache', () => {
+  describe("get/set", () => {
+    it("should return undefined for empty cache", () => {
       const cache = new FlagCache();
       expect(cache.get()).toBeUndefined();
     });
 
-    it('should store and retrieve flags', () => {
+    it("should store and retrieve flags", () => {
       const cache = new FlagCache();
-      const flags = { 'test-flag': true, 'another-flag': false };
+      const flags = { "test-flag": true, "another-flag": false };
 
       cache.set(flags);
       const result = cache.get();
@@ -38,7 +38,7 @@ describe('FlagCache', () => {
       expect(result?.stale).toBe(false);
     });
 
-    it('should return fresh data within TTL', () => {
+    it("should return fresh data within TTL", () => {
       const cache = new FlagCache({ ttl: 5000 });
       const flags = { test: true };
 
@@ -49,7 +49,7 @@ describe('FlagCache', () => {
       expect(result?.stale).toBe(false);
     });
 
-    it('should return stale data after TTL but within staleTtl', () => {
+    it("should return stale data after TTL but within staleTtl", () => {
       const cache = new FlagCache({ ttl: 5000, staleTtl: 60000 });
       const flags = { test: true };
 
@@ -61,7 +61,7 @@ describe('FlagCache', () => {
       expect(result?.stale).toBe(true);
     });
 
-    it('should return undefined after staleTtl', () => {
+    it("should return undefined after staleTtl", () => {
       const cache = new FlagCache({ ttl: 5000, staleTtl: 60000 });
       const flags = { test: true };
 
@@ -73,8 +73,8 @@ describe('FlagCache', () => {
     });
   });
 
-  describe('hasFresh/hasAny', () => {
-    it('hasFresh should return true only for fresh data', () => {
+  describe("hasFresh/hasAny", () => {
+    it("hasFresh should return true only for fresh data", () => {
       const cache = new FlagCache({ ttl: 5000 });
       cache.set({ test: true });
 
@@ -84,7 +84,7 @@ describe('FlagCache', () => {
       expect(cache.hasFresh()).toBe(false);
     });
 
-    it('hasAny should return true for stale data', () => {
+    it("hasAny should return true for stale data", () => {
       const cache = new FlagCache({ ttl: 5000, staleTtl: 60000 });
       cache.set({ test: true });
 
@@ -94,7 +94,7 @@ describe('FlagCache', () => {
       expect(cache.hasAny()).toBe(true);
     });
 
-    it('hasAny should return false after staleTtl', () => {
+    it("hasAny should return false after staleTtl", () => {
       const cache = new FlagCache({ ttl: 5000, staleTtl: 60000 });
       cache.set({ test: true });
 
@@ -104,8 +104,8 @@ describe('FlagCache', () => {
     });
   });
 
-  describe('clear', () => {
-    it('should remove all cached data', () => {
+  describe("clear", () => {
+    it("should remove all cached data", () => {
       const cache = new FlagCache();
       cache.set({ test: true });
 
@@ -115,8 +115,8 @@ describe('FlagCache', () => {
     });
   });
 
-  describe('stats', () => {
-    it('should track cache hits', () => {
+  describe("stats", () => {
+    it("should track cache hits", () => {
       const cache = new FlagCache();
       cache.set({ test: true });
 
@@ -127,7 +127,7 @@ describe('FlagCache', () => {
       expect(stats.hits).toBe(2);
     });
 
-    it('should track cache misses', () => {
+    it("should track cache misses", () => {
       const cache = new FlagCache();
 
       cache.get();
@@ -137,7 +137,7 @@ describe('FlagCache', () => {
       expect(stats.misses).toBe(2);
     });
 
-    it('should track stale hits', () => {
+    it("should track stale hits", () => {
       const cache = new FlagCache({ ttl: 1000, staleTtl: 60000 });
       cache.set({ test: true });
 

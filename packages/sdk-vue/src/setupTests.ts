@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -31,10 +31,10 @@ const localStorageMock = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 };
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+Object.defineProperty(global, "localStorage", { value: localStorageMock });
 
 // Mock performance.now
-if (typeof performance === 'undefined') {
+if (typeof performance === "undefined") {
   (global as any).performance = {
     now: vi.fn(() => Date.now()),
   };

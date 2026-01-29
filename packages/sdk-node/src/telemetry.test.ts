@@ -1,19 +1,19 @@
-import { TelemetryCollector, DEFAULT_TELEMETRY_CONFIG } from './telemetry';
+import { TelemetryCollector, DEFAULT_TELEMETRY_CONFIG } from "./telemetry";
 
 // Helper to create mock Response
 const createMockResponse = (
   data: unknown,
-  options: { ok?: boolean; status?: number; statusText?: string } = {}
+  options: { ok?: boolean; status?: number; statusText?: string } = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any => ({
   ok: options.ok ?? true,
   status: options.status ?? 200,
-  statusText: options.statusText ?? 'OK',
+  statusText: options.statusText ?? "OK",
   json: async () => data,
   headers: new Map(),
   redirected: false,
-  type: 'basic' as ResponseType,
-  url: '',
+  type: "basic" as ResponseType,
+  url: "",
   clone: () => createMockResponse(data, options),
   body: null,
   bodyUsed: false,
@@ -24,18 +24,18 @@ const createMockResponse = (
   bytes: async () => new Uint8Array(0),
 });
 
-describe('telemetry module', () => {
-  describe('DEFAULT_TELEMETRY_CONFIG', () => {
-    it('should have sensible defaults', () => {
-      expect(DEFAULT_TELEMETRY_CONFIG.endpoint).toBe('');
-      expect(DEFAULT_TELEMETRY_CONFIG.apiKey).toBe('');
+describe("telemetry module", () => {
+  describe("DEFAULT_TELEMETRY_CONFIG", () => {
+    it("should have sensible defaults", () => {
+      expect(DEFAULT_TELEMETRY_CONFIG.endpoint).toBe("");
+      expect(DEFAULT_TELEMETRY_CONFIG.apiKey).toBe("");
       expect(DEFAULT_TELEMETRY_CONFIG.flushIntervalMs).toBe(60000);
       expect(DEFAULT_TELEMETRY_CONFIG.maxBufferSize).toBe(1000);
       expect(DEFAULT_TELEMETRY_CONFIG.enabled).toBe(true);
     });
   });
 
-  describe('TelemetryCollector', () => {
+  describe("TelemetryCollector", () => {
     let collector: TelemetryCollector;
     let globalMockFetch: jest.SpyInstance | null = null;
 
@@ -43,7 +43,7 @@ describe('telemetry module', () => {
       // Ensure fetch is mocked for cleanup to avoid real network calls
       if (!globalMockFetch) {
         globalMockFetch = jest
-          .spyOn(global, 'fetch')
+          .spyOn(global, "fetch")
           .mockResolvedValue(createMockResponse({ received: 0 }));
       }
       if (collector) {
@@ -55,15 +55,15 @@ describe('telemetry module', () => {
       }
     });
 
-    describe('constructor', () => {
-      it('should use default config when no options provided', () => {
+    describe("constructor", () => {
+      it("should use default config when no options provided", () => {
         collector = new TelemetryCollector();
         const stats = collector.getBufferStats();
         expect(stats.flagCount).toBe(0);
         expect(stats.evaluationCount).toBe(0);
       });
 
-      it('should merge provided config with defaults', () => {
+      it("should merge provided config with defaults", () => {
         collector = new TelemetryCollector({
           flushIntervalMs: 30000,
         });
@@ -71,25 +71,25 @@ describe('telemetry module', () => {
       });
     });
 
-    describe('recordEvaluation', () => {
-      it('should record evaluations in buffer', () => {
+    describe("recordEvaluation", () => {
+      it("should record evaluations in buffer", () => {
         collector = new TelemetryCollector();
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', false);
-        collector.recordEvaluation('flag-2', true);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", false);
+        collector.recordEvaluation("flag-2", true);
 
         const stats = collector.getBufferStats();
         expect(stats.flagCount).toBe(2);
         expect(stats.evaluationCount).toBe(4);
       });
 
-      it('should not record when disabled', () => {
+      it("should not record when disabled", () => {
         collector = new TelemetryCollector({ enabled: false });
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', false);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", false);
 
         const stats = collector.getBufferStats();
         expect(stats.flagCount).toBe(0);
@@ -97,10 +97,10 @@ describe('telemetry module', () => {
       });
     });
 
-    describe('start', () => {
-      it('should not start without endpoint', () => {
+    describe("start", () => {
+      it("should not start without endpoint", () => {
         collector = new TelemetryCollector({
-          apiKey: 'test-key',
+          apiKey: "test-key",
           enabled: true,
         });
 
@@ -108,9 +108,9 @@ describe('telemetry module', () => {
         expect(collector.getBufferStats()).toBeDefined();
       });
 
-      it('should not start without apiKey', () => {
+      it("should not start without apiKey", () => {
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
+          endpoint: "https://api.test.com/telemetry",
           enabled: true,
         });
 
@@ -118,10 +118,10 @@ describe('telemetry module', () => {
         expect(collector.getBufferStats()).toBeDefined();
       });
 
-      it('should not start when disabled', () => {
+      it("should not start when disabled", () => {
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
           enabled: false,
         });
 
@@ -130,12 +130,12 @@ describe('telemetry module', () => {
       });
     });
 
-    describe('flush', () => {
+    describe("flush", () => {
       let mockFetch: jest.SpyInstance;
 
       beforeEach(() => {
         mockFetch = jest
-          .spyOn(global, 'fetch')
+          .spyOn(global, "fetch")
           .mockResolvedValue(createMockResponse({ received: 0 }));
         globalMockFetch = mockFetch;
       });
@@ -144,57 +144,57 @@ describe('telemetry module', () => {
         // Don't restore here - let global afterEach handle cleanup
       });
 
-      it('should not flush when buffer is empty', async () => {
+      it("should not flush when buffer is empty", async () => {
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
         await collector.flush();
         expect(mockFetch).not.toHaveBeenCalled();
       });
 
-      it('should not flush without endpoint', async () => {
+      it("should not flush without endpoint", async () => {
         collector = new TelemetryCollector({
-          apiKey: 'test-key',
+          apiKey: "test-key",
         });
 
-        collector.recordEvaluation('flag-1', true);
+        collector.recordEvaluation("flag-1", true);
         await collector.flush();
 
         expect(mockFetch).not.toHaveBeenCalled();
         expect(collector.getBufferStats().evaluationCount).toBe(1);
       });
 
-      it('should flush evaluations to endpoint', async () => {
+      it("should flush evaluations to endpoint", async () => {
         mockFetch.mockResolvedValue(createMockResponse({ received: 1 }));
 
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', false);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", false);
 
         await collector.flush();
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
         expect(mockFetch).toHaveBeenCalledWith(
-          'https://api.test.com/telemetry',
+          "https://api.test.com/telemetry",
           expect.objectContaining({
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              Authorization: 'Bearer test-key',
+              "Content-Type": "application/json",
+              Authorization: "Bearer test-key",
             },
-          })
+          }),
         );
 
         const call = mockFetch.mock.calls[0];
         const body = JSON.parse(call[1].body);
-        expect(body.evaluations['flag-1']).toEqual({
+        expect(body.evaluations["flag-1"]).toEqual({
           total: 3,
           true: 2,
           false: 1,
@@ -204,19 +204,19 @@ describe('telemetry module', () => {
         expect(collector.getBufferStats().evaluationCount).toBe(0);
       });
 
-      it('should emit flush event on success', async () => {
+      it("should emit flush event on success", async () => {
         mockFetch.mockResolvedValue(createMockResponse({ received: 2 }));
 
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
         const flushHandler = jest.fn();
-        collector.on('flush', flushHandler);
+        collector.on("flush", flushHandler);
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-2', false);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-2", false);
 
         await collector.flush();
 
@@ -225,59 +225,61 @@ describe('telemetry module', () => {
           expect.objectContaining({
             flagsReported: 2,
             received: 2,
-          })
+          }),
         );
       });
 
-      it('should restore data on flush failure', async () => {
+      it("should restore data on flush failure", async () => {
         mockFetch
           .mockResolvedValueOnce(
             createMockResponse(null, {
               ok: false,
               status: 500,
-              statusText: 'Internal Server Error',
-            })
+              statusText: "Internal Server Error",
+            }),
           )
           .mockResolvedValue(createMockResponse({ received: 1 })); // For cleanup
 
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', false);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", false);
 
-        await expect(collector.flush()).rejects.toThrow('Telemetry request failed');
+        await expect(collector.flush()).rejects.toThrow(
+          "Telemetry request failed",
+        );
 
         expect(collector.getBufferStats().evaluationCount).toBe(2);
       });
 
-      it('should merge restored data with new evaluations', async () => {
+      it("should merge restored data with new evaluations", async () => {
         mockFetch
           .mockResolvedValueOnce(
             createMockResponse(null, {
               ok: false,
               status: 500,
-              statusText: 'Internal Server Error',
-            })
+              statusText: "Internal Server Error",
+            }),
           )
           .mockResolvedValue(createMockResponse({ received: 1 })); // For second flush and cleanup
 
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', true);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", true);
 
         // First flush fails - data should be restored
         await expect(collector.flush()).rejects.toThrow();
         expect(collector.getBufferStats().evaluationCount).toBe(2);
 
         // Add more data - should merge with restored data
-        collector.recordEvaluation('flag-1', false);
+        collector.recordEvaluation("flag-1", false);
         expect(collector.getBufferStats().evaluationCount).toBe(3);
 
         // Second flush should include all data
@@ -285,14 +287,14 @@ describe('telemetry module', () => {
 
         const call = mockFetch.mock.calls[1];
         const body = JSON.parse(call[1].body);
-        expect(body.evaluations['flag-1']).toEqual({
+        expect(body.evaluations["flag-1"]).toEqual({
           total: 3,
           true: 2,
           false: 1,
         });
       });
 
-      it('should not allow concurrent flushes', async () => {
+      it("should not allow concurrent flushes", async () => {
         let resolveFlush: () => void;
         const flushPromise = new Promise<void>((resolve) => {
           resolveFlush = resolve;
@@ -304,15 +306,15 @@ describe('telemetry module', () => {
         });
 
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
-        collector.recordEvaluation('flag-1', true);
+        collector.recordEvaluation("flag-1", true);
 
         const flush1 = collector.flush();
 
-        collector.recordEvaluation('flag-2', false);
+        collector.recordEvaluation("flag-2", false);
 
         const flush2 = collector.flush();
 
@@ -326,12 +328,12 @@ describe('telemetry module', () => {
       });
     });
 
-    describe('stop', () => {
+    describe("stop", () => {
       let mockFetch: jest.SpyInstance;
 
       beforeEach(() => {
         mockFetch = jest
-          .spyOn(global, 'fetch')
+          .spyOn(global, "fetch")
           .mockResolvedValue(createMockResponse({ received: 1 }));
         globalMockFetch = mockFetch;
       });
@@ -340,13 +342,13 @@ describe('telemetry module', () => {
         // Don't restore here - let global afterEach handle cleanup
       });
 
-      it('should flush remaining data on stop', async () => {
+      it("should flush remaining data on stop", async () => {
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
         });
 
-        collector.recordEvaluation('flag-1', true);
+        collector.recordEvaluation("flag-1", true);
 
         await collector.stop();
 
@@ -355,12 +357,12 @@ describe('telemetry module', () => {
       });
     });
 
-    describe('auto-flush on buffer size', () => {
+    describe("auto-flush on buffer size", () => {
       let mockFetch: jest.SpyInstance;
 
       beforeEach(() => {
         mockFetch = jest
-          .spyOn(global, 'fetch')
+          .spyOn(global, "fetch")
           .mockResolvedValue(createMockResponse({ received: 1 }));
         globalMockFetch = mockFetch;
       });
@@ -369,19 +371,19 @@ describe('telemetry module', () => {
         // Don't restore here - let global afterEach handle cleanup
       });
 
-      it('should auto-flush when buffer reaches maxBufferSize', async () => {
+      it("should auto-flush when buffer reaches maxBufferSize", async () => {
         collector = new TelemetryCollector({
-          endpoint: 'https://api.test.com/telemetry',
-          apiKey: 'test-key',
+          endpoint: "https://api.test.com/telemetry",
+          apiKey: "test-key",
           maxBufferSize: 3,
         });
 
-        collector.recordEvaluation('flag-1', true);
-        collector.recordEvaluation('flag-1', true);
+        collector.recordEvaluation("flag-1", true);
+        collector.recordEvaluation("flag-1", true);
 
         expect(mockFetch).not.toHaveBeenCalled();
 
-        collector.recordEvaluation('flag-1', false);
+        collector.recordEvaluation("flag-1", false);
 
         await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -389,23 +391,23 @@ describe('telemetry module', () => {
       });
     });
 
-    describe('updateConfig', () => {
-      it('should update enabled state', () => {
+    describe("updateConfig", () => {
+      it("should update enabled state", () => {
         collector = new TelemetryCollector({
           enabled: true,
         });
 
-        collector.recordEvaluation('flag-1', true);
+        collector.recordEvaluation("flag-1", true);
         expect(collector.getBufferStats().evaluationCount).toBe(1);
 
         collector.updateConfig({ enabled: false });
 
-        collector.recordEvaluation('flag-2', true);
+        collector.recordEvaluation("flag-2", true);
         expect(collector.getBufferStats().evaluationCount).toBe(1);
 
         collector.updateConfig({ enabled: true });
 
-        collector.recordEvaluation('flag-3', true);
+        collector.recordEvaluation("flag-3", true);
         expect(collector.getBufferStats().evaluationCount).toBe(2);
       });
     });

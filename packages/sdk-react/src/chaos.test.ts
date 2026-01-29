@@ -16,13 +16,16 @@ import {
   RateLimitError,
   InternalError,
   classifyError,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 
-describe('Chaos Engineering Tests', () => {
-  describe('Network Chaos', () => {
-    it('should handle complete network outage with graceful degradation', async () => {
+describe("Chaos Engineering Tests", () => {
+  describe("Network Chaos", () => {
+    it("should handle complete network outage with graceful degradation", async () => {
       const cache = new FlagCache({ ttl: 60000, staleTtl: 300000 });
-      const cb = new CircuitBreaker({ failureThreshold: 3, recoveryTimeout: 100 });
+      const cb = new CircuitBreaker({
+        failureThreshold: 3,
+        recoveryTimeout: 100,
+      });
 
       // Pre-populate cache
       cache.set({ feature_a: true, feature_b: false });
@@ -31,7 +34,7 @@ describe('Chaos Engineering Tests', () => {
 
       const fetchWithNetwork = async () => {
         if (!networkAvailable) {
-          throw new NetworkError('ECONNREFUSED: Connection refused');
+          throw new NetworkError("ECONNREFUSED: Connection refused");
         }
         return { feature_a: true, feature_b: true };
       };
@@ -62,7 +65,9 @@ describe('Chaos Engineering Tests', () => {
       await new Promise((r) => setTimeout(r, 150));
 
       // Should be able to make requests again (either half-open or allows request)
-      expect([CircuitState.HALF_OPEN, CircuitState.OPEN]).toContain(cb.getState());
+      expect([CircuitState.HALF_OPEN, CircuitState.OPEN]).toContain(
+        cb.getState(),
+      );
 
       // Force into half-open by waiting if still open
       if (cb.getState() === CircuitState.OPEN) {
@@ -71,10 +76,12 @@ describe('Chaos Engineering Tests', () => {
 
       const result = await cb.execute(fetchWithNetwork);
       expect(result).toEqual({ feature_a: true, feature_b: true });
-      expect([CircuitState.CLOSED, CircuitState.HALF_OPEN]).toContain(cb.getState());
+      expect([CircuitState.CLOSED, CircuitState.HALF_OPEN]).toContain(
+        cb.getState(),
+      );
     });
 
-    it('should handle intermittent network failures', async () => {
+    it("should handle intermittent network failures", async () => {
       const failureRate = 0.5; // 50% failure rate
       let callCount = 0;
       let successCount = 0;
@@ -82,7 +89,7 @@ describe('Chaos Engineering Tests', () => {
       const unreliableNetwork = async () => {
         callCount++;
         if (Math.random() < failureRate) {
-          throw new NetworkError('ETIMEDOUT: Connection timed out');
+          throw new NetworkError("ETIMEDOUT: Connection timed out");
         }
         successCount++;
         return { success: true };
@@ -103,7 +110,7 @@ describe('Chaos Engineering Tests', () => {
             } catch {
               return false;
             }
-          })
+          }),
       );
 
       // Most should succeed due to retries
@@ -111,9 +118,11 @@ describe('Chaos Engineering Tests', () => {
       expect(successfulResults).toBeGreaterThan(5); // At least 50% success with retries
     });
 
-    it('should handle DNS resolution failures', async () => {
+    it("should handle DNS resolution failures", async () => {
       const fetchWithDNSFailure = async () => {
-        throw new NetworkError('ENOTFOUND: DNS resolution failed for api.example.com');
+        throw new NetworkError(
+          "ENOTFOUND: DNS resolution failed for api.example.com",
+        );
       };
 
       const result = await fetchWithRetry(fetchWithDNSFailure, {
@@ -123,19 +132,19 @@ describe('Chaos Engineering Tests', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('ENOTFOUND');
+      expect(result.error?.message).toContain("ENOTFOUND");
       expect(result.attempts).toBe(3); // 1 + 2 retries
     });
 
-    it('should handle connection reset mid-request', async () => {
+    it("should handle connection reset mid-request", async () => {
       let attemptCount = 0;
 
       const fetchWithReset = async () => {
         attemptCount++;
         if (attemptCount < 3) {
-          throw new NetworkError('ECONNRESET: Connection reset by peer');
+          throw new NetworkError("ECONNRESET: Connection reset by peer");
         }
-        return { data: 'success' };
+        return { data: "success" };
       };
 
       const result = await fetchWithRetry(fetchWithReset, {
@@ -145,16 +154,16 @@ describe('Chaos Engineering Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data).toEqual({ data: 'success' });
+      expect(result.data).toEqual({ data: "success" });
       expect(attemptCount).toBe(3);
     });
   });
 
-  describe('Latency Chaos', () => {
-    it('should handle slow responses with timeout', async () => {
+  describe("Latency Chaos", () => {
+    it("should handle slow responses with timeout", async () => {
       const slowRequest = async () => {
         await new Promise((r) => setTimeout(r, 100)); // Simulate slow response
-        return { data: 'slow' };
+        return { data: "slow" };
       };
 
       // With a shorter timeout, this should fail
@@ -165,20 +174,20 @@ describe('Chaos Engineering Tests', () => {
         await Promise.race([
           slowRequest(),
           new Promise((_, reject) => {
-            controller.signal.addEventListener('abort', () => {
-              reject(new Error('Request timeout'));
+            controller.signal.addEventListener("abort", () => {
+              reject(new Error("Request timeout"));
             });
           }),
         ]);
-        fail('Should have timed out');
+        fail("Should have timed out");
       } catch (error) {
-        expect((error as Error).message).toBe('Request timeout');
+        expect((error as Error).message).toBe("Request timeout");
       } finally {
         clearTimeout(timeoutId);
       }
     });
 
-    it('should handle variable latency spikes', async () => {
+    it("should handle variable latency spikes", async () => {
       const latencies: number[] = [];
       let callCount = 0;
 
@@ -201,8 +210,8 @@ describe('Chaos Engineering Tests', () => {
     });
   });
 
-  describe('Service Chaos', () => {
-    it('should handle rate limiting with backoff', async () => {
+  describe("Service Chaos", () => {
+    it("should handle rate limiting with backoff", async () => {
       let requestCount = 0;
       const rateLimit = 3;
       const resetAfter = 5;
@@ -217,7 +226,7 @@ describe('Chaos Engineering Tests', () => {
           requestCount = 1;
           return { success: true };
         }
-        throw new RateLimitError('429 Too Many Requests', { retryAfter: 10 });
+        throw new RateLimitError("429 Too Many Requests", { retryAfter: 10 });
       };
 
       // First 3 should succeed
@@ -238,7 +247,7 @@ describe('Chaos Engineering Tests', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should handle partial service degradation', async () => {
+    it("should handle partial service degradation", async () => {
       const services = {
         flags: true,
         targeting: false, // Targeting service down
@@ -252,7 +261,7 @@ describe('Chaos Engineering Tests', () => {
         if (services.flags) {
           results.flags = { feature_a: true };
         } else {
-          throw new Error('Flags service unavailable');
+          throw new Error("Flags service unavailable");
         }
 
         // Targeting service (optional - graceful degradation)
@@ -277,25 +286,25 @@ describe('Chaos Engineering Tests', () => {
     });
   });
 
-  describe('Data Chaos', () => {
-    it('should handle malformed responses', async () => {
+  describe("Data Chaos", () => {
+    it("should handle malformed responses", async () => {
       const malformedResponses: unknown[] = [
         null,
         undefined,
-        '',
-        'not json',
-        { unexpected: 'structure' },
-        { flags: 'not an object' },
+        "",
+        "not json",
+        { unexpected: "structure" },
+        { flags: "not an object" },
       ];
 
       for (const response of malformedResponses) {
         const parseResponse = () => {
-          if (!response || typeof response !== 'object') {
-            throw new Error('Invalid response format');
+          if (!response || typeof response !== "object") {
+            throw new Error("Invalid response format");
           }
           const resp = response as Record<string, unknown>;
-          if (!resp.flags || typeof resp.flags !== 'object') {
-            throw new Error('Invalid flags format');
+          if (!resp.flags || typeof resp.flags !== "object") {
+            throw new Error("Invalid flags format");
           }
           return resp.flags;
         };
@@ -304,7 +313,7 @@ describe('Chaos Engineering Tests', () => {
       }
     });
 
-    it('should handle cache corruption recovery', async () => {
+    it("should handle cache corruption recovery", async () => {
       const cache = new FlagCache({ ttl: 60000, staleTtl: 300000 });
 
       // Normal set
@@ -320,7 +329,7 @@ describe('Chaos Engineering Tests', () => {
       expect(cache.get()?.flags).toEqual({ feature: false });
     });
 
-    it('should handle inconsistent flag states', async () => {
+    it("should handle inconsistent flag states", async () => {
       const cache = new FlagCache({ ttl: 60000, staleTtl: 300000 });
 
       // Server returns different states on consecutive calls
@@ -346,8 +355,8 @@ describe('Chaos Engineering Tests', () => {
     });
   });
 
-  describe('Recovery Chaos', () => {
-    it('should recover from extended outage', async () => {
+  describe("Recovery Chaos", () => {
+    it("should recover from extended outage", async () => {
       const cb = new CircuitBreaker({
         failureThreshold: 2,
         recoveryTimeout: 50,
@@ -358,9 +367,9 @@ describe('Chaos Engineering Tests', () => {
 
       const unreliableService = async () => {
         if (!serviceHealthy) {
-          throw new InternalError('Service unavailable');
+          throw new InternalError("Service unavailable");
         }
-        return { status: 'healthy' };
+        return { status: "healthy" };
       };
 
       // Trigger circuit open
@@ -378,7 +387,9 @@ describe('Chaos Engineering Tests', () => {
       await new Promise((r) => setTimeout(r, 60));
 
       // Circuit should transition to half-open (or still open if timing varies)
-      expect([CircuitState.HALF_OPEN, CircuitState.OPEN]).toContain(cb.getState());
+      expect([CircuitState.HALF_OPEN, CircuitState.OPEN]).toContain(
+        cb.getState(),
+      );
 
       // Wait a bit more if still open
       if (cb.getState() === CircuitState.OPEN) {
@@ -388,10 +399,12 @@ describe('Chaos Engineering Tests', () => {
       // Successful requests should close circuit
       await cb.execute(unreliableService);
       await cb.execute(unreliableService);
-      expect([CircuitState.CLOSED, CircuitState.HALF_OPEN]).toContain(cb.getState());
+      expect([CircuitState.CLOSED, CircuitState.HALF_OPEN]).toContain(
+        cb.getState(),
+      );
     });
 
-    it('should handle flapping service (rapid up/down)', async () => {
+    it("should handle flapping service (rapid up/down)", async () => {
       const cb = new CircuitBreaker({
         failureThreshold: 2,
         recoveryTimeout: 30,
@@ -401,13 +414,14 @@ describe('Chaos Engineering Tests', () => {
       let healthy = true;
       const stateChanges: string[] = [];
 
-      cb.on('state-change', (data) => {
-        if (data?.from && data?.to) stateChanges.push(`${data.from}->${data.to}`);
+      cb.on("state-change", (data) => {
+        if (data?.from && data?.to)
+          stateChanges.push(`${data.from}->${data.to}`);
       });
 
       const flappingService = async () => {
         if (!healthy) {
-          throw new Error('Service down');
+          throw new Error("Service down");
         }
         return { ok: true };
       };
@@ -442,8 +456,8 @@ describe('Chaos Engineering Tests', () => {
     });
   });
 
-  describe('Load Chaos', () => {
-    it('should handle burst of concurrent requests', async () => {
+  describe("Load Chaos", () => {
+    it("should handle burst of concurrent requests", async () => {
       const dedup = new RequestDeduplicator();
       let activeRequests = 0;
       let maxConcurrent = 0;
@@ -460,7 +474,7 @@ describe('Chaos Engineering Tests', () => {
       const results = await Promise.all(
         Array(20)
           .fill(null)
-          .map(() => dedup.dedupe('burst', trackConcurrency))
+          .map(() => dedup.dedupe("burst", trackConcurrency)),
       );
 
       // Due to deduplication, max concurrent should be 1
@@ -469,7 +483,7 @@ describe('Chaos Engineering Tests', () => {
       expect(new Set(results.map((r) => JSON.stringify(r))).size).toBe(1);
     });
 
-    it('should handle sustained high load', async () => {
+    it("should handle sustained high load", async () => {
       const cb = new CircuitBreaker({
         failureThreshold: 50, // Increased to prevent circuit from opening during test
         monitoringWindow: 1000,
@@ -481,7 +495,7 @@ describe('Chaos Engineering Tests', () => {
       const loadedService = async () => {
         requestCount++;
         if (Math.random() < errorRate) {
-          throw new Error('Service overloaded');
+          throw new Error("Service overloaded");
         }
         return { ok: true };
       };
@@ -507,16 +521,28 @@ describe('Chaos Engineering Tests', () => {
     });
   });
 
-  describe('Error Classification Chaos', () => {
-    it('should correctly classify various error types', () => {
+  describe("Error Classification Chaos", () => {
+    it("should correctly classify various error types", () => {
       // Test with proper RollgateError subtypes
       const errorScenarios = [
-        { error: new NetworkError('Connection refused'), expected: 'NETWORK' },
-        { error: new NetworkError('Connection timed out'), expected: 'NETWORK' },
-        { error: new InternalError('503 Service Unavailable'), expected: 'INTERNAL' },
-        { error: new InternalError('502 Bad Gateway'), expected: 'INTERNAL' },
-        { error: new InternalError('500 Internal Server Error'), expected: 'INTERNAL' },
-        { error: new RateLimitError('Too Many Requests'), expected: 'RATE_LIMIT' },
+        { error: new NetworkError("Connection refused"), expected: "NETWORK" },
+        {
+          error: new NetworkError("Connection timed out"),
+          expected: "NETWORK",
+        },
+        {
+          error: new InternalError("503 Service Unavailable"),
+          expected: "INTERNAL",
+        },
+        { error: new InternalError("502 Bad Gateway"), expected: "INTERNAL" },
+        {
+          error: new InternalError("500 Internal Server Error"),
+          expected: "INTERNAL",
+        },
+        {
+          error: new RateLimitError("Too Many Requests"),
+          expected: "RATE_LIMIT",
+        },
       ];
 
       for (const { error, expected } of errorScenarios) {
@@ -525,23 +551,23 @@ describe('Chaos Engineering Tests', () => {
       }
 
       // Generic errors should be classified as INTERNAL
-      const genericError = new Error('Some unknown error');
+      const genericError = new Error("Some unknown error");
       const classifiedGeneric = classifyError(genericError);
-      expect(classifiedGeneric.category).toBe('INTERNAL');
+      expect(classifiedGeneric.category).toBe("INTERNAL");
 
       // TypeErrors should be classified as NETWORK (fetch failures)
-      const typeError = new TypeError('Failed to fetch');
+      const typeError = new TypeError("Failed to fetch");
       const classifiedType = classifyError(typeError);
-      expect(classifiedType.category).toBe('NETWORK');
+      expect(classifiedType.category).toBe("NETWORK");
     });
 
-    it('should handle unknown error types gracefully', () => {
+    it("should handle unknown error types gracefully", () => {
       const unknownErrors = [
-        new Error('Something unexpected happened'),
-        new Error(''),
-        new Error('Random error 12345'),
-        { message: 'Not an Error object' },
-        'Just a string',
+        new Error("Something unexpected happened"),
+        new Error(""),
+        new Error("Random error 12345"),
+        { message: "Not an Error object" },
+        "Just a string",
         null,
         undefined,
       ];

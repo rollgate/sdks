@@ -1,5 +1,5 @@
-import { computed, inject, type ComputedRef } from 'vue';
-import type { RollgateContext } from './context';
+import { computed, inject, type ComputedRef } from "vue";
+import type { RollgateContext } from "./context";
 
 /**
  * Reactive hook to check if a specific flag is enabled.
@@ -24,11 +24,16 @@ import type { RollgateContext } from './context';
  * </template>
  * ```
  */
-export function useFlag(flagKey: string, defaultValue = false): ComputedRef<boolean> {
-  const context = inject<RollgateContext>('rollgate');
+export function useFlag(
+  flagKey: string,
+  defaultValue = false,
+): ComputedRef<boolean> {
+  const context = inject<RollgateContext>("rollgate");
 
   if (!context) {
-    throw new Error('[Rollgate] No Rollgate context found. Did you install the RollgatePlugin?');
+    throw new Error(
+      "[Rollgate] No Rollgate context found. Did you install the RollgatePlugin?",
+    );
   }
 
   return computed(() => {

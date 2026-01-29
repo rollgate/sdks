@@ -12,8 +12,8 @@
  */
 
 // Cache
-export { FlagCache, DEFAULT_CACHE_CONFIG } from './cache';
-export type { CacheConfig, CacheStats } from './cache';
+export { FlagCache, DEFAULT_CACHE_CONFIG } from "./cache";
+export type { CacheConfig, CacheStats } from "./cache";
 
 // Circuit Breaker
 export {
@@ -21,15 +21,20 @@ export {
   CircuitState,
   CircuitOpenError,
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
-} from './circuit-breaker';
-export type { CircuitBreakerConfig } from './circuit-breaker';
+} from "./circuit-breaker";
+export type { CircuitBreakerConfig } from "./circuit-breaker";
 
 // Retry
-export { fetchWithRetry, calculateBackoff, isRetryableError, DEFAULT_RETRY_CONFIG } from './retry';
-export type { RetryConfig, RetryResult } from './retry';
+export {
+  fetchWithRetry,
+  calculateBackoff,
+  isRetryableError,
+  DEFAULT_RETRY_CONFIG,
+} from "./retry";
+export type { RetryConfig, RetryResult } from "./retry";
 
 // Dedup
-export { RequestDeduplicator } from './dedup';
+export { RequestDeduplicator } from "./dedup";
 
 // Errors
 export {
@@ -50,11 +55,11 @@ export {
   isNetworkError,
   isInternalError,
   classifyError,
-} from './errors';
-export type { APIErrorResponse } from './errors';
+} from "./errors";
+export type { APIErrorResponse } from "./errors";
 
 // Metrics
-export { SDKMetrics, getMetrics, createMetrics } from './metrics';
+export { SDKMetrics, getMetrics, createMetrics } from "./metrics";
 export type {
   MetricsSnapshot,
   FlagEvaluationMetrics,
@@ -63,7 +68,7 @@ export type {
   WindowedStats,
   RequestMetrics,
   FlagEvaluationRecord,
-} from './metrics';
+} from "./metrics";
 
 // Tracing
 export {
@@ -79,11 +84,11 @@ export {
   generateSpanId,
   generateRequestId,
   TraceHeaders,
-} from './tracing';
-export type { TraceContext, RequestTrace } from './tracing';
+} from "./tracing";
+export type { TraceContext, RequestTrace } from "./tracing";
 
 // Types
-export { DEFAULT_SDK_CONFIG } from './types';
+export { DEFAULT_SDK_CONFIG } from "./types";
 export type {
   UserContext,
   FlagConfig,
@@ -94,4 +99,4 @@ export type {
   FlagChangeEvent,
   FlagsChangedEvent,
   ErrorEvent,
-} from './types';
+} from "./types";

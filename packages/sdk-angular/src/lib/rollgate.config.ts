@@ -1,5 +1,9 @@
-import { InjectionToken } from '@angular/core';
-import type { RetryConfig, CircuitBreakerConfig, CacheConfig } from '@rollgate/sdk-core';
+import { InjectionToken } from "@angular/core";
+import type {
+  RetryConfig,
+  CircuitBreakerConfig,
+  CacheConfig,
+} from "@rollgate/sdk-core";
 
 export interface UserContext {
   id: string;
@@ -35,4 +39,6 @@ export interface RollgateModuleConfig extends RollgateConfig {
   user?: UserContext;
 }
 
-export const ROLLGATE_CONFIG = new InjectionToken<RollgateModuleConfig>('ROLLGATE_CONFIG');
+export const ROLLGATE_CONFIG = new InjectionToken<RollgateModuleConfig>(
+  "ROLLGATE_CONFIG",
+);

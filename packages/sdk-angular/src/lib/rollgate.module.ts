@@ -1,7 +1,7 @@
-import { NgModule, ModuleWithProviders } from '@angular/core';
-import { RollgateService } from './rollgate.service';
-import { FlagDirective } from './flag.directive';
-import { ROLLGATE_CONFIG, type RollgateModuleConfig } from './rollgate.config';
+import { NgModule, ModuleWithProviders } from "@angular/core";
+import { RollgateService } from "./rollgate.service";
+import { FlagDirective } from "./flag.directive";
+import { ROLLGATE_CONFIG, type RollgateModuleConfig } from "./rollgate.config";
 
 @NgModule({
   imports: [FlagDirective],
@@ -23,10 +23,15 @@ export class RollgateModule {
    * export class AppModule {}
    * ```
    */
-  static forRoot(config: RollgateModuleConfig): ModuleWithProviders<RollgateModule> {
+  static forRoot(
+    config: RollgateModuleConfig,
+  ): ModuleWithProviders<RollgateModule> {
     return {
       ngModule: RollgateModule,
-      providers: [{ provide: ROLLGATE_CONFIG, useValue: config }, RollgateService],
+      providers: [
+        { provide: ROLLGATE_CONFIG, useValue: config },
+        RollgateService,
+      ],
     };
   }
 

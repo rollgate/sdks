@@ -4,38 +4,38 @@ Official SDKs for [Rollgate](https://rollgate.io) - Feature flags made simple.
 
 ## Available SDKs
 
-| SDK | Package | Install |
-|-----|---------|---------|
-| **Node.js** | [@rollgate/sdk-node](./packages/sdk-node) | `npm install @rollgate/sdk-node` |
-| **React** | [@rollgate/sdk-react](./packages/sdk-react) | `npm install @rollgate/sdk-react` |
-| **Vue** | [@rollgate/sdk-vue](./packages/sdk-vue) | `npm install @rollgate/sdk-vue` |
-| **Angular** | [@rollgate/sdk-angular](./packages/sdk-angular) | `npm install @rollgate/sdk-angular` |
-| **Svelte** | [@rollgate/sdk-svelte](./packages/sdk-svelte) | `npm install @rollgate/sdk-svelte` |
-| **Go** | [sdk-go](./packages/sdk-go) | `go get github.com/rollgate/sdks/packages/sdk-go` |
-| **Java** | [sdk-java](./packages/sdk-java) | Maven/Gradle |
-| **Python** | [rollgate](./packages/sdk-python) | `pip install rollgate` |
+| SDK         | Package                                         | Install                                           |
+| ----------- | ----------------------------------------------- | ------------------------------------------------- |
+| **Node.js** | [@rollgate/sdk-node](./packages/sdk-node)       | `npm install @rollgate/sdk-node`                  |
+| **React**   | [@rollgate/sdk-react](./packages/sdk-react)     | `npm install @rollgate/sdk-react`                 |
+| **Vue**     | [@rollgate/sdk-vue](./packages/sdk-vue)         | `npm install @rollgate/sdk-vue`                   |
+| **Angular** | [@rollgate/sdk-angular](./packages/sdk-angular) | `npm install @rollgate/sdk-angular`               |
+| **Svelte**  | [@rollgate/sdk-svelte](./packages/sdk-svelte)   | `npm install @rollgate/sdk-svelte`                |
+| **Go**      | [sdk-go](./packages/sdk-go)                     | `go get github.com/rollgate/sdks/packages/sdk-go` |
+| **Java**    | [sdk-java](./packages/sdk-java)                 | Maven/Gradle                                      |
+| **Python**  | [rollgate](./packages/sdk-python)               | `pip install rollgate`                            |
 
 ## Quick Start
 
 ### Node.js
 
 ```typescript
-import { RollgateClient } from '@rollgate/sdk-node';
+import { RollgateClient } from "@rollgate/sdk-node";
 
 const client = new RollgateClient({
-  apiKey: 'your-api-key',
-  environment: 'production',
+  apiKey: "your-api-key",
+  environment: "production",
 });
 
 await client.initialize();
 
-const isEnabled = client.isEnabled('my-feature', { userId: 'user-123' });
+const isEnabled = client.isEnabled("my-feature", { userId: "user-123" });
 ```
 
 ### React
 
 ```tsx
-import { RollgateProvider, useFlag } from '@rollgate/sdk-react';
+import { RollgateProvider, useFlag } from "@rollgate/sdk-react";
 
 function App() {
   return (
@@ -46,7 +46,7 @@ function App() {
 }
 
 function MyComponent() {
-  const isEnabled = useFlag('my-feature');
+  const isEnabled = useFlag("my-feature");
   return isEnabled ? <NewFeature /> : <OldFeature />;
 }
 ```
@@ -73,4 +73,3 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for gu
 ## License
 
 MIT License - see [LICENSE](./LICENSE) for details.
-

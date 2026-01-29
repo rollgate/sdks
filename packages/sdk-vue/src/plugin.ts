@@ -1,4 +1,4 @@
-import { ref, readonly, type App, type Ref } from 'vue';
+import { ref, readonly, type App, type Ref } from "vue";
 import {
   // Retry
   fetchWithRetry,
@@ -22,13 +22,13 @@ import {
   // Tracing
   createTraceContext,
   getTraceHeaders,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 import type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
   MetricsSnapshot,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 
 export interface RollgateConfig {
   /** Your Rollgate API key (server or client key) */
@@ -96,17 +96,24 @@ export const RollgatePlugin = {
     const currentUser: Ref<UserContext | undefined> = ref(options.user);
 
     // Configuration
-    const baseUrl = options.baseUrl || 'https://api.rollgate.io';
+    const baseUrl = options.baseUrl || "https://api.rollgate.io";
     const sseUrl = options.sseUrl || baseUrl;
     const refreshInterval = options.refreshInterval ?? 30000;
-    const enableStreaming = options.enableStreaming ?? options.streaming ?? false;
+    const enableStreaming =
+      options.enableStreaming ?? options.streaming ?? false;
     const timeout = options.timeout ?? 5000;
-    const retryConfig: RetryConfig = { ...DEFAULT_RETRY_CONFIG, ...options.retry };
+    const retryConfig: RetryConfig = {
+      ...DEFAULT_RETRY_CONFIG,
+      ...options.retry,
+    };
     const circuitBreakerConfig: CircuitBreakerConfig = {
       ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
       ...options.circuitBreaker,
     };
-    const cacheConfig: CacheConfig = { ...DEFAULT_CACHE_CONFIG, ...options.cache };
+    const cacheConfig: CacheConfig = {
+      ...DEFAULT_CACHE_CONFIG,
+      ...options.cache,
+    };
 
     // Create instances
     const metrics = createMetrics();
@@ -119,12 +126,12 @@ export const RollgatePlugin = {
     let lastETag: string | null = null;
 
     // Track circuit state changes
-    circuitBreaker.on('state-change', (data) => {
+    circuitBreaker.on("state-change", (data) => {
       if (!data?.to) return;
       circuitStateRef.value = data.to;
-      let metricsState: 'closed' | 'open' | 'half-open' = 'closed';
-      if (data.to === CircuitState.OPEN) metricsState = 'open';
-      else if (data.to === CircuitState.HALF_OPEN) metricsState = 'half-open';
+      let metricsState: "closed" | "open" | "half-open" = "closed";
+      if (data.to === CircuitState.OPEN) metricsState = "open";
+      else if (data.to === CircuitState.HALF_OPEN) metricsState = "half-open";
       metrics.recordCircuitStateChange(metricsState);
     });
 
@@ -138,18 +145,20 @@ export const RollgatePlugin = {
 
     // Fetch flags function
     const fetchFlags = async () => {
-      return dedup.dedupe('fetch-flags', async () => {
+      return dedup.dedupe("fetch-flags", async () => {
         const url = new URL(`${baseUrl}/api/v1/sdk/flags`);
-        const endpoint = '/api/v1/sdk/flags';
+        const endpoint = "/api/v1/sdk/flags";
         const startTime = Date.now();
         let statusCode = 0;
 
         if (currentUser.value?.id) {
-          url.searchParams.set('user_id', currentUser.value.id);
+          url.searchParams.set("user_id", currentUser.value.id);
         }
 
         if (!circuitBreaker.isAllowingRequests()) {
-          console.warn('[Rollgate] Circuit breaker is open, using cached flags');
+          console.warn(
+            "[Rollgate] Circuit breaker is open, using cached flags",
+          );
           useCachedFallback();
           return;
         }
@@ -166,11 +175,11 @@ export const RollgatePlugin = {
 
                 const headers: Record<string, string> = {
                   Authorization: `Bearer ${options.apiKey}`,
-                  'Content-Type': 'application/json',
+                  "Content-Type": "application/json",
                   ...traceHeaders,
                 };
                 if (lastETag) {
-                  headers['If-None-Match'] = lastETag;
+                  headers["If-None-Match"] = lastETag;
                 }
 
                 const response = await fetch(url.toString(), {
@@ -189,7 +198,7 @@ export const RollgatePlugin = {
                   throw err;
                 }
 
-                const newETag = response.headers.get('ETag');
+                const newETag = response.headers.get("ETag");
                 if (newETag) {
                   lastETag = newETag;
                 }
@@ -249,13 +258,19 @@ export const RollgatePlugin = {
           });
 
           if (err instanceof CircuitOpenError) {
-            console.warn('[Rollgate] Circuit breaker is open:', err.message);
+            console.warn("[Rollgate] Circuit breaker is open:", err.message);
           } else if (classifiedError.category === ErrorCategory.AUTH) {
-            console.error('[Rollgate] Authentication error:', classifiedError.message);
+            console.error(
+              "[Rollgate] Authentication error:",
+              classifiedError.message,
+            );
           } else if (classifiedError.category === ErrorCategory.RATE_LIMIT) {
-            console.warn('[Rollgate] Rate limited:', classifiedError.message);
+            console.warn("[Rollgate] Rate limited:", classifiedError.message);
           } else {
-            console.error('[Rollgate] Error fetching flags:', classifiedError.message);
+            console.error(
+              "[Rollgate] Error fetching flags:",
+              classifiedError.message,
+            );
           }
 
           useCachedFallback();
@@ -279,14 +294,14 @@ export const RollgatePlugin = {
       if (!enableStreaming) return;
 
       const url = new URL(`${sseUrl}/api/v1/sdk/stream`);
-      url.searchParams.set('token', options.apiKey);
+      url.searchParams.set("token", options.apiKey);
       if (currentUser.value?.id) {
-        url.searchParams.set('user_id', currentUser.value.id);
+        url.searchParams.set("user_id", currentUser.value.id);
       }
 
       eventSource = new EventSource(url.toString());
 
-      eventSource.addEventListener('init', (event: MessageEvent) => {
+      eventSource.addEventListener("init", (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data) as FlagsResponse;
           flags.value = data.flags || {};
@@ -294,26 +309,29 @@ export const RollgatePlugin = {
           error.value = null;
           isReady.value = true;
         } catch (e) {
-          console.error('[Rollgate] Failed to parse init event:', e);
+          console.error("[Rollgate] Failed to parse init event:", e);
         }
       });
 
-      eventSource.addEventListener('flag-changed', () => {
+      eventSource.addEventListener("flag-changed", () => {
         fetchFlags();
       });
 
-      eventSource.addEventListener('flag-update', (event: MessageEvent) => {
+      eventSource.addEventListener("flag-update", (event: MessageEvent) => {
         try {
-          const data = JSON.parse(event.data) as { key: string; enabled: boolean };
+          const data = JSON.parse(event.data) as {
+            key: string;
+            enabled: boolean;
+          };
           flags.value = { ...flags.value, [data.key]: data.enabled };
         } catch (e) {
-          console.error('[Rollgate] Failed to parse flag-update event:', e);
+          console.error("[Rollgate] Failed to parse flag-update event:", e);
         }
       });
 
       eventSource.onerror = () => {
-        console.warn('[Rollgate] SSE connection error');
-        error.value = new Error('SSE connection error');
+        console.warn("[Rollgate] SSE connection error");
+        error.value = new Error("SSE connection error");
       };
     };
 
@@ -348,7 +366,10 @@ export const RollgatePlugin = {
     };
 
     // Context methods
-    const isEnabled = (flagKey: string, defaultValue: boolean = false): boolean => {
+    const isEnabled = (
+      flagKey: string,
+      defaultValue: boolean = false,
+    ): boolean => {
       const startTime = performance.now();
       const result = flags.value[flagKey] ?? defaultValue;
       const evaluationTime = performance.now() - startTime;
@@ -404,7 +425,7 @@ export const RollgatePlugin = {
     };
 
     // Provide context to all components
-    app.provide('rollgate', context);
+    app.provide("rollgate", context);
 
     // Also make it available via app.config.globalProperties
     app.config.globalProperties.$rollgate = context;

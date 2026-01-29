@@ -11,18 +11,18 @@ npm install @rollgate/sdk-react
 ## Quick Start
 
 ```tsx
-import { RollgateProvider, useFlag } from '@rollgate/sdk-react';
+import { RollgateProvider, useFlag } from "@rollgate/sdk-react";
 
 function App() {
   return (
-    <RollgateProvider config={{ apiKey: 'sb_client_your_api_key' }}>
+    <RollgateProvider config={{ apiKey: "sb_client_your_api_key" }}>
       <MyComponent />
     </RollgateProvider>
   );
 }
 
 function MyComponent() {
-  const showNewFeature = useFlag('new-feature');
+  const showNewFeature = useFlag("new-feature");
   return showNewFeature ? <NewFeature /> : <OldFeature />;
 }
 ```
@@ -32,16 +32,16 @@ function MyComponent() {
 ```tsx
 <RollgateProvider
   config={{
-    apiKey: 'sb_client_your_api_key', // Required
-    baseUrl: 'https://api.rollgate.io', // Optional
+    apiKey: "sb_client_your_api_key", // Required
+    baseUrl: "https://api.rollgate.io", // Optional
     refreshInterval: 60000, // Polling interval in ms (default: 60000)
     enableStreaming: false, // Enable SSE for real-time (default: false)
   }}
   user={{
     // Optional: Initial user context
-    id: 'user-123',
-    email: 'user@example.com',
-    attributes: { plan: 'premium' },
+    id: "user-123",
+    email: "user@example.com",
+    attributes: { plan: "premium" },
   }}
 >
   {children}
@@ -86,8 +86,8 @@ See full guide: [Production Setup](../../docs/PRODUCTION-SETUP.md)
 Check a single flag:
 
 ```tsx
-const showFeature = useFlag('feature-key');
-const showBeta = useFlag('beta-feature', false); // With default
+const showFeature = useFlag("feature-key");
+const showBeta = useFlag("beta-feature", false); // With default
 ```
 
 ### useFlags
@@ -95,7 +95,7 @@ const showBeta = useFlag('beta-feature', false); // With default
 Check multiple flags:
 
 ```tsx
-const flags = useFlags(['dark-mode', 'new-sidebar']);
+const flags = useFlags(["dark-mode", "new-sidebar"]);
 // { 'dark-mode': true, 'new-sidebar': false }
 ```
 
@@ -104,7 +104,8 @@ const flags = useFlags(['dark-mode', 'new-sidebar']);
 Access the full context:
 
 ```tsx
-const { isEnabled, isLoading, isError, identify, reset, refresh, flags } = useRollgate();
+const { isEnabled, isLoading, isError, identify, reset, refresh, flags } =
+  useRollgate();
 ```
 
 ## Feature Component

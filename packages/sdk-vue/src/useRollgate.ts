@@ -1,7 +1,7 @@
-import { inject, type ComputedRef, computed } from 'vue';
-import type { CircuitState, MetricsSnapshot } from '@rollgate/sdk-core';
-import type { UserContext } from './plugin';
-import type { RollgateContext } from './context';
+import { inject, type ComputedRef, computed } from "vue";
+import type { CircuitState, MetricsSnapshot } from "@rollgate/sdk-core";
+import type { UserContext } from "./plugin";
+import type { RollgateContext } from "./context";
 
 export interface UseRollgateReturn {
   /**
@@ -61,10 +61,12 @@ export interface UseRollgateReturn {
 }
 
 export function useRollgate(): UseRollgateReturn {
-  const context = inject<RollgateContext>('rollgate');
+  const context = inject<RollgateContext>("rollgate");
 
   if (!context) {
-    throw new Error('[Rollgate] No Rollgate context found. Did you install the RollgatePlugin?');
+    throw new Error(
+      "[Rollgate] No Rollgate context found. Did you install the RollgatePlugin?",
+    );
   }
 
   return {

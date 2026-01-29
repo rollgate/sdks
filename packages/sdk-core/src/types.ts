@@ -64,8 +64,10 @@ export interface SDKConfig {
 /**
  * Default SDK configuration
  */
-export const DEFAULT_SDK_CONFIG: Required<Omit<SDKConfig, 'apiKey' | 'sseUrl'>> = {
-  baseUrl: 'https://api.rollgate.io',
+export const DEFAULT_SDK_CONFIG: Required<
+  Omit<SDKConfig, "apiKey" | "sseUrl">
+> = {
+  baseUrl: "https://api.rollgate.io",
   timeout: 10000,
   pollingInterval: 30000,
   enableSSE: false,
@@ -80,14 +82,14 @@ export const DEFAULT_SDK_CONFIG: Required<Omit<SDKConfig, 'apiKey' | 'sseUrl'>> 
  * SDK event types
  */
 export type SDKEvent =
-  | 'ready'
-  | 'error'
-  | 'flags-changed'
-  | 'flag-updated'
-  | 'connection-established'
-  | 'connection-lost'
-  | 'circuit-open'
-  | 'circuit-closed';
+  | "ready"
+  | "error"
+  | "flags-changed"
+  | "flag-updated"
+  | "connection-established"
+  | "connection-lost"
+  | "circuit-open"
+  | "circuit-closed";
 
 /**
  * SDK event handler

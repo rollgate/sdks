@@ -7,7 +7,7 @@ import React, {
   useRef,
   useMemo,
   ReactNode,
-} from 'react';
+} from "react";
 import {
   // Retry
   fetchWithRetry,
@@ -31,7 +31,7 @@ import {
   // Tracing
   createTraceContext,
   getTraceHeaders,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 import type {
   RetryConfig,
   CircuitBreakerConfig,
@@ -42,7 +42,7 @@ import type {
   FlagStats,
   TimeWindowMetrics,
   WindowedStats,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 
 export interface RollgateConfig {
   /** Your Rollgate API key (server or client key) */
@@ -74,8 +74,12 @@ export interface RollgateConfig {
 }
 
 // Re-export from sdk-core
-export type { RetryConfig, CircuitBreakerConfig, CacheConfig } from '@rollgate/sdk-core';
-export { CircuitState } from '@rollgate/sdk-core';
+export type {
+  RetryConfig,
+  CircuitBreakerConfig,
+  CacheConfig,
+} from "@rollgate/sdk-core";
+export { CircuitState } from "@rollgate/sdk-core";
 export {
   RollgateError,
   AuthenticationError,
@@ -93,7 +97,7 @@ export {
   isValidationError,
   isNotFoundError,
   isInternalError,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 export type {
   SDKMetrics,
   MetricsSnapshot,
@@ -101,7 +105,7 @@ export type {
   FlagStats,
   TimeWindowMetrics,
   WindowedStats,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 export {
   TraceHeaders,
   createTraceContext,
@@ -109,8 +113,8 @@ export {
   generateTraceId,
   generateSpanId,
   generateRequestId,
-} from '@rollgate/sdk-core';
-export type { TraceContext } from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
+export type { TraceContext } from "@rollgate/sdk-core";
 
 export interface UserContext {
   id: string;
@@ -137,12 +141,12 @@ interface RollgateContextValue {
   resetMetrics: () => void;
   getPrometheusMetrics: (prefix?: string) => string;
   onMetrics: (
-    event: 'request' | 'evaluation' | 'circuit-change',
-    callback: (metrics: MetricsSnapshot) => void
+    event: "request" | "evaluation" | "circuit-change",
+    callback: (metrics: MetricsSnapshot) => void,
   ) => void;
   offMetrics: (
-    event: 'request' | 'evaluation' | 'circuit-change',
-    callback: (metrics: MetricsSnapshot) => void
+    event: "request" | "evaluation" | "circuit-change",
+    callback: (metrics: MetricsSnapshot) => void,
   ) => void;
 }
 
@@ -154,20 +158,26 @@ interface RollgateProviderProps {
   children: ReactNode;
 }
 
-export function RollgateProvider({ config, user, children }: RollgateProviderProps) {
+export function RollgateProvider({
+  config,
+  user,
+  children,
+}: RollgateProviderProps) {
   const [flags, setFlags] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isStale, setIsStale] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [circuitState, setCircuitState] = useState<CircuitState>(CircuitState.CLOSED);
+  const [circuitState, setCircuitState] = useState<CircuitState>(
+    CircuitState.CLOSED,
+  );
   const [currentUser, setCurrentUser] = useState<UserContext | undefined>(user);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastETagRef = useRef<string | null>(null);
 
-  const baseUrl = config.baseUrl || 'https://api.rollgate.io';
+  const baseUrl = config.baseUrl || "https://api.rollgate.io";
   const sseUrl = config.sseUrl || baseUrl; // Use dedicated SSE URL if provided
   const refreshInterval = config.refreshInterval ?? 30000; // 30 seconds default
   const enableStreaming = config.enableStreaming ?? config.streaming ?? false; // Default to polling (SSE opt-in)
@@ -183,14 +193,14 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
   const metricsRef = useRef<SDKMetrics | null>(null);
   const circuitBreaker = useMemo(() => {
     const cb = new CircuitBreaker(circuitBreakerConfig);
-    cb.on('state-change', (data) => {
+    cb.on("state-change", (data) => {
       if (!data?.to) return;
       setCircuitState(data.to);
       // Track in metrics
       if (metricsRef.current) {
-        let metricsState: 'closed' | 'open' | 'half-open' = 'closed';
-        if (data.to === CircuitState.OPEN) metricsState = 'open';
-        else if (data.to === CircuitState.HALF_OPEN) metricsState = 'half-open';
+        let metricsState: "closed" | "open" | "half-open" = "closed";
+        if (data.to === CircuitState.OPEN) metricsState = "open";
+        else if (data.to === CircuitState.HALF_OPEN) metricsState = "half-open";
         metricsRef.current.recordCircuitStateChange(metricsState);
       }
     });
@@ -218,19 +228,19 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
 
   const fetchFlags = useCallback(async () => {
     // Use request deduplication
-    return dedup.dedupe('fetch-flags', async () => {
+    return dedup.dedupe("fetch-flags", async () => {
       const url = new URL(`${baseUrl}/api/v1/sdk/flags`);
-      const endpoint = '/api/v1/sdk/flags';
+      const endpoint = "/api/v1/sdk/flags";
       const startTime = Date.now();
       let statusCode = 0;
 
       if (currentUser?.id) {
-        url.searchParams.set('user_id', currentUser.id);
+        url.searchParams.set("user_id", currentUser.id);
       }
 
       // Check if circuit breaker allows requests
       if (!circuitBreaker.isAllowingRequests()) {
-        console.warn('[Rollgate] Circuit breaker is open, using cached flags');
+        console.warn("[Rollgate] Circuit breaker is open, using cached flags");
         useCachedFallback();
         return;
       }
@@ -251,11 +261,11 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
               // Build headers with optional ETag for conditional request
               const headers: Record<string, string> = {
                 Authorization: `Bearer ${config.apiKey}`,
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
                 ...traceHeaders,
               };
               if (lastETagRef.current) {
-                headers['If-None-Match'] = lastETagRef.current;
+                headers["If-None-Match"] = lastETagRef.current;
               }
 
               const response = await fetch(url.toString(), {
@@ -278,7 +288,7 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
               }
 
               // Store the new ETag for next request
-              const newETag = response.headers.get('ETag');
+              const newETag = response.headers.get("ETag");
               if (newETag) {
                 lastETagRef.current = newETag;
               }
@@ -348,13 +358,19 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
         });
 
         if (error instanceof CircuitOpenError) {
-          console.warn('[Rollgate] Circuit breaker is open:', error.message);
+          console.warn("[Rollgate] Circuit breaker is open:", error.message);
         } else if (classifiedError.category === ErrorCategory.AUTH) {
-          console.error('[Rollgate] Authentication error:', classifiedError.message);
+          console.error(
+            "[Rollgate] Authentication error:",
+            classifiedError.message,
+          );
         } else if (classifiedError.category === ErrorCategory.RATE_LIMIT) {
-          console.warn('[Rollgate] Rate limited:', classifiedError.message);
+          console.warn("[Rollgate] Rate limited:", classifiedError.message);
         } else {
-          console.error('[Rollgate] Error fetching flags:', classifiedError.message);
+          console.error(
+            "[Rollgate] Error fetching flags:",
+            classifiedError.message,
+          );
         }
         // Use cached fallback on error
         useCachedFallback();
@@ -389,33 +405,33 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
 
     const url = new URL(`${sseUrl}/api/v1/sdk/stream`);
     // EventSource doesn't support custom headers, pass API key as query param
-    url.searchParams.set('token', config.apiKey);
+    url.searchParams.set("token", config.apiKey);
     if (currentUser?.id) {
-      url.searchParams.set('user_id', currentUser.id);
+      url.searchParams.set("user_id", currentUser.id);
     }
 
     const eventSource = new EventSource(url.toString());
     eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('init', (event: MessageEvent) => {
+    eventSource.addEventListener("init", (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as FlagsResponse;
         setFlags(data.flags || {});
         setIsLoading(false);
         setIsError(false);
       } catch (e) {
-        console.error('[Rollgate] Failed to parse init event:', e);
+        console.error("[Rollgate] Failed to parse init event:", e);
       }
     });
 
     // Handle flag-changed event (server notifies that a flag changed, client refetches)
-    eventSource.addEventListener('flag-changed', () => {
+    eventSource.addEventListener("flag-changed", () => {
       // Refetch all flags to get values evaluated for current user context
       fetchFlags();
     });
 
     // Handle legacy flag-update event (deprecated, kept for backwards compatibility)
-    eventSource.addEventListener('flag-update', (event: MessageEvent) => {
+    eventSource.addEventListener("flag-update", (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as {
           key: string;
@@ -423,12 +439,12 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
         };
         setFlags((prev) => ({ ...prev, [data.key]: data.enabled }));
       } catch (e) {
-        console.error('[Rollgate] Failed to parse flag-update event:', e);
+        console.error("[Rollgate] Failed to parse flag-update event:", e);
       }
     });
 
     eventSource.onerror = () => {
-      console.warn('[Rollgate] SSE connection error');
+      console.warn("[Rollgate] SSE connection error");
       setIsError(true);
       // EventSource will auto-reconnect
     };
@@ -471,7 +487,7 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
       metrics.recordEvaluation(flagKey, result, evaluationTime);
       return result;
     },
-    [flags, metrics]
+    [flags, metrics],
   );
 
   const identify = useCallback(async (user: UserContext): Promise<void> => {
@@ -499,27 +515,27 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
     (prefix?: string): string => {
       return metrics.toPrometheus(prefix);
     },
-    [metrics]
+    [metrics],
   );
 
   const onMetricsEvent = useCallback(
     (
-      event: 'request' | 'evaluation' | 'circuit-change',
-      callback: (metricsData: MetricsSnapshot) => void
+      event: "request" | "evaluation" | "circuit-change",
+      callback: (metricsData: MetricsSnapshot) => void,
     ): void => {
       metrics.on(event, callback);
     },
-    [metrics]
+    [metrics],
   );
 
   const offMetricsEvent = useCallback(
     (
-      event: 'request' | 'evaluation' | 'circuit-change',
-      callback: (metricsData: MetricsSnapshot) => void
+      event: "request" | "evaluation" | "circuit-change",
+      callback: (metricsData: MetricsSnapshot) => void,
     ): void => {
       metrics.off(event, callback);
     },
-    [metrics]
+    [metrics],
   );
 
   const value: RollgateContextValue = {
@@ -540,17 +556,24 @@ export function RollgateProvider({ config, user, children }: RollgateProviderPro
     offMetrics: offMetricsEvent,
   };
 
-  return <RollgateContext.Provider value={value}>{children}</RollgateContext.Provider>;
+  return (
+    <RollgateContext.Provider value={value}>
+      {children}
+    </RollgateContext.Provider>
+  );
 }
 
 /**
  * Hook to check if a single flag is enabled
  */
-export function useFlag(flagKey: string, defaultValue: boolean = false): boolean {
+export function useFlag(
+  flagKey: string,
+  defaultValue: boolean = false,
+): boolean {
   const context = useContext(RollgateContext);
 
   if (!context) {
-    throw new Error('useFlag must be used within a RollgateProvider');
+    throw new Error("useFlag must be used within a RollgateProvider");
   }
 
   return context.isEnabled(flagKey, defaultValue);
@@ -563,7 +586,7 @@ export function useFlags(flagKeys: string[]): Record<string, boolean> {
   const context = useContext(RollgateContext);
 
   if (!context) {
-    throw new Error('useFlags must be used within a RollgateProvider');
+    throw new Error("useFlags must be used within a RollgateProvider");
   }
 
   const result: Record<string, boolean> = {};
@@ -580,7 +603,7 @@ export function useRollgate(): RollgateContextValue {
   const context = useContext(RollgateContext);
 
   if (!context) {
-    throw new Error('useRollgate must be used within a RollgateProvider');
+    throw new Error("useRollgate must be used within a RollgateProvider");
   }
 
   return context;
@@ -593,7 +616,7 @@ export function useMetrics(): { metrics: MetricsSnapshot; reset: () => void } {
   const context = useContext(RollgateContext);
 
   if (!context) {
-    throw new Error('useMetrics must be used within a RollgateProvider');
+    throw new Error("useMetrics must be used within a RollgateProvider");
   }
 
   return {
@@ -611,7 +634,11 @@ interface FeatureProps {
   fallback?: ReactNode;
 }
 
-export function Feature({ flag, children, fallback = null }: FeatureProps): JSX.Element {
+export function Feature({
+  flag,
+  children,
+  fallback = null,
+}: FeatureProps): JSX.Element {
   const enabled = useFlag(flag);
   return <>{enabled ? children : fallback}</>;
 }

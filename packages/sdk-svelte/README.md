@@ -217,19 +217,19 @@ For SSR, initialize on the client only:
 ```typescript
 createRollgate({
   // Required
-  apiKey: 'your-api-key',
+  apiKey: "your-api-key",
 
   // Optional
-  baseUrl: 'https://api.rollgate.io',
+  baseUrl: "https://api.rollgate.io",
   refreshInterval: 30000, // Polling interval (ms)
   enableStreaming: false, // Use SSE for real-time updates
   timeout: 5000, // Request timeout (ms)
 
   // Initial user context
   user: {
-    id: 'user-123',
-    email: 'user@example.com',
-    attributes: { plan: 'pro' },
+    id: "user-123",
+    email: "user@example.com",
+    attributes: { plan: "pro" },
   },
 
   // Retry configuration

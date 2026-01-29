@@ -29,10 +29,10 @@ const localStorageMock = {
   removeItem: jest.fn(),
   clear: jest.fn(),
 };
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+Object.defineProperty(global, "localStorage", { value: localStorageMock });
 
 // Mock performance.now
-if (typeof performance === 'undefined') {
+if (typeof performance === "undefined") {
   (global as any).performance = {
     now: jest.fn(() => Date.now()),
   };

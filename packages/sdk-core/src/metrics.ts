@@ -5,10 +5,10 @@
 
 // Time window durations in milliseconds
 const TIME_WINDOWS = {
-  '1m': 60 * 1000,
-  '5m': 5 * 60 * 1000,
-  '15m': 15 * 60 * 1000,
-  '1h': 60 * 60 * 1000,
+  "1m": 60 * 1000,
+  "5m": 5 * 60 * 1000,
+  "15m": 15 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
 } as const;
 
 export interface MetricsSnapshot {
@@ -39,7 +39,7 @@ export interface MetricsSnapshot {
   // Circuit breaker metrics
   circuitOpens: number;
   circuitCloses: number;
-  circuitState: 'closed' | 'open' | 'half-open';
+  circuitState: "closed" | "open" | "half-open";
 
   // Flag evaluation metrics
   flagEvaluations: FlagEvaluationMetrics;
@@ -67,10 +67,10 @@ export interface FlagStats {
 }
 
 export interface TimeWindowMetrics {
-  '1m': WindowedStats;
-  '5m': WindowedStats;
-  '15m': WindowedStats;
-  '1h': WindowedStats;
+  "1m": WindowedStats;
+  "5m": WindowedStats;
+  "15m": WindowedStats;
+  "1h": WindowedStats;
 }
 
 export interface WindowedStats {
@@ -119,7 +119,7 @@ export class SDKMetrics {
   private notModifiedResponses = 0;
   private circuitOpens = 0;
   private circuitCloses = 0;
-  private circuitState: 'closed' | 'open' | 'half-open' = 'closed';
+  private circuitState: "closed" | "open" | "half-open" = "closed";
 
   private latencies: number[] = [];
   private maxLatencyHistory = 1000;
@@ -131,8 +131,10 @@ export class SDKMetrics {
   private maxTimestampedRequests = 10000;
 
   // Flag evaluation tracking
-  private flagEvaluations: Map<string, { count: number; trueCount: number; totalTimeMs: number }> =
-    new Map();
+  private flagEvaluations: Map<
+    string,
+    { count: number; trueCount: number; totalTimeMs: number }
+  > = new Map();
   private timestampedEvaluations: TimestampedEvaluation[] = [];
   private maxTimestampedEvaluations = 10000;
   private totalEvaluations = 0;
@@ -142,7 +144,8 @@ export class SDKMetrics {
   private lastRequestAt: number | null = null;
 
   // Event listeners for metrics updates
-  private listeners: Map<string, Set<(metrics: MetricsSnapshot) => void>> = new Map();
+  private listeners: Map<string, Set<(metrics: MetricsSnapshot) => void>> =
+    new Map();
 
   /**
    * Record a completed request
@@ -193,13 +196,17 @@ export class SDKMetrics {
     }
 
     // Emit update event
-    this.emit('request', this.snapshot());
+    this.emit("request", this.snapshot());
   }
 
   /**
    * Record a flag evaluation
    */
-  recordEvaluation(flagKey: string, result: boolean, evaluationTimeMs: number = 0): void {
+  recordEvaluation(
+    flagKey: string,
+    result: boolean,
+    evaluationTimeMs: number = 0,
+  ): void {
     const now = Date.now();
     this.totalEvaluations++;
     this.totalEvaluationTimeMs += evaluationTimeMs;
@@ -227,29 +234,29 @@ export class SDKMetrics {
     }
 
     // Emit update event
-    this.emit('evaluation', this.snapshot());
+    this.emit("evaluation", this.snapshot());
   }
 
   /**
    * Record a circuit breaker state change
    */
-  recordCircuitStateChange(newState: 'closed' | 'open' | 'half-open'): void {
+  recordCircuitStateChange(newState: "closed" | "open" | "half-open"): void {
     const oldState = this.circuitState;
     this.circuitState = newState;
 
-    if (newState === 'open' && oldState !== 'open') {
+    if (newState === "open" && oldState !== "open") {
       this.circuitOpens++;
-    } else if (newState === 'closed' && oldState !== 'closed') {
+    } else if (newState === "closed" && oldState !== "closed") {
       this.circuitCloses++;
     }
 
-    this.emit('circuit-change', this.snapshot());
+    this.emit("circuit-change", this.snapshot());
   }
 
   /**
    * Get current circuit breaker state
    */
-  getCircuitState(): 'closed' | 'open' | 'half-open' {
+  getCircuitState(): "closed" | "open" | "half-open" {
     return this.circuitState;
   }
 
@@ -257,8 +264,8 @@ export class SDKMetrics {
    * Subscribe to metrics events
    */
   on(
-    event: 'request' | 'evaluation' | 'circuit-change',
-    callback: (metrics: MetricsSnapshot) => void
+    event: "request" | "evaluation" | "circuit-change",
+    callback: (metrics: MetricsSnapshot) => void,
   ): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -270,8 +277,8 @@ export class SDKMetrics {
    * Unsubscribe from metrics events
    */
   off(
-    event: 'request' | 'evaluation' | 'circuit-change',
-    callback: (metrics: MetricsSnapshot) => void
+    event: "request" | "evaluation" | "circuit-change",
+    callback: (metrics: MetricsSnapshot) => void,
   ): void {
     this.listeners.get(event)?.delete(callback);
   }
@@ -292,19 +299,30 @@ export class SDKMetrics {
       successfulRequests: this.successfulRequests,
       failedRequests: this.failedRequests,
       successRate:
-        this.totalRequests > 0 ? (this.successfulRequests / this.totalRequests) * 100 : 0,
-      errorRate: this.totalRequests > 0 ? (this.failedRequests / this.totalRequests) * 100 : 0,
+        this.totalRequests > 0
+          ? (this.successfulRequests / this.totalRequests) * 100
+          : 0,
+      errorRate:
+        this.totalRequests > 0
+          ? (this.failedRequests / this.totalRequests) * 100
+          : 0,
 
       avgLatencyMs: this.calculateAverage(sortedLatencies),
       minLatencyMs: sortedLatencies.length > 0 ? sortedLatencies[0] : 0,
-      maxLatencyMs: sortedLatencies.length > 0 ? sortedLatencies[sortedLatencies.length - 1] : 0,
+      maxLatencyMs:
+        sortedLatencies.length > 0
+          ? sortedLatencies[sortedLatencies.length - 1]
+          : 0,
       p50LatencyMs: this.calculatePercentile(sortedLatencies, 50),
       p95LatencyMs: this.calculatePercentile(sortedLatencies, 95),
       p99LatencyMs: this.calculatePercentile(sortedLatencies, 99),
 
       cacheHits: this.cacheHits,
       cacheMisses: this.cacheMisses,
-      cacheHitRate: totalCacheRequests > 0 ? (this.cacheHits / totalCacheRequests) * 100 : 0,
+      cacheHitRate:
+        totalCacheRequests > 0
+          ? (this.cacheHits / totalCacheRequests) * 100
+          : 0,
       notModifiedResponses: this.notModifiedResponses,
 
       errorsByCategory: Object.fromEntries(this.errorsByCategory),
@@ -333,7 +351,8 @@ export class SDKMetrics {
         trueCount: stats.trueCount,
         falseCount: stats.count - stats.trueCount,
         trueRate: stats.count > 0 ? (stats.trueCount / stats.count) * 100 : 0,
-        avgEvaluationTimeMs: stats.count > 0 ? stats.totalTimeMs / stats.count : 0,
+        avgEvaluationTimeMs:
+          stats.count > 0 ? stats.totalTimeMs / stats.count : 0,
       };
     }
 
@@ -341,7 +360,9 @@ export class SDKMetrics {
       totalEvaluations: this.totalEvaluations,
       evaluationsPerFlag,
       avgEvaluationTimeMs:
-        this.totalEvaluations > 0 ? this.totalEvaluationTimeMs / this.totalEvaluations : 0,
+        this.totalEvaluations > 0
+          ? this.totalEvaluationTimeMs / this.totalEvaluations
+          : 0,
     };
   }
 
@@ -352,10 +373,10 @@ export class SDKMetrics {
     const now = Date.now();
 
     const result: TimeWindowMetrics = {
-      '1m': this.calculateWindowStats(now, TIME_WINDOWS['1m']),
-      '5m': this.calculateWindowStats(now, TIME_WINDOWS['5m']),
-      '15m': this.calculateWindowStats(now, TIME_WINDOWS['15m']),
-      '1h': this.calculateWindowStats(now, TIME_WINDOWS['1h']),
+      "1m": this.calculateWindowStats(now, TIME_WINDOWS["1m"]),
+      "5m": this.calculateWindowStats(now, TIME_WINDOWS["5m"]),
+      "15m": this.calculateWindowStats(now, TIME_WINDOWS["15m"]),
+      "1h": this.calculateWindowStats(now, TIME_WINDOWS["1h"]),
     };
 
     return result;
@@ -363,11 +384,16 @@ export class SDKMetrics {
 
   private calculateWindowStats(now: number, windowMs: number): WindowedStats {
     const cutoff = now - windowMs;
-    const windowRequests = this.timestampedRequests.filter((r) => r.timestamp >= cutoff);
+    const windowRequests = this.timestampedRequests.filter(
+      (r) => r.timestamp >= cutoff,
+    );
 
     const requests = windowRequests.length;
     const errors = windowRequests.filter((r) => !r.success).length;
-    const totalLatency = windowRequests.reduce((sum, r) => sum + r.latencyMs, 0);
+    const totalLatency = windowRequests.reduce(
+      (sum, r) => sum + r.latencyMs,
+      0,
+    );
 
     return {
       requests,
@@ -380,12 +406,17 @@ export class SDKMetrics {
   /**
    * Export metrics in Prometheus format
    */
-  toPrometheus(prefix: string = 'rollgate_sdk'): string {
+  toPrometheus(prefix: string = "rollgate_sdk"): string {
     const snap = this.snapshot();
     const lines: string[] = [];
 
     // Helper to format metric
-    const metric = (name: string, value: number, help?: string, type?: string) => {
+    const metric = (
+      name: string,
+      value: number,
+      help?: string,
+      type?: string,
+    ) => {
       const fullName = `${prefix}_${name}`;
       if (help) lines.push(`# HELP ${fullName} ${help}`);
       if (type) lines.push(`# TYPE ${fullName} ${type}`);
@@ -393,53 +424,107 @@ export class SDKMetrics {
     };
 
     // Request metrics
-    metric('requests_total', snap.totalRequests, 'Total number of requests', 'counter');
     metric(
-      'requests_success_total',
-      snap.successfulRequests,
-      'Total successful requests',
-      'counter'
+      "requests_total",
+      snap.totalRequests,
+      "Total number of requests",
+      "counter",
     );
-    metric('requests_failed_total', snap.failedRequests, 'Total failed requests', 'counter');
+    metric(
+      "requests_success_total",
+      snap.successfulRequests,
+      "Total successful requests",
+      "counter",
+    );
+    metric(
+      "requests_failed_total",
+      snap.failedRequests,
+      "Total failed requests",
+      "counter",
+    );
 
     // Latency metrics
-    metric('latency_avg_ms', snap.avgLatencyMs, 'Average request latency in milliseconds', 'gauge');
-    metric('latency_p50_ms', snap.p50LatencyMs, '50th percentile latency', 'gauge');
-    metric('latency_p95_ms', snap.p95LatencyMs, '95th percentile latency', 'gauge');
-    metric('latency_p99_ms', snap.p99LatencyMs, '99th percentile latency', 'gauge');
+    metric(
+      "latency_avg_ms",
+      snap.avgLatencyMs,
+      "Average request latency in milliseconds",
+      "gauge",
+    );
+    metric(
+      "latency_p50_ms",
+      snap.p50LatencyMs,
+      "50th percentile latency",
+      "gauge",
+    );
+    metric(
+      "latency_p95_ms",
+      snap.p95LatencyMs,
+      "95th percentile latency",
+      "gauge",
+    );
+    metric(
+      "latency_p99_ms",
+      snap.p99LatencyMs,
+      "99th percentile latency",
+      "gauge",
+    );
 
     // Cache metrics
-    metric('cache_hits_total', snap.cacheHits, 'Total cache hits', 'counter');
-    metric('cache_misses_total', snap.cacheMisses, 'Total cache misses', 'counter');
-    metric('cache_hit_rate', snap.cacheHitRate, 'Cache hit rate percentage', 'gauge');
+    metric("cache_hits_total", snap.cacheHits, "Total cache hits", "counter");
+    metric(
+      "cache_misses_total",
+      snap.cacheMisses,
+      "Total cache misses",
+      "counter",
+    );
+    metric(
+      "cache_hit_rate",
+      snap.cacheHitRate,
+      "Cache hit rate percentage",
+      "gauge",
+    );
 
     // Circuit breaker metrics
-    metric('circuit_opens_total', snap.circuitOpens, 'Total circuit breaker opens', 'counter');
     metric(
-      'circuit_state',
-      snap.circuitState === 'closed' ? 0 : snap.circuitState === 'open' ? 1 : 0.5,
-      'Circuit breaker state (0=closed, 0.5=half-open, 1=open)',
-      'gauge'
+      "circuit_opens_total",
+      snap.circuitOpens,
+      "Total circuit breaker opens",
+      "counter",
+    );
+    metric(
+      "circuit_state",
+      snap.circuitState === "closed"
+        ? 0
+        : snap.circuitState === "open"
+          ? 1
+          : 0.5,
+      "Circuit breaker state (0=closed, 0.5=half-open, 1=open)",
+      "gauge",
     );
 
     // Flag evaluation metrics
     metric(
-      'evaluations_total',
+      "evaluations_total",
       snap.flagEvaluations.totalEvaluations,
-      'Total flag evaluations',
-      'counter'
+      "Total flag evaluations",
+      "counter",
     );
     metric(
-      'evaluation_avg_time_ms',
+      "evaluation_avg_time_ms",
       snap.flagEvaluations.avgEvaluationTimeMs,
-      'Average evaluation time in milliseconds',
-      'gauge'
+      "Average evaluation time in milliseconds",
+      "gauge",
     );
 
     // Uptime
-    metric('uptime_seconds', snap.uptimeMs / 1000, 'SDK uptime in seconds', 'gauge');
+    metric(
+      "uptime_seconds",
+      snap.uptimeMs / 1000,
+      "SDK uptime in seconds",
+      "gauge",
+    );
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
@@ -454,7 +539,7 @@ export class SDKMetrics {
     this.notModifiedResponses = 0;
     this.circuitOpens = 0;
     this.circuitCloses = 0;
-    this.circuitState = 'closed';
+    this.circuitState = "closed";
     this.latencies = [];
     this.errorsByCategory.clear();
     this.timestampedRequests = [];
@@ -472,7 +557,10 @@ export class SDKMetrics {
     return sum / sortedValues.length;
   }
 
-  private calculatePercentile(sortedValues: number[], percentile: number): number {
+  private calculatePercentile(
+    sortedValues: number[],
+    percentile: number,
+  ): number {
     if (sortedValues.length === 0) return 0;
     const index = Math.ceil((percentile / 100) * sortedValues.length) - 1;
     return sortedValues[Math.max(0, index)];

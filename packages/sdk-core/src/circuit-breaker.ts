@@ -3,11 +3,11 @@
  */
 export enum CircuitState {
   /** Normal operation, requests pass through */
-  CLOSED = 'closed',
+  CLOSED = "closed",
   /** Circuit is open, requests fail fast */
-  OPEN = 'open',
+  OPEN = "open",
   /** Testing if service has recovered */
-  HALF_OPEN = 'half_open',
+  HALF_OPEN = "half_open",
 }
 
 /**
@@ -35,9 +35,9 @@ export const DEFAULT_CIRCUIT_BREAKER_CONFIG: CircuitBreakerConfig = {
  * Error thrown when circuit is open
  */
 export class CircuitOpenError extends Error {
-  constructor(message: string = 'Circuit breaker is open') {
+  constructor(message: string = "Circuit breaker is open") {
     super(message);
-    this.name = 'CircuitOpenError';
+    this.name = "CircuitOpenError";
   }
 }
 
@@ -99,7 +99,7 @@ export class CircuitBreaker {
         this.transitionTo(CircuitState.HALF_OPEN);
       } else {
         throw new CircuitOpenError(
-          `Circuit breaker is open. Will retry after ${this.getTimeUntilRetry()}ms`
+          `Circuit breaker is open. Will retry after ${this.getTimeUntilRetry()}ms`,
         );
       }
     }
@@ -120,7 +120,7 @@ export class CircuitBreaker {
   private onSuccess(): void {
     if (this.state === CircuitState.HALF_OPEN) {
       this.halfOpenSuccesses++;
-      this.emit('half-open-success', { successes: this.halfOpenSuccesses });
+      this.emit("half-open-success", { successes: this.halfOpenSuccesses });
 
       if (this.halfOpenSuccesses >= this.config.successThreshold) {
         this.reset();
@@ -184,17 +184,17 @@ export class CircuitBreaker {
     const oldState = this.state;
     this.state = newState;
 
-    this.emit('state-change', { from: oldState, to: newState });
+    this.emit("state-change", { from: oldState, to: newState });
 
     if (newState === CircuitState.OPEN) {
-      this.emit('circuit-open', {
+      this.emit("circuit-open", {
         failures: this.failures.length,
         lastFailureTime: this.lastFailureTime,
       });
     } else if (newState === CircuitState.CLOSED) {
-      this.emit('circuit-closed');
+      this.emit("circuit-closed");
     } else if (newState === CircuitState.HALF_OPEN) {
-      this.emit('circuit-half-open');
+      this.emit("circuit-half-open");
     }
   }
 
@@ -252,7 +252,8 @@ export class CircuitBreaker {
   isAllowingRequests(): boolean {
     if (this.state === CircuitState.CLOSED) return true;
     if (this.state === CircuitState.HALF_OPEN) return true;
-    if (this.state === CircuitState.OPEN && this.shouldAttemptReset()) return true;
+    if (this.state === CircuitState.OPEN && this.shouldAttemptReset())
+      return true;
     return false;
   }
 }

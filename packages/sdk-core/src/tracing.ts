@@ -25,11 +25,11 @@ export interface TraceContext {
  * Headers used for trace propagation
  */
 export const TraceHeaders = {
-  TRACE_ID: 'X-Trace-ID',
-  SPAN_ID: 'X-Span-ID',
-  PARENT_SPAN_ID: 'X-Parent-Span-ID',
-  REQUEST_ID: 'X-Request-ID',
-  TRACEPARENT: 'traceparent',
+  TRACE_ID: "X-Trace-ID",
+  SPAN_ID: "X-Span-ID",
+  PARENT_SPAN_ID: "X-Parent-Span-ID",
+  REQUEST_ID: "X-Request-ID",
+  TRACEPARENT: "traceparent",
 } as const;
 
 /**
@@ -39,8 +39,8 @@ function randomHex(bytes: number): string {
   const array = new Uint8Array(bytes);
   crypto.getRandomValues(array);
   return Array.from(array)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -63,7 +63,7 @@ export function generateSpanId(): string {
  */
 export function generateRequestId(): string {
   const now = new Date();
-  const timestamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
   const random = randomHex(4);
   return `sb-${timestamp}-${random}`;
 }
@@ -71,7 +71,9 @@ export function generateRequestId(): string {
 /**
  * Create a new trace context
  */
-export function createTraceContext(parentContext?: Partial<TraceContext>): TraceContext {
+export function createTraceContext(
+  parentContext?: Partial<TraceContext>,
+): TraceContext {
   const traceId = parentContext?.traceId || generateTraceId();
   const spanId = generateSpanId();
   const parentId = parentContext?.spanId;
@@ -115,8 +117,9 @@ export function getTraceHeaders(context: TraceContext): Record<string, string> {
   }
 
   // W3C Trace Context format
-  const flags = context.sampled ? '01' : '00';
-  headers[TraceHeaders.TRACEPARENT] = `00-${context.traceId}-${context.spanId}-${flags}`;
+  const flags = context.sampled ? "01" : "00";
+  headers[TraceHeaders.TRACEPARENT] =
+    `00-${context.traceId}-${context.spanId}-${flags}`;
 
   return headers;
 }
@@ -157,21 +160,21 @@ export function parseTraceHeaders(headers: Headers): Partial<TraceContext> {
  * Parse W3C Trace Context traceparent header
  */
 export function parseTraceparent(
-  header: string
+  header: string,
 ): { traceId: string; spanId: string; sampled: boolean } | null {
-  const parts = header.split('-');
+  const parts = header.split("-");
   if (parts.length !== 4) return null;
 
   const [version, traceId, spanId, flags] = parts;
 
-  if (version !== '00') return null;
+  if (version !== "00") return null;
   if (!/^[0-9a-f]{32}$/i.test(traceId)) return null;
   if (!/^[0-9a-f]{16}$/i.test(spanId)) return null;
 
   return {
     traceId,
     spanId,
-    sampled: flags === '01',
+    sampled: flags === "01",
   };
 }
 
@@ -187,7 +190,7 @@ export function formatTraceContext(context: TraceContext): string {
 
   parts.push(`request_id=${context.requestId}`);
 
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
 /**
@@ -226,14 +229,15 @@ export function createRequestTrace(requestId: string): RequestTrace {
 export function completeRequestTrace(
   trace: RequestTrace,
   response?: { status: number; headers: Headers },
-  error?: Error
+  error?: Error,
 ): RequestTrace {
   trace.endTime = Date.now();
   trace.durationMs = trace.endTime - trace.startTime;
 
   if (response) {
     trace.statusCode = response.status;
-    trace.serverTraceId = response.headers.get(TraceHeaders.TRACE_ID) || undefined;
+    trace.serverTraceId =
+      response.headers.get(TraceHeaders.TRACE_ID) || undefined;
   }
 
   if (error) {

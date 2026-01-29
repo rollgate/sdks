@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 
 // Import EventSource for Node.js SSE support
 // In browser, EventSource is globally available
@@ -6,7 +6,7 @@ import { EventEmitter } from 'events';
 let NodeEventSource: typeof EventSource | undefined;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const eventsourceModule = require('eventsource');
+  const eventsourceModule = require("eventsource");
   NodeEventSource = eventsourceModule.EventSource || eventsourceModule;
 } catch {
   // eventsource package not installed - will fall back to polling
@@ -47,7 +47,7 @@ import {
   createRequestTrace,
   completeRequestTrace,
   generateRequestId,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 import type {
   RetryConfig,
   CircuitBreakerConfig,
@@ -61,7 +61,7 @@ import type {
   WindowedStats,
   TraceContext,
   RequestTrace,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 import {
   evaluateFlag,
   evaluateAllFlags,
@@ -71,8 +71,12 @@ import {
   RulesPayload,
   RulesPayloadV2,
   UserContext as EvalUserContext,
-} from './evaluate';
-import { TelemetryCollector, TelemetryConfig, DEFAULT_TELEMETRY_CONFIG } from './telemetry';
+} from "./evaluate";
+import {
+  TelemetryCollector,
+  TelemetryConfig,
+  DEFAULT_TELEMETRY_CONFIG,
+} from "./telemetry";
 
 export interface RollgateConfig {
   apiKey: string;
@@ -94,8 +98,8 @@ export type {
   CircuitBreakerConfig,
   CacheConfig,
   CacheStats,
-} from '@rollgate/sdk-core';
-export { CircuitState, CircuitOpenError } from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
+export { CircuitState, CircuitOpenError } from "@rollgate/sdk-core";
 export {
   RollgateError,
   AuthenticationError,
@@ -113,7 +117,7 @@ export {
   isValidationError,
   isNotFoundError,
   isInternalError,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 export type {
   SDKMetrics,
   MetricsSnapshot,
@@ -122,9 +126,9 @@ export type {
   FlagStats,
   TimeWindowMetrics,
   WindowedStats,
-} from '@rollgate/sdk-core';
-export { getMetrics, createMetrics } from '@rollgate/sdk-core';
-export type { TraceContext, RequestTrace } from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
+export { getMetrics, createMetrics } from "@rollgate/sdk-core";
+export type { TraceContext, RequestTrace } from "@rollgate/sdk-core";
 export {
   TraceHeaders,
   createTraceContext,
@@ -133,7 +137,7 @@ export {
   generateTraceId,
   generateSpanId,
   generateRequestId,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 export {
   evaluateFlag,
   evaluateAllFlags,
@@ -147,14 +151,14 @@ export {
   Variation,
   FlagType,
   EvaluationResult,
-} from './evaluate';
+} from "./evaluate";
 export {
   TelemetryCollector,
   TelemetryConfig,
   TelemetryPayload,
   EvaluationStats,
   DEFAULT_TELEMETRY_CONFIG,
-} from './telemetry';
+} from "./telemetry";
 
 export interface UserContext {
   id: string;
@@ -168,7 +172,10 @@ interface FlagsResponse {
 
 export class RollgateClient extends EventEmitter {
   private config: Required<
-    Omit<RollgateConfig, 'retry' | 'circuitBreaker' | 'cache' | 'sseUrl' | 'telemetry'>
+    Omit<
+      RollgateConfig,
+      "retry" | "circuitBreaker" | "cache" | "sseUrl" | "telemetry"
+    >
   > & {
     sseUrl: string;
     retry: RetryConfig;
@@ -195,7 +202,7 @@ export class RollgateClient extends EventEmitter {
   constructor(config: RollgateConfig) {
     super();
     const enableStreaming = config.enableStreaming ?? config.streaming ?? false;
-    const baseUrl = config.baseUrl || 'https://api.rollgate.io';
+    const baseUrl = config.baseUrl || "https://api.rollgate.io";
 
     // Build telemetry config with endpoint derived from baseUrl
     const telemetryConfig: TelemetryConfig = {
@@ -214,7 +221,10 @@ export class RollgateClient extends EventEmitter {
       streaming: enableStreaming, // Alias for enableStreaming
       timeout: config.timeout ?? 5000,
       retry: { ...DEFAULT_RETRY_CONFIG, ...config.retry },
-      circuitBreaker: { ...DEFAULT_CIRCUIT_BREAKER_CONFIG, ...config.circuitBreaker },
+      circuitBreaker: {
+        ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
+        ...config.circuitBreaker,
+      },
       cache: { ...DEFAULT_CACHE_CONFIG, ...config.cache },
       telemetry: telemetryConfig,
     };
@@ -235,28 +245,30 @@ export class RollgateClient extends EventEmitter {
     this.telemetry = new TelemetryCollector(this.config.telemetry);
 
     // Forward circuit breaker events and track in metrics
-    this.circuitBreaker.on('circuit-open', (data) => {
-      this.metrics.recordCircuitStateChange('open');
-      this.emit('circuit-open', data);
+    this.circuitBreaker.on("circuit-open", (data) => {
+      this.metrics.recordCircuitStateChange("open");
+      this.emit("circuit-open", data);
     });
-    this.circuitBreaker.on('circuit-closed', () => {
-      this.metrics.recordCircuitStateChange('closed');
-      this.emit('circuit-closed');
+    this.circuitBreaker.on("circuit-closed", () => {
+      this.metrics.recordCircuitStateChange("closed");
+      this.emit("circuit-closed");
     });
-    this.circuitBreaker.on('circuit-half-open', () => {
-      this.metrics.recordCircuitStateChange('half-open');
-      this.emit('circuit-half-open');
+    this.circuitBreaker.on("circuit-half-open", () => {
+      this.metrics.recordCircuitStateChange("half-open");
+      this.emit("circuit-half-open");
     });
-    this.circuitBreaker.on('state-change', (data) => this.emit('circuit-state-change', data));
+    this.circuitBreaker.on("state-change", (data) =>
+      this.emit("circuit-state-change", data),
+    );
 
     // Forward cache events
-    this.cache.on('cache-hit', (data) => this.emit('cache-hit', data));
-    this.cache.on('cache-miss', (data) => this.emit('cache-miss', data));
-    this.cache.on('cache-stale', (data) => this.emit('cache-stale', data));
+    this.cache.on("cache-hit", (data) => this.emit("cache-hit", data));
+    this.cache.on("cache-miss", (data) => this.emit("cache-miss", data));
+    this.cache.on("cache-stale", (data) => this.emit("cache-stale", data));
 
     // Forward telemetry events
-    this.telemetry.on('flush', (data) => this.emit('telemetry-flush', data));
-    this.telemetry.on('error', (err) => this.emit('telemetry-error', err));
+    this.telemetry.on("flush", (data) => this.emit("telemetry-flush", data));
+    this.telemetry.on("error", (err) => this.emit("telemetry-error", err));
   }
 
   /**
@@ -326,8 +338,8 @@ export class RollgateClient extends EventEmitter {
    * Subscribe to metrics events
    */
   onMetrics(
-    event: 'request' | 'evaluation' | 'circuit-change',
-    callback: (metrics: MetricsSnapshot) => void
+    event: "request" | "evaluation" | "circuit-change",
+    callback: (metrics: MetricsSnapshot) => void,
   ): void {
     this.metrics.on(event, callback);
   }
@@ -336,8 +348,8 @@ export class RollgateClient extends EventEmitter {
    * Unsubscribe from metrics events
    */
   offMetrics(
-    event: 'request' | 'evaluation' | 'circuit-change',
-    callback: (metrics: MetricsSnapshot) => void
+    event: "request" | "evaluation" | "circuit-change",
+    callback: (metrics: MetricsSnapshot) => void,
   ): void {
     this.metrics.off(event, callback);
   }
@@ -354,7 +366,7 @@ export class RollgateClient extends EventEmitter {
     if (cached) {
       this.flags = new Map(Object.entries(cached.flags));
       if (cached.stale) {
-        this.emit('flags-stale', this.getAllFlags());
+        this.emit("flags-stale", this.getAllFlags());
       }
     }
 
@@ -371,7 +383,7 @@ export class RollgateClient extends EventEmitter {
     // Start telemetry collector (for client-side evaluation analytics)
     this.telemetry.start();
 
-    this.emit('ready');
+    this.emit("ready");
   }
 
   /**
@@ -381,7 +393,10 @@ export class RollgateClient extends EventEmitter {
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
     }
-    this.pollInterval = setInterval(() => this.fetchFlags(), this.config.refreshInterval);
+    this.pollInterval = setInterval(
+      () => this.fetchFlags(),
+      this.config.refreshInterval,
+    );
   }
 
   /**
@@ -389,18 +404,21 @@ export class RollgateClient extends EventEmitter {
    */
   private startStreaming(): void {
     // Use native EventSource (browser) or eventsource package (Node.js)
-    const ES = typeof EventSource !== 'undefined' ? EventSource : NodeEventSource;
+    const ES =
+      typeof EventSource !== "undefined" ? EventSource : NodeEventSource;
     if (!ES) {
-      console.warn('[Rollgate] SSE not available in this environment, falling back to polling');
+      console.warn(
+        "[Rollgate] SSE not available in this environment, falling back to polling",
+      );
       this.startPolling();
       return;
     }
 
     const url = new URL(`${this.config.sseUrl}/api/v1/sdk/stream`);
     // EventSource doesn't support custom headers, pass API key as query param
-    url.searchParams.set('token', this.config.apiKey);
+    url.searchParams.set("token", this.config.apiKey);
     if (this.userContext?.id) {
-      url.searchParams.set('user_id', this.userContext.id);
+      url.searchParams.set("user_id", this.userContext.id);
     }
 
     this.eventSource = new ES(url.toString(), {
@@ -409,7 +427,7 @@ export class RollgateClient extends EventEmitter {
     });
 
     // Handle rules-full event (client-side evaluation mode)
-    this.eventSource.addEventListener('rules-full', ((event: MessageEvent) => {
+    this.eventSource.addEventListener("rules-full", ((event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as RulesPayload;
         this.rules = data.flags;
@@ -424,33 +442,33 @@ export class RollgateClient extends EventEmitter {
         for (const [key, value] of this.flags) {
           const oldValue = oldFlags.get(key);
           if (oldValue !== value) {
-            this.emit('flag-changed', key, value, oldValue);
+            this.emit("flag-changed", key, value, oldValue);
           }
         }
 
-        this.emit('rules-updated', data.version);
-        this.emit('flags-updated', this.getAllFlags());
+        this.emit("rules-updated", data.version);
+        this.emit("flags-updated", this.getAllFlags());
       } catch (e) {
-        console.error('[Rollgate] Failed to parse rules-full event:', e);
+        console.error("[Rollgate] Failed to parse rules-full event:", e);
       }
     }) as (event: Event) => void);
 
     // Handle init event (initial flags - legacy server-side evaluation)
-    this.eventSource.addEventListener('init', ((event: MessageEvent) => {
+    this.eventSource.addEventListener("init", ((event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as FlagsResponse;
         // Only use init if we don't have rules (fallback mode)
         if (!this.rules) {
           this.flags = new Map(Object.entries(data.flags || {}));
-          this.emit('flags-updated', this.getAllFlags());
+          this.emit("flags-updated", this.getAllFlags());
         }
       } catch (e) {
-        console.error('[Rollgate] Failed to parse init event:', e);
+        console.error("[Rollgate] Failed to parse init event:", e);
       }
     }) as (event: Event) => void);
 
     // Handle flag-changed event (server notifies that a flag changed)
-    this.eventSource.addEventListener('flag-changed', () => {
+    this.eventSource.addEventListener("flag-changed", () => {
       // If we have rules, we'll get a rules-full event shortly
       // If not, refetch all flags to get values evaluated for current user context
       if (!this.rules) {
@@ -459,23 +477,26 @@ export class RollgateClient extends EventEmitter {
     });
 
     // Handle legacy flag-update event (deprecated, kept for backwards compatibility)
-    this.eventSource.addEventListener('flag-update', ((event: MessageEvent) => {
+    this.eventSource.addEventListener("flag-update", ((event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data) as { key: string; enabled: boolean };
+        const data = JSON.parse(event.data) as {
+          key: string;
+          enabled: boolean;
+        };
         // Only use direct flag updates if we don't have rules
         if (!this.rules) {
           this.flags.set(data.key, data.enabled);
-          this.emit('flag-changed', data.key, data.enabled);
-          this.emit('flags-updated', this.getAllFlags());
+          this.emit("flag-changed", data.key, data.enabled);
+          this.emit("flags-updated", this.getAllFlags());
         }
       } catch (e) {
-        console.error('[Rollgate] Failed to parse flag-update event:', e);
+        console.error("[Rollgate] Failed to parse flag-update event:", e);
       }
     }) as (event: Event) => void);
 
     this.eventSource.onerror = () => {
-      console.warn('[Rollgate] SSE connection error, will reconnect...');
-      this.emit('connection-error');
+      console.warn("[Rollgate] SSE connection error, will reconnect...");
+      this.emit("connection-error");
     };
   }
 
@@ -484,19 +505,19 @@ export class RollgateClient extends EventEmitter {
    */
   private async fetchFlags(): Promise<void> {
     // Use request deduplication to avoid concurrent identical requests
-    return this.dedup.dedupe('fetch-flags', async () => {
+    return this.dedup.dedupe("fetch-flags", async () => {
       const url = new URL(`${this.config.baseUrl}/api/v1/sdk/flags`);
-      const endpoint = '/api/v1/sdk/flags';
+      const endpoint = "/api/v1/sdk/flags";
       const startTime = Date.now();
 
       if (this.userContext?.id) {
-        url.searchParams.set('user_id', this.userContext.id);
+        url.searchParams.set("user_id", this.userContext.id);
       }
 
       // Check if circuit breaker allows the request
       if (!this.circuitBreaker.isAllowingRequests()) {
-        console.warn('[Rollgate] Circuit breaker is open, using cached flags');
-        this.emit('circuit-rejected');
+        console.warn("[Rollgate] Circuit breaker is open, using cached flags");
+        this.emit("circuit-rejected");
         this.useCachedFallback();
         return;
       }
@@ -512,7 +533,10 @@ export class RollgateClient extends EventEmitter {
           const retryResult = await fetchWithRetry(async () => {
             // Setup timeout with AbortController
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+            const timeoutId = setTimeout(
+              () => controller.abort(),
+              this.config.timeout,
+            );
 
             try {
               // Create trace context for this request
@@ -522,11 +546,11 @@ export class RollgateClient extends EventEmitter {
               // Build headers with optional ETag for conditional request
               const headers: Record<string, string> = {
                 Authorization: `Bearer ${this.config.apiKey}`,
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
                 ...traceHeaders,
               };
               if (this.lastETag) {
-                headers['If-None-Match'] = this.lastETag;
+                headers["If-None-Match"] = this.lastETag;
               }
 
               const response = await fetch(url.toString(), {
@@ -537,7 +561,7 @@ export class RollgateClient extends EventEmitter {
               // Extract server trace ID from response for correlation
               const serverTraceId = response.headers.get(TraceHeaders.TRACE_ID);
               if (serverTraceId) {
-                this.emit('trace', {
+                this.emit("trace", {
                   requestId: traceContext.requestId,
                   clientTraceId: traceContext.traceId,
                   serverTraceId,
@@ -551,7 +575,7 @@ export class RollgateClient extends EventEmitter {
               // Handle 304 Not Modified - flags haven't changed
               if (response.status === 304) {
                 notModified = true;
-                this.emit('flags-not-modified');
+                this.emit("flags-not-modified");
                 return null; // Signal that flags are unchanged
               }
 
@@ -562,7 +586,7 @@ export class RollgateClient extends EventEmitter {
               }
 
               // Store the new ETag for next request
-              const newETag = response.headers.get('ETag');
+              const newETag = response.headers.get("ETag");
               if (newETag) {
                 this.lastETag = newETag;
               }
@@ -612,20 +636,26 @@ export class RollgateClient extends EventEmitter {
         });
 
         if (error instanceof CircuitOpenError) {
-          console.warn('[Rollgate] Circuit breaker is open:', error.message);
-          this.emit('circuit-rejected');
+          console.warn("[Rollgate] Circuit breaker is open:", error.message);
+          this.emit("circuit-rejected");
         } else if (classifiedError.category === ErrorCategory.AUTH) {
-          console.error('[Rollgate] Authentication error:', classifiedError.message);
-          this.emit('auth-error', classifiedError);
+          console.error(
+            "[Rollgate] Authentication error:",
+            classifiedError.message,
+          );
+          this.emit("auth-error", classifiedError);
         } else if (classifiedError.category === ErrorCategory.RATE_LIMIT) {
-          console.warn('[Rollgate] Rate limited:', classifiedError.message);
-          this.emit('rate-limited', classifiedError);
+          console.warn("[Rollgate] Rate limited:", classifiedError.message);
+          this.emit("rate-limited", classifiedError);
         } else {
-          console.error('[Rollgate] Error fetching flags:', classifiedError.message);
+          console.error(
+            "[Rollgate] Error fetching flags:",
+            classifiedError.message,
+          );
         }
 
-        this.emit('error', classifiedError);
-        this.emit('retry-exhausted', { attempts, error: classifiedError });
+        this.emit("error", classifiedError);
+        this.emit("retry-exhausted", { attempts, error: classifiedError });
 
         // Try to use cached flags as fallback
         this.useCachedFallback();
@@ -643,11 +673,11 @@ export class RollgateClient extends EventEmitter {
 
       // Emit retry info if we had to retry
       if (attempts > 1) {
-        this.emit('retry-success', { attempts });
+        this.emit("retry-success", { attempts });
       }
 
       // Update cache with fresh data
-      this.cache.set('flags', data.flags || {});
+      this.cache.set("flags", data.flags || {});
 
       const oldFlags = new Map(this.flags);
       this.flags = new Map(Object.entries(data.flags || {}));
@@ -656,11 +686,11 @@ export class RollgateClient extends EventEmitter {
       for (const [key, value] of this.flags) {
         const oldValue = oldFlags.get(key);
         if (oldValue !== value) {
-          this.emit('flag-changed', key, value, oldValue);
+          this.emit("flag-changed", key, value, oldValue);
         }
       }
 
-      this.emit('flags-updated', this.getAllFlags());
+      this.emit("flags-updated", this.getAllFlags());
     });
   }
 
@@ -674,18 +704,18 @@ export class RollgateClient extends EventEmitter {
       this.flags = new Map(Object.entries(cached.flags));
 
       if (cached.stale) {
-        this.emit('flags-stale', this.getAllFlags());
+        this.emit("flags-stale", this.getAllFlags());
       }
 
       // Emit change events for any flags that changed
       for (const [key, value] of this.flags) {
         const oldValue = oldFlags.get(key);
         if (oldValue !== value) {
-          this.emit('flag-changed', key, value, oldValue);
+          this.emit("flag-changed", key, value, oldValue);
         }
       }
 
-      this.emit('flags-updated', this.getAllFlags());
+      this.emit("flags-updated", this.getAllFlags());
     }
   }
 
@@ -699,7 +729,7 @@ export class RollgateClient extends EventEmitter {
 
     if (!this.initialized) {
       console.warn(
-        '[Rollgate] Client not initialized. Call init() first. Returning default value.'
+        "[Rollgate] Client not initialized. Call init() first. Returning default value.",
       );
       // Record evaluation with default value
       const evaluationTime = performance.now() - startTime;
@@ -741,14 +771,17 @@ export class RollgateClient extends EventEmitter {
   getValue<T>(flagKey: string, defaultValue: T): T {
     if (!this.initialized) {
       console.warn(
-        '[Rollgate] Client not initialized. Call init() first. Returning default value.'
+        "[Rollgate] Client not initialized. Call init() first. Returning default value.",
       );
       return defaultValue;
     }
 
     // V2 rules support typed values
     if (this.rulesV2 && this.rulesV2[flagKey]) {
-      const result = evaluateFlagValue<T>(this.rulesV2[flagKey], this.userContext);
+      const result = evaluateFlagValue<T>(
+        this.rulesV2[flagKey],
+        this.userContext,
+      );
       if (!result.enabled) {
         return defaultValue;
       }
@@ -759,7 +792,7 @@ export class RollgateClient extends EventEmitter {
     if (this.rules && this.rules[flagKey]) {
       const enabled = evaluateFlag(this.rules[flagKey], this.userContext);
       // If T is boolean, return enabled state; otherwise return default
-      if (typeof defaultValue === 'boolean') {
+      if (typeof defaultValue === "boolean") {
         return enabled as unknown as T;
       }
     }
@@ -774,7 +807,7 @@ export class RollgateClient extends EventEmitter {
 
     // Final fallback to boolean flags map
     const boolVal = this.flags.get(flagKey);
-    if (boolVal !== undefined && typeof defaultValue === 'boolean') {
+    if (boolVal !== undefined && typeof defaultValue === "boolean") {
       return boolVal as unknown as T;
     }
 
@@ -785,7 +818,7 @@ export class RollgateClient extends EventEmitter {
    * Get a string flag value.
    * Convenience method for getValue<string>.
    */
-  getString(flagKey: string, defaultValue: string = ''): string {
+  getString(flagKey: string, defaultValue: string = ""): string {
     return this.getValue<string>(flagKey, defaultValue);
   }
 
@@ -845,11 +878,11 @@ export class RollgateClient extends EventEmitter {
       for (const [key, value] of this.flags) {
         const oldValue = oldFlags.get(key);
         if (oldValue !== value) {
-          this.emit('flag-changed', key, value, oldValue);
+          this.emit("flag-changed", key, value, oldValue);
         }
       }
 
-      this.emit('flags-updated', this.getAllFlags());
+      this.emit("flags-updated", this.getAllFlags());
     } else {
       // Server-side evaluation mode - fetch new flags
       await this.fetchFlags();
@@ -873,11 +906,11 @@ export class RollgateClient extends EventEmitter {
       for (const [key, value] of this.flags) {
         const oldValue = oldFlags.get(key);
         if (oldValue !== value) {
-          this.emit('flag-changed', key, value, oldValue);
+          this.emit("flag-changed", key, value, oldValue);
         }
       }
 
-      this.emit('flags-updated', this.getAllFlags());
+      this.emit("flags-updated", this.getAllFlags());
     } else {
       // Server-side evaluation mode - fetch new flags
       await this.fetchFlags();

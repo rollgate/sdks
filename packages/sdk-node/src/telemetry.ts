@@ -3,7 +3,7 @@
  * and reporting them to the Rollgate server in batches.
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 
 export interface TelemetryConfig {
   /** API endpoint for telemetry reporting */
@@ -19,8 +19,8 @@ export interface TelemetryConfig {
 }
 
 export const DEFAULT_TELEMETRY_CONFIG: TelemetryConfig = {
-  endpoint: '',
-  apiKey: '',
+  endpoint: "",
+  apiKey: "",
   flushIntervalMs: 60000, // 1 minute
   maxBufferSize: 1000,
   enabled: true,
@@ -70,7 +70,7 @@ export class TelemetryCollector extends EventEmitter {
     this.lastFlushTime = Date.now();
     this.flushTimer = setInterval(() => {
       this.flush().catch((err) => {
-        this.emit('error', err);
+        this.emit("error", err);
       });
     }, this.config.flushIntervalMs);
 
@@ -119,7 +119,7 @@ export class TelemetryCollector extends EventEmitter {
     // Check if we need to flush due to buffer size
     if (this.totalBuffered >= this.config.maxBufferSize) {
       this.flush().catch((err) => {
-        this.emit('error', err);
+        this.emit("error", err);
       });
     }
   }
@@ -156,20 +156,22 @@ export class TelemetryCollector extends EventEmitter {
 
     try {
       const response = await fetch(this.config.endpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${this.config.apiKey}`,
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error(`Telemetry request failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Telemetry request failed: ${response.status} ${response.statusText}`,
+        );
       }
 
       const result = (await response.json()) as { received: number };
-      this.emit('flush', {
+      this.emit("flush", {
         flagsReported: Object.keys(evaluationsToSend).length,
         received: result.received,
         periodMs,

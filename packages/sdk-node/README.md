@@ -11,15 +11,15 @@ npm install @rollgate/sdk-node
 ## Quick Start
 
 ```typescript
-import { RollgateClient } from '@rollgate/sdk-node';
+import { RollgateClient } from "@rollgate/sdk-node";
 
 const client = new RollgateClient({
-  apiKey: 'sb_server_your_api_key',
+  apiKey: "sb_server_your_api_key",
 });
 
 await client.init();
 
-if (client.isEnabled('new-checkout-flow')) {
+if (client.isEnabled("new-checkout-flow")) {
   // New feature code
 }
 ```
@@ -28,8 +28,8 @@ if (client.isEnabled('new-checkout-flow')) {
 
 ```typescript
 const client = new RollgateClient({
-  apiKey: 'sb_server_your_api_key', // Required
-  baseUrl: 'https://api.rollgate.io', // Optional
+  apiKey: "sb_server_your_api_key", // Required
+  baseUrl: "https://api.rollgate.io", // Optional
   refreshInterval: 60000, // Polling interval in ms (0 to disable)
   enableStreaming: false, // Enable SSE for real-time updates
 });
@@ -40,15 +40,15 @@ const client = new RollgateClient({
 ```typescript
 // Initialize with user context
 await client.init({
-  id: 'user-123',
-  email: 'user@example.com',
-  attributes: { plan: 'premium' },
+  id: "user-123",
+  email: "user@example.com",
+  attributes: { plan: "premium" },
 });
 
 // Or identify later
 await client.identify({
-  id: 'user-456',
-  attributes: { country: 'US' },
+  id: "user-456",
+  attributes: { country: "US" },
 });
 ```
 
@@ -67,16 +67,16 @@ await client.identify({
 ## Events
 
 ```typescript
-client.on('ready', () => {
+client.on("ready", () => {
   /* Client initialized */
 });
-client.on('flag-changed', (key, newValue, oldValue) => {
+client.on("flag-changed", (key, newValue, oldValue) => {
   /* Flag changed */
 });
-client.on('flags-updated', (flags) => {
+client.on("flags-updated", (flags) => {
   /* Flags refreshed */
 });
-client.on('error', (error) => {
+client.on("error", (error) => {
   /* Error occurred */
 });
 ```

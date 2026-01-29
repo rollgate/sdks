@@ -1,6 +1,13 @@
-import { Directive, Input, TemplateRef, ViewContainerRef, OnInit, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { RollgateService } from './rollgate.service';
+import {
+  Directive,
+  Input,
+  TemplateRef,
+  ViewContainerRef,
+  OnInit,
+  OnDestroy,
+} from "@angular/core";
+import { Subscription } from "rxjs";
+import { RollgateService } from "./rollgate.service";
 
 /**
  * Structural directive to conditionally render content based on a feature flag.
@@ -18,11 +25,11 @@ import { RollgateService } from './rollgate.service';
  * ```
  */
 @Directive({
-  selector: '[rollgateFlag]',
+  selector: "[rollgateFlag]",
   standalone: true,
 })
 export class FlagDirective implements OnInit, OnDestroy {
-  private flagKey = '';
+  private flagKey = "";
   private hasView = false;
   private subscription?: Subscription;
 
@@ -38,7 +45,7 @@ export class FlagDirective implements OnInit, OnDestroy {
   constructor(
     private templateRef: TemplateRef<unknown>,
     private viewContainer: ViewContainerRef,
-    private rollgate: RollgateService
+    private rollgate: RollgateService,
   ) {}
 
   ngOnInit(): void {

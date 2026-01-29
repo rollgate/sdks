@@ -1,6 +1,6 @@
-import type { InjectionKey, Ref } from 'vue';
-import type { CircuitState, MetricsSnapshot } from '@rollgate/sdk-core';
-import type { UserContext } from './plugin';
+import type { InjectionKey, Ref } from "vue";
+import type { CircuitState, MetricsSnapshot } from "@rollgate/sdk-core";
+import type { UserContext } from "./plugin";
 
 export interface RollgateContext {
   flags: Ref<Record<string, boolean>>;
@@ -19,7 +19,7 @@ export interface RollgateContext {
   close: () => void;
 }
 
-export const ROLLGATE_KEY: InjectionKey<RollgateContext> = Symbol('rollgate');
+export const ROLLGATE_KEY: InjectionKey<RollgateContext> = Symbol("rollgate");
 
 export function provideRollgate(context: RollgateContext): void {
   // This is handled by the plugin

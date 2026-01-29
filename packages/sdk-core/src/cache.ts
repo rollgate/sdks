@@ -89,7 +89,7 @@ export class FlagCache extends SimpleEventEmitter {
   get(): { flags: Record<string, boolean>; stale: boolean } | undefined {
     if (!this.cache) {
       this.stats.misses++;
-      this.emit('cache-miss', { key: 'flags' });
+      this.emit("cache-miss", { key: "flags" });
       return undefined;
     }
 
@@ -98,21 +98,21 @@ export class FlagCache extends SimpleEventEmitter {
     // Fresh cache
     if (age < this.config.ttl) {
       this.stats.hits++;
-      this.emit('cache-hit', { key: 'flags', age });
+      this.emit("cache-hit", { key: "flags", age });
       return { flags: this.cache.flags, stale: false };
     }
 
     // Stale but usable
     if (age < this.config.staleTtl) {
       this.stats.staleHits++;
-      this.emit('cache-stale', { key: 'flags', age });
+      this.emit("cache-stale", { key: "flags", age });
       return { flags: this.cache.flags, stale: true };
     }
 
     // Expired - clear cache
     this.cache = null;
     this.stats.misses++;
-    this.emit('cache-miss', { key: 'flags' });
+    this.emit("cache-miss", { key: "flags" });
     return undefined;
   }
 
@@ -121,9 +121,12 @@ export class FlagCache extends SimpleEventEmitter {
    * @param keyOrFlags - Either a key string (ignored, for backwards compatibility) or flags object
    * @param maybeFlags - Flags object if first param is a key
    */
-  set(keyOrFlags: string | Record<string, boolean>, maybeFlags?: Record<string, boolean>): void {
+  set(
+    keyOrFlags: string | Record<string, boolean>,
+    maybeFlags?: Record<string, boolean>,
+  ): void {
     // Support both set(flags) and set(key, flags) signatures for backwards compatibility
-    const flags = typeof keyOrFlags === 'string' ? maybeFlags! : keyOrFlags;
+    const flags = typeof keyOrFlags === "string" ? maybeFlags! : keyOrFlags;
     this.cache = {
       flags,
       timestamp: Date.now(),
@@ -152,7 +155,7 @@ export class FlagCache extends SimpleEventEmitter {
    */
   clear(): void {
     this.cache = null;
-    if (this.config.storageKey && typeof localStorage !== 'undefined') {
+    if (this.config.storageKey && typeof localStorage !== "undefined") {
       try {
         localStorage.removeItem(this.config.storageKey);
       } catch {
@@ -181,7 +184,7 @@ export class FlagCache extends SimpleEventEmitter {
    * Load cache from localStorage
    */
   load(): boolean {
-    if (!this.config.storageKey || typeof localStorage === 'undefined') {
+    if (!this.config.storageKey || typeof localStorage === "undefined") {
       return false;
     }
 
@@ -207,7 +210,11 @@ export class FlagCache extends SimpleEventEmitter {
    * Persist cache to localStorage
    */
   private persistToStorage(): void {
-    if (!this.config.storageKey || typeof localStorage === 'undefined' || !this.cache) {
+    if (
+      !this.config.storageKey ||
+      typeof localStorage === "undefined" ||
+      !this.cache
+    ) {
       return;
     }
 

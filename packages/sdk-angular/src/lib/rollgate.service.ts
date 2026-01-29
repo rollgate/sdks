@@ -1,6 +1,6 @@
-import { Injectable, Inject, OnDestroy, Optional } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
-import { ROLLGATE_CONFIG, type RollgateModuleConfig } from './rollgate.config';
+import { Injectable, Inject, OnDestroy, Optional } from "@angular/core";
+import { BehaviorSubject, Observable } from "rxjs";
+import { ROLLGATE_CONFIG, type RollgateModuleConfig } from "./rollgate.config";
 import {
   // Retry
   fetchWithRetry,
@@ -25,13 +25,13 @@ import {
   // Tracing
   createTraceContext,
   getTraceHeaders,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 import type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
   MetricsSnapshot,
-} from '@rollgate/sdk-core';
+} from "@rollgate/sdk-core";
 
 export interface UserContext {
   id: string;
@@ -44,7 +44,7 @@ interface FlagsResponse {
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: "root",
 })
 export class RollgateService implements OnDestroy {
   private initialized = false;
@@ -54,7 +54,9 @@ export class RollgateService implements OnDestroy {
   private readonly _isLoading$ = new BehaviorSubject<boolean>(true);
   private readonly _isStale$ = new BehaviorSubject<boolean>(false);
   private readonly _error$ = new BehaviorSubject<Error | null>(null);
-  private readonly _circuitState$ = new BehaviorSubject<CircuitState>(CircuitState.CLOSED);
+  private readonly _circuitState$ = new BehaviorSubject<CircuitState>(
+    CircuitState.CLOSED,
+  );
 
   // Internal state
   private currentUser: UserContext | undefined;
@@ -69,9 +71,9 @@ export class RollgateService implements OnDestroy {
   private dedup: RequestDeduplicator | null = null;
 
   // Config
-  private apiKey = '';
-  private baseUrl = 'https://api.rollgate.io';
-  private sseUrl = '';
+  private apiKey = "";
+  private baseUrl = "https://api.rollgate.io";
+  private sseUrl = "";
   private refreshInterval = 30000;
   private enableStreaming = false;
   private timeout = 5000;
@@ -80,7 +82,8 @@ export class RollgateService implements OnDestroy {
   /**
    * Observable of all flag values
    */
-  readonly flags$: Observable<Record<string, boolean>> = this._flags$.asObservable();
+  readonly flags$: Observable<Record<string, boolean>> =
+    this._flags$.asObservable();
 
   /**
    * Observable of ready state
@@ -105,9 +108,12 @@ export class RollgateService implements OnDestroy {
   /**
    * Observable of circuit breaker state
    */
-  readonly circuitState$: Observable<CircuitState> = this._circuitState$.asObservable();
+  readonly circuitState$: Observable<CircuitState> =
+    this._circuitState$.asObservable();
 
-  constructor(@Optional() @Inject(ROLLGATE_CONFIG) private config?: RollgateModuleConfig) {
+  constructor(
+    @Optional() @Inject(ROLLGATE_CONFIG) private config?: RollgateModuleConfig,
+  ) {
     if (this.config) {
       this.init(this.config);
     }
@@ -118,13 +124,13 @@ export class RollgateService implements OnDestroy {
    */
   async init(config: RollgateModuleConfig): Promise<void> {
     if (this.initialized) {
-      console.warn('[Rollgate] Already initialized');
+      console.warn("[Rollgate] Already initialized");
       return;
     }
 
     // Store config
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.rollgate.io';
+    this.baseUrl = config.baseUrl || "https://api.rollgate.io";
     this.sseUrl = config.sseUrl || this.baseUrl;
     this.refreshInterval = config.refreshInterval ?? 30000;
     this.enableStreaming = config.enableStreaming ?? config.streaming ?? false;
@@ -136,7 +142,10 @@ export class RollgateService implements OnDestroy {
       ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
       ...config.circuitBreaker,
     };
-    const cacheConfig: CacheConfig = { ...DEFAULT_CACHE_CONFIG, ...config.cache };
+    const cacheConfig: CacheConfig = {
+      ...DEFAULT_CACHE_CONFIG,
+      ...config.cache,
+    };
 
     // Create instances
     this.metrics = createMetrics();
@@ -145,13 +154,13 @@ export class RollgateService implements OnDestroy {
     this.dedup = new RequestDeduplicator();
 
     // Track circuit state changes
-    this.circuitBreaker.on('state-change', (data) => {
+    this.circuitBreaker.on("state-change", (data) => {
       if (!data?.to) return;
       this._circuitState$.next(data.to);
       if (this.metrics) {
-        let metricsState: 'closed' | 'open' | 'half-open' = 'closed';
-        if (data.to === CircuitState.OPEN) metricsState = 'open';
-        else if (data.to === CircuitState.HALF_OPEN) metricsState = 'half-open';
+        let metricsState: "closed" | "open" | "half-open" = "closed";
+        if (data.to === CircuitState.OPEN) metricsState = "open";
+        else if (data.to === CircuitState.HALF_OPEN) metricsState = "half-open";
         this.metrics.recordCircuitStateChange(metricsState);
       }
     });
@@ -176,20 +185,21 @@ export class RollgateService implements OnDestroy {
   }
 
   private async fetchFlags(): Promise<void> {
-    if (!this.dedup || !this.circuitBreaker || !this.cache || !this.metrics) return;
+    if (!this.dedup || !this.circuitBreaker || !this.cache || !this.metrics)
+      return;
 
-    return this.dedup.dedupe('fetch-flags', async () => {
+    return this.dedup.dedupe("fetch-flags", async () => {
       const url = new URL(`${this.baseUrl}/api/v1/sdk/flags`);
-      const endpoint = '/api/v1/sdk/flags';
+      const endpoint = "/api/v1/sdk/flags";
       const startTime = Date.now();
       let statusCode = 0;
 
       if (this.currentUser?.id) {
-        url.searchParams.set('user_id', this.currentUser.id);
+        url.searchParams.set("user_id", this.currentUser.id);
       }
 
       if (!this.circuitBreaker!.isAllowingRequests()) {
-        console.warn('[Rollgate] Circuit breaker is open, using cached flags');
+        console.warn("[Rollgate] Circuit breaker is open, using cached flags");
         this.useCachedFallback();
         return;
       }
@@ -198,7 +208,10 @@ export class RollgateService implements OnDestroy {
         const data = await this.circuitBreaker!.execute(async () => {
           const result = await fetchWithRetry(async () => {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+            const timeoutId = setTimeout(
+              () => controller.abort(),
+              this.timeout,
+            );
 
             try {
               const traceContext = createTraceContext();
@@ -206,11 +219,11 @@ export class RollgateService implements OnDestroy {
 
               const headers: Record<string, string> = {
                 Authorization: `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
                 ...traceHeaders,
               };
               if (this.lastETag) {
-                headers['If-None-Match'] = this.lastETag;
+                headers["If-None-Match"] = this.lastETag;
               }
 
               const response = await fetch(url.toString(), {
@@ -229,7 +242,7 @@ export class RollgateService implements OnDestroy {
                 throw err;
               }
 
-              const newETag = response.headers.get('ETag');
+              const newETag = response.headers.get("ETag");
               if (newETag) {
                 this.lastETag = newETag;
               }
@@ -289,13 +302,19 @@ export class RollgateService implements OnDestroy {
         });
 
         if (err instanceof CircuitOpenError) {
-          console.warn('[Rollgate] Circuit breaker is open:', err.message);
+          console.warn("[Rollgate] Circuit breaker is open:", err.message);
         } else if (classifiedError.category === ErrorCategory.AUTH) {
-          console.error('[Rollgate] Authentication error:', classifiedError.message);
+          console.error(
+            "[Rollgate] Authentication error:",
+            classifiedError.message,
+          );
         } else if (classifiedError.category === ErrorCategory.RATE_LIMIT) {
-          console.warn('[Rollgate] Rate limited:', classifiedError.message);
+          console.warn("[Rollgate] Rate limited:", classifiedError.message);
         } else {
-          console.error('[Rollgate] Error fetching flags:', classifiedError.message);
+          console.error(
+            "[Rollgate] Error fetching flags:",
+            classifiedError.message,
+          );
         }
 
         this.useCachedFallback();
@@ -319,14 +338,14 @@ export class RollgateService implements OnDestroy {
     if (!this.enableStreaming) return;
 
     const url = new URL(`${this.sseUrl}/api/v1/sdk/stream`);
-    url.searchParams.set('token', this.apiKey);
+    url.searchParams.set("token", this.apiKey);
     if (this.currentUser?.id) {
-      url.searchParams.set('user_id', this.currentUser.id);
+      url.searchParams.set("user_id", this.currentUser.id);
     }
 
     this.eventSource = new EventSource(url.toString());
 
-    this.eventSource.addEventListener('init', (event: MessageEvent) => {
+    this.eventSource.addEventListener("init", (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as FlagsResponse;
         this._flags$.next(data.flags || {});
@@ -334,27 +353,30 @@ export class RollgateService implements OnDestroy {
         this._error$.next(null);
         this._isReady$.next(true);
       } catch (e) {
-        console.error('[Rollgate] Failed to parse init event:', e);
+        console.error("[Rollgate] Failed to parse init event:", e);
       }
     });
 
-    this.eventSource.addEventListener('flag-changed', () => {
+    this.eventSource.addEventListener("flag-changed", () => {
       this.fetchFlags();
     });
 
-    this.eventSource.addEventListener('flag-update', (event: MessageEvent) => {
+    this.eventSource.addEventListener("flag-update", (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data) as { key: string; enabled: boolean };
+        const data = JSON.parse(event.data) as {
+          key: string;
+          enabled: boolean;
+        };
         const current = this._flags$.value;
         this._flags$.next({ ...current, [data.key]: data.enabled });
       } catch (e) {
-        console.error('[Rollgate] Failed to parse flag-update event:', e);
+        console.error("[Rollgate] Failed to parse flag-update event:", e);
       }
     });
 
     this.eventSource.onerror = () => {
-      console.warn('[Rollgate] SSE connection error');
-      this._error$.next(new Error('SSE connection error'));
+      console.warn("[Rollgate] SSE connection error");
+      this._error$.next(new Error("SSE connection error"));
     };
   }
 
@@ -362,7 +384,10 @@ export class RollgateService implements OnDestroy {
     if (this.enableStreaming) return;
 
     if (this.refreshInterval > 0) {
-      this.pollInterval = setInterval(() => this.fetchFlags(), this.refreshInterval);
+      this.pollInterval = setInterval(
+        () => this.fetchFlags(),
+        this.refreshInterval,
+      );
     }
   }
 
@@ -468,4 +493,4 @@ export class RollgateService implements OnDestroy {
 }
 
 // Re-export types
-export { CircuitState } from '@rollgate/sdk-core';
+export { CircuitState } from "@rollgate/sdk-core";

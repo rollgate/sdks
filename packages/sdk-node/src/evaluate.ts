@@ -3,7 +3,7 @@
  * Mirrors the server-side evaluation in Go for consistency.
  */
 
-import { createHash } from 'crypto';
+import { createHash } from "crypto";
 
 export interface UserContext {
   id: string;
@@ -39,7 +39,7 @@ export interface RulesPayload {
 }
 
 // V2 types with variation support
-export type FlagType = 'boolean' | 'string' | 'number' | 'json';
+export type FlagType = "boolean" | "string" | "number" | "json";
 
 export interface Variation {
   id: string;
@@ -83,7 +83,10 @@ export interface EvaluationResult<T = unknown> {
  * 3. If user matches any enabled targeting rule, use rule's rollout
  * 4. Otherwise, use flag's default rollout percentage
  */
-export function evaluateFlag(rule: FlagRule, user: UserContext | null): boolean {
+export function evaluateFlag(
+  rule: FlagRule,
+  user: UserContext | null,
+): boolean {
   // 1. If flag is disabled, always return false
   if (!rule.enabled) {
     return false;
@@ -148,13 +151,13 @@ function matchesRule(rule: TargetingRule, user: UserContext): boolean {
  */
 function matchesCondition(condition: Condition, user: UserContext): boolean {
   const attrValue = getAttributeValue(condition.attribute, user);
-  const exists = attrValue !== undefined && attrValue !== '';
+  const exists = attrValue !== undefined && attrValue !== "";
 
   // Handle is_set / is_not_set operators first
   switch (condition.operator) {
-    case 'is_set':
+    case "is_set":
       return exists;
-    case 'is_not_set':
+    case "is_not_set":
       return !exists;
   }
 
@@ -167,46 +170,50 @@ function matchesCondition(condition: Condition, user: UserContext): boolean {
   const condValue = condition.value.toLowerCase();
 
   switch (condition.operator) {
-    case 'equals':
+    case "equals":
       return value === condValue;
-    case 'not_equals':
+    case "not_equals":
       return value !== condValue;
-    case 'contains':
+    case "contains":
       return value.includes(condValue);
-    case 'not_contains':
+    case "not_contains":
       return !value.includes(condValue);
-    case 'starts_with':
+    case "starts_with":
       return value.startsWith(condValue);
-    case 'ends_with':
+    case "ends_with":
       return value.endsWith(condValue);
-    case 'in': {
-      const values = condition.value.split(',').map((v) => v.trim().toLowerCase());
+    case "in": {
+      const values = condition.value
+        .split(",")
+        .map((v) => v.trim().toLowerCase());
       return values.includes(value);
     }
-    case 'not_in': {
-      const values = condition.value.split(',').map((v) => v.trim().toLowerCase());
+    case "not_in": {
+      const values = condition.value
+        .split(",")
+        .map((v) => v.trim().toLowerCase());
       return !values.includes(value);
     }
-    case 'greater_than':
-      return compareNumeric(attrValue, condition.value, '>');
-    case 'greater_equal':
-      return compareNumeric(attrValue, condition.value, '>=');
-    case 'less_than':
-      return compareNumeric(attrValue, condition.value, '<');
-    case 'less_equal':
-      return compareNumeric(attrValue, condition.value, '<=');
-    case 'regex':
+    case "greater_than":
+      return compareNumeric(attrValue, condition.value, ">");
+    case "greater_equal":
+      return compareNumeric(attrValue, condition.value, ">=");
+    case "less_than":
+      return compareNumeric(attrValue, condition.value, "<");
+    case "less_equal":
+      return compareNumeric(attrValue, condition.value, "<=");
+    case "regex":
       try {
         return new RegExp(condition.value).test(String(attrValue));
       } catch {
         return false;
       }
-    case 'semver_gt':
-      return compareSemver(String(attrValue), condition.value, '>');
-    case 'semver_lt':
-      return compareSemver(String(attrValue), condition.value, '<');
-    case 'semver_eq':
-      return compareSemver(String(attrValue), condition.value, '=');
+    case "semver_gt":
+      return compareSemver(String(attrValue), condition.value, ">");
+    case "semver_lt":
+      return compareSemver(String(attrValue), condition.value, "<");
+    case "semver_eq":
+      return compareSemver(String(attrValue), condition.value, "=");
     default:
       return false;
   }
@@ -217,12 +224,12 @@ function matchesCondition(condition: Condition, user: UserContext): boolean {
  */
 function getAttributeValue(
   attribute: string,
-  user: UserContext
+  user: UserContext,
 ): string | number | boolean | undefined {
   switch (attribute) {
-    case 'id':
+    case "id":
       return user.id;
-    case 'email':
+    case "email":
       return user.email;
     default:
       return user.attributes?.[attribute];
@@ -235,7 +242,7 @@ function getAttributeValue(
 function compareNumeric(
   attrVal: string | number | boolean | undefined,
   condVal: string,
-  op: string
+  op: string,
 ): boolean {
   const a = parseFloat(String(attrVal));
   const b = parseFloat(condVal);
@@ -243,13 +250,13 @@ function compareNumeric(
     return false;
   }
   switch (op) {
-    case '>':
+    case ">":
       return a > b;
-    case '>=':
+    case ">=":
       return a >= b;
-    case '<':
+    case "<":
       return a < b;
-    case '<=':
+    case "<=":
       return a <= b;
     default:
       return false;
@@ -262,8 +269,8 @@ function compareNumeric(
 function compareSemver(attrVal: string, condVal: string, op: string): boolean {
   // Normalize versions (add 'v' prefix if missing for parsing)
   const parseVersion = (v: string): number[] | null => {
-    const clean = v.replace(/^v/, '');
-    const parts = clean.split('.').map((p) => parseInt(p, 10));
+    const clean = v.replace(/^v/, "");
+    const parts = clean.split(".").map((p) => parseInt(p, 10));
     if (parts.some(isNaN)) return null;
     return parts;
   };
@@ -278,11 +285,11 @@ function compareSemver(attrVal: string, condVal: string, op: string): boolean {
 
   // Compare each part
   for (let i = 0; i < a.length; i++) {
-    if (a[i] > b[i]) return op === '>' || op === '>=';
-    if (a[i] < b[i]) return op === '<' || op === '<=';
+    if (a[i] > b[i]) return op === ">" || op === ">=";
+    if (a[i] < b[i]) return op === "<" || op === "<=";
   }
   // Equal
-  return op === '=' || op === '>=' || op === '<=';
+  return op === "=" || op === ">=" || op === "<=";
 }
 
 /**
@@ -291,8 +298,12 @@ function compareSemver(attrVal: string, condVal: string, op: string): boolean {
  * - Same user always gets same result for a given flag
  * - Distribution is statistically uniform
  */
-function isInRollout(flagKey: string, userId: string, percentage: number): boolean {
-  const hash = createHash('sha256').update(`${flagKey}:${userId}`).digest();
+function isInRollout(
+  flagKey: string,
+  userId: string,
+  percentage: number,
+): boolean {
+  const hash = createHash("sha256").update(`${flagKey}:${userId}`).digest();
   // Use first 4 bytes as uint32 and mod 100 to get a value 0-99
   const value = hash.readUInt32BE(0) % 100;
   return value < percentage;
@@ -303,7 +314,7 @@ function isInRollout(flagKey: string, userId: string, percentage: number): boole
  */
 export function evaluateAllFlags(
   rules: Record<string, FlagRule>,
-  user: UserContext | null
+  user: UserContext | null,
 ): Record<string, boolean> {
   const result: Record<string, boolean> = {};
   for (const [key, rule] of Object.entries(rules)) {
@@ -318,7 +329,7 @@ export function evaluateAllFlags(
  */
 export function evaluateFlagValue<T = unknown>(
   rule: FlagRuleV2,
-  user: UserContext | null
+  user: UserContext | null,
 ): EvaluationResult<T> {
   // If flag is disabled, return default value
   if (!rule.enabled) {
@@ -347,7 +358,10 @@ export function evaluateFlagValue<T = unknown>(
             value: getDefaultValue(rule) as T,
           };
         }
-        if (targetingRule.rollout >= 100 || isInRollout(rule.key, user.id, targetingRule.rollout)) {
+        if (
+          targetingRule.rollout >= 100 ||
+          isInRollout(rule.key, user.id, targetingRule.rollout)
+        ) {
           return {
             enabled: true,
             value: getEnabledValue(rule, targetingRule.variationId) as T,
@@ -399,13 +413,13 @@ function getDefaultValue(rule: FlagRuleV2): unknown {
 
   // Type-specific defaults
   switch (rule.type) {
-    case 'boolean':
+    case "boolean":
       return false;
-    case 'string':
-      return '';
-    case 'number':
+    case "string":
+      return "";
+    case "number":
       return 0;
-    case 'json':
+    case "json":
       return null;
     default:
       return false;
@@ -425,7 +439,7 @@ function getEnabledValue(rule: FlagRuleV2, variationId?: string): unknown {
   }
 
   // For boolean flags, enabled = true
-  if (rule.type === 'boolean') {
+  if (rule.type === "boolean") {
     return true;
   }
 
@@ -458,7 +472,7 @@ function matchesRuleV2(rule: TargetingRuleV2, user: UserContext): boolean {
  */
 export function evaluateAllFlagsV2(
   rules: Record<string, FlagRuleV2>,
-  user: UserContext | null
+  user: UserContext | null,
 ): Record<string, EvaluationResult> {
   const result: Record<string, EvaluationResult> = {};
   for (const [key, rule] of Object.entries(rules)) {

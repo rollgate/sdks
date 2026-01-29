@@ -61,29 +61,29 @@ export function isRetryableError(error: unknown): boolean {
   const message = error.message.toLowerCase();
 
   // Network errors (always retry)
-  if (message.includes('econnrefused')) return true;
-  if (message.includes('etimedout')) return true;
-  if (message.includes('enotfound')) return true;
-  if (message.includes('econnreset')) return true;
-  if (message.includes('network')) return true;
-  if (message.includes('fetch failed')) return true;
-  if (message.includes('aborted')) return true;
+  if (message.includes("econnrefused")) return true;
+  if (message.includes("etimedout")) return true;
+  if (message.includes("enotfound")) return true;
+  if (message.includes("econnreset")) return true;
+  if (message.includes("network")) return true;
+  if (message.includes("fetch failed")) return true;
+  if (message.includes("aborted")) return true;
 
   // HTTP 5xx errors (server issues, retry)
-  if (message.includes('500')) return true;
-  if (message.includes('502')) return true; // Bad Gateway
-  if (message.includes('503')) return true; // Service Unavailable
-  if (message.includes('504')) return true; // Gateway Timeout
+  if (message.includes("500")) return true;
+  if (message.includes("502")) return true; // Bad Gateway
+  if (message.includes("503")) return true; // Service Unavailable
+  if (message.includes("504")) return true; // Gateway Timeout
 
   // Rate limiting (retry with backoff)
-  if (message.includes('429')) return true;
-  if (message.includes('too many requests')) return true;
+  if (message.includes("429")) return true;
+  if (message.includes("too many requests")) return true;
 
   // HTTP 4xx errors (client errors, don't retry)
-  if (message.includes('400')) return false;
-  if (message.includes('401')) return false;
-  if (message.includes('403')) return false;
-  if (message.includes('404')) return false;
+  if (message.includes("400")) return false;
+  if (message.includes("401")) return false;
+  if (message.includes("403")) return false;
+  if (message.includes("404")) return false;
 
   return false;
 }
@@ -93,7 +93,7 @@ export function isRetryableError(error: unknown): boolean {
  */
 export async function fetchWithRetry<T>(
   fn: () => Promise<T>,
-  config: Partial<RetryConfig> = {}
+  config: Partial<RetryConfig> = {},
 ): Promise<RetryResult<T>> {
   const fullConfig: RetryConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
   let lastError: Error | undefined;
@@ -128,7 +128,7 @@ export async function fetchWithRetry<T>(
 
   return {
     success: false,
-    error: lastError || new Error('Retry exhausted'),
+    error: lastError || new Error("Retry exhausted"),
     attempts: fullConfig.maxRetries + 1,
   };
 }

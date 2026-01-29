@@ -18,33 +18,33 @@ pnpm add @rollgate/sdk-vue
 
 ```typescript
 // main.ts
-import { createApp } from 'vue';
-import { RollgatePlugin } from '@rollgate/sdk-vue';
-import App from './App.vue';
+import { createApp } from "vue";
+import { RollgatePlugin } from "@rollgate/sdk-vue";
+import App from "./App.vue";
 
 const app = createApp(App);
 
 app.use(RollgatePlugin, {
-  apiKey: 'your-api-key',
+  apiKey: "your-api-key",
   // Optional: initial user for targeting
   user: {
-    id: 'user-123',
-    email: 'user@example.com',
-    attributes: { plan: 'pro' },
+    id: "user-123",
+    email: "user@example.com",
+    attributes: { plan: "pro" },
   },
 });
 
-app.mount('#app');
+app.mount("#app");
 ```
 
 ### 2. Use in Components
 
 ```vue
 <script setup lang="ts">
-import { useFlag, useRollgate } from '@rollgate/sdk-vue';
+import { useFlag, useRollgate } from "@rollgate/sdk-vue";
 
 // Simple flag check (reactive)
-const isNewFeatureEnabled = useFlag('new-feature');
+const isNewFeatureEnabled = useFlag("new-feature");
 
 // Full access to Rollgate
 const { isReady, isLoading, error, identify, refresh } = useRollgate();
@@ -68,10 +68,10 @@ Returns a reactive computed ref for a single flag.
 
 ```vue
 <script setup>
-import { useFlag } from '@rollgate/sdk-vue';
+import { useFlag } from "@rollgate/sdk-vue";
 
-const showBanner = useFlag('show-banner', false);
-const enableDarkMode = useFlag('dark-mode');
+const showBanner = useFlag("show-banner", false);
+const enableDarkMode = useFlag("dark-mode");
 </script>
 
 <template>
@@ -86,7 +86,7 @@ Returns all flags as a reactive computed ref.
 
 ```vue
 <script setup>
-import { useFlags } from '@rollgate/sdk-vue';
+import { useFlags } from "@rollgate/sdk-vue";
 
 const flags = useFlags();
 </script>
@@ -102,7 +102,7 @@ Full access to Rollgate client functionality.
 
 ```vue
 <script setup>
-import { useRollgate } from '@rollgate/sdk-vue';
+import { useRollgate } from "@rollgate/sdk-vue";
 
 const {
   flags, // All flags (reactive)
@@ -137,19 +137,19 @@ async function onLogout() {
 ```typescript
 app.use(RollgatePlugin, {
   // Required
-  apiKey: 'your-api-key',
+  apiKey: "your-api-key",
 
   // Optional
-  baseUrl: 'https://api.rollgate.io',
+  baseUrl: "https://api.rollgate.io",
   refreshInterval: 30000, // Polling interval (ms)
   enableStreaming: false, // Use SSE for real-time updates
   timeout: 5000, // Request timeout (ms)
 
   // Initial user context
   user: {
-    id: 'user-123',
-    email: 'user@example.com',
-    attributes: { plan: 'pro' },
+    id: "user-123",
+    email: "user@example.com",
+    attributes: { plan: "pro" },
   },
 
   // Retry configuration
@@ -181,16 +181,20 @@ app.use(RollgatePlugin, {
 Full TypeScript support with type inference:
 
 ```typescript
-import type { RollgateConfig, UserContext, CircuitState } from '@rollgate/sdk-vue';
+import type {
+  RollgateConfig,
+  UserContext,
+  CircuitState,
+} from "@rollgate/sdk-vue";
 
 const config: RollgateConfig = {
-  apiKey: 'your-api-key',
+  apiKey: "your-api-key",
 };
 
 const user: UserContext = {
-  id: 'user-123',
-  email: 'user@example.com',
-  attributes: { plan: 'pro', country: 'IT' },
+  id: "user-123",
+  email: "user@example.com",
+  attributes: { plan: "pro", country: "IT" },
 };
 ```
 
@@ -200,7 +204,7 @@ For SSR applications, initialize on the client side only:
 
 ```typescript
 // plugins/rollgate.client.ts (Nuxt 3)
-import { RollgatePlugin } from '@rollgate/sdk-vue';
+import { RollgatePlugin } from "@rollgate/sdk-vue";
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(RollgatePlugin, {

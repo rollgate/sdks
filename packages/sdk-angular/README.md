@@ -18,18 +18,18 @@ pnpm add @rollgate/sdk-angular
 
 ```typescript
 // app.module.ts
-import { NgModule } from '@angular/core';
-import { RollgateModule } from '@rollgate/sdk-angular';
+import { NgModule } from "@angular/core";
+import { RollgateModule } from "@rollgate/sdk-angular";
 
 @NgModule({
   imports: [
     RollgateModule.forRoot({
-      apiKey: 'your-api-key',
+      apiKey: "your-api-key",
       // Optional: initial user for targeting
       user: {
-        id: 'user-123',
-        email: 'user@example.com',
-        attributes: { plan: 'pro' },
+        id: "user-123",
+        email: "user@example.com",
+        attributes: { plan: "pro" },
       },
     }),
   ],
@@ -41,15 +41,15 @@ export class AppModule {}
 
 ```typescript
 // app.config.ts
-import { ApplicationConfig } from '@angular/core';
-import { ROLLGATE_CONFIG } from '@rollgate/sdk-angular';
+import { ApplicationConfig } from "@angular/core";
+import { ROLLGATE_CONFIG } from "@rollgate/sdk-angular";
 
 export const appConfig: ApplicationConfig = {
   providers: [
     {
       provide: ROLLGATE_CONFIG,
       useValue: {
-        apiKey: 'your-api-key',
+        apiKey: "your-api-key",
       },
     },
   ],
@@ -60,14 +60,16 @@ export const appConfig: ApplicationConfig = {
 
 ```typescript
 // app.component.ts
-import { Component } from '@angular/core';
-import { RollgateService } from '@rollgate/sdk-angular';
+import { Component } from "@angular/core";
+import { RollgateService } from "@rollgate/sdk-angular";
 
 @Component({
-  selector: 'app-root',
+  selector: "app-root",
   template: `
     <div *ngIf="rollgate.isReady$ | async; else loading">
-      <div *ngIf="rollgate.isEnabled('new-feature')">New feature is enabled!</div>
+      <div *ngIf="rollgate.isEnabled('new-feature')">
+        New feature is enabled!
+      </div>
     </div>
     <ng-template #loading>Loading flags...</ng-template>
   `,
@@ -84,14 +86,16 @@ export class AppComponent {
 Inject the service to check flags:
 
 ```typescript
-import { Component } from '@angular/core';
-import { RollgateService } from '@rollgate/sdk-angular';
+import { Component } from "@angular/core";
+import { RollgateService } from "@rollgate/sdk-angular";
 
 @Component({
-  selector: 'app-feature',
+  selector: "app-feature",
   template: `
     <div *ngIf="isNewFeatureEnabled">New Feature!</div>
-    <div *ngIf="flags$ | async as flags">Premium: {{ flags['premium-feature'] }}</div>
+    <div *ngIf="flags$ | async as flags">
+      Premium: {{ flags["premium-feature"] }}
+    </div>
   `,
 })
 export class FeatureComponent {
@@ -99,7 +103,7 @@ export class FeatureComponent {
   flags$ = this.rollgate.flags$;
 
   constructor(private rollgate: RollgateService) {
-    this.isNewFeatureEnabled = this.rollgate.isEnabled('new-feature');
+    this.isNewFeatureEnabled = this.rollgate.isEnabled("new-feature");
   }
 
   async onLogin(user: User) {
@@ -119,12 +123,12 @@ export class FeatureComponent {
 ### Reactive Flag Observable
 
 ```typescript
-import { Component } from '@angular/core';
-import { Observable } from 'rxjs';
-import { RollgateService } from '@rollgate/sdk-angular';
+import { Component } from "@angular/core";
+import { Observable } from "rxjs";
+import { RollgateService } from "@rollgate/sdk-angular";
 
 @Component({
-  selector: 'app-feature',
+  selector: "app-feature",
   template: `
     <div *ngIf="showBanner$ | async">
       <app-banner />
@@ -135,7 +139,7 @@ export class FeatureComponent {
   showBanner$: Observable<boolean>;
 
   constructor(private rollgate: RollgateService) {
-    this.showBanner$ = this.rollgate.getFlag$('show-banner');
+    this.showBanner$ = this.rollgate.getFlag$("show-banner");
   }
 }
 ```
@@ -145,17 +149,19 @@ export class FeatureComponent {
 Structural directive for conditional rendering:
 
 ```typescript
-import { Component } from '@angular/core';
-import { FlagDirective } from '@rollgate/sdk-angular';
+import { Component } from "@angular/core";
+import { FlagDirective } from "@rollgate/sdk-angular";
 
 @Component({
-  selector: 'app-feature',
+  selector: "app-feature",
   standalone: true,
   imports: [FlagDirective],
   template: `
     <div *rollgateFlag="'new-feature'">New feature is enabled!</div>
 
-    <ng-container *rollgateFlag="'premium'; else standardTpl"> Premium content </ng-container>
+    <ng-container *rollgateFlag="'premium'; else standardTpl">
+      Premium content
+    </ng-container>
     <ng-template #standardTpl>Standard content</ng-template>
   `,
 })
@@ -167,19 +173,19 @@ export class FeatureComponent {}
 ```typescript
 RollgateModule.forRoot({
   // Required
-  apiKey: 'your-api-key',
+  apiKey: "your-api-key",
 
   // Optional
-  baseUrl: 'https://api.rollgate.io',
+  baseUrl: "https://api.rollgate.io",
   refreshInterval: 30000, // Polling interval (ms)
   enableStreaming: false, // Use SSE for real-time updates
   timeout: 5000, // Request timeout (ms)
 
   // Initial user context
   user: {
-    id: 'user-123',
-    email: 'user@example.com',
-    attributes: { plan: 'pro' },
+    id: "user-123",
+    email: "user@example.com",
+    attributes: { plan: "pro" },
   },
 
   // Retry configuration
