@@ -83,7 +83,11 @@ client.on("error", (error) => {
 
 ## Documentation
 
-Full documentation: [docs/SDK-DOCUMENTATION.md](../../docs/SDK-DOCUMENTATION.md)
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
 
 ## License
 

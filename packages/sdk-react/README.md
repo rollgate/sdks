@@ -77,7 +77,7 @@ This approach:
 - Scales to millions of users (1 connection per server, not per user)
 - Provides resilience (cached flags work if Rollgate is down)
 
-See full guide: [Production Setup](../../docs/PRODUCTION-SETUP.md)
+See full guide: [Production Setup](../../docs/PRODUCTION-SETUP.md) for details.
 
 ## Hooks
 
@@ -138,7 +138,11 @@ await reset();
 
 ## Documentation
 
-Full documentation: [docs/SDK-DOCUMENTATION.md](../../docs/SDK-DOCUMENTATION.md)
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
 
 ## License
 
