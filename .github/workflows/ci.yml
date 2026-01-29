@@ -18,7 +18,7 @@ env:
 jobs:
   lint:
     name: Lint & Format
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +35,7 @@ jobs:
 
   sdk-core:
     name: SDK Core Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +55,7 @@ jobs:
 
   sdk-node:
     name: SDK Node.js Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sdk-core
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
 
   sdk-react:
     name: SDK React Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sdk-core
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
 
   sdk-vue:
     name: SDK Vue Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sdk-core
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +127,7 @@ jobs:
 
   sdk-angular:
     name: SDK Angular Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sdk-core
     steps:
       - uses: actions/checkout@v4
@@ -151,7 +151,7 @@ jobs:
 
   sdk-svelte:
     name: SDK Svelte Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sdk-core
     steps:
       - uses: actions/checkout@v4
@@ -175,7 +175,7 @@ jobs:
 
   sdk-go:
     name: SDK Go Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: packages/sdk-go
@@ -199,7 +199,7 @@ jobs:
 
   sdk-java:
     name: SDK Java Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: packages/sdk-java
@@ -222,7 +222,7 @@ jobs:
 
   sdk-python:
     name: SDK Python Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: packages/sdk-python
@@ -244,7 +244,7 @@ jobs:
 
   test-summary:
     name: Test Summary
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [lint, sdk-core, sdk-node, sdk-react, sdk-vue, sdk-angular, sdk-svelte, sdk-go, sdk-java, sdk-python]
     if: always()
     steps:
