@@ -1,0 +1,57 @@
+{
+  "name": "@rollgate/sdk-node",
+  "version": "0.0.1",
+  "description": "Rollgate Node.js SDK",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:bundle && npm run build:types",
+    "build:bundle": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --format=cjs --minify --sourcemap && esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.mjs --format=esm --minify --sourcemap",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "rollgate",
+    "nodejs"
+  ],
+  "author": "Rollgate <hello@rollgate.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thejord-it/rollgate.git",
+    "directory": "packages/sdk-node"
+  },
+  "homepage": "https://rollgate.io/docs/sdk/node",
+  "bugs": {
+    "url": "https://github.com/thejord-it/rollgate/issues"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.12.0",
+    "esbuild": "^0.27.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@rollgate/sdk-core": "*",
+    "eventsource": "^4.1.0"
+  }
+}

@@ -1,0 +1,216 @@
+# Rollgate Python SDK
+
+Official Python SDK for [Rollgate](https://rollgate.io) feature flags.
+
+## Installation
+
+```bash
+pip install rollgate
+```
+
+## Quick Start
+
+```python
+import asyncio
+from rollgate import RollgateClient, RollgateConfig, UserContext
+
+async def main():
+    # Initialize client
+    config = RollgateConfig(api_key="your-api-key")
+    client = RollgateClient(config)
+
+    # Initialize and fetch flags
+    await client.init()
+
+    # Check if feature is enabled
+    if client.is_enabled("new-feature"):
+        print("New feature is enabled!")
+
+    # With user targeting
+    await client.identify(UserContext(
+        id="user-123",
+        email="user@example.com",
+        attributes={"plan": "pro", "country": "IT"}
+    ))
+
+    if client.is_enabled("premium-feature"):
+        print("Premium feature is enabled for this user!")
+
+    # Cleanup
+    await client.close()
+
+asyncio.run(main())
+```
+
+## Context Manager
+
+```python
+async with RollgateClient(RollgateConfig(api_key="your-api-key")) as client:
+    if client.is_enabled("my-feature"):
+        # Feature is enabled
+        pass
+```
+
+## Configuration
+
+```python
+from rollgate import (
+    RollgateConfig,
+    RetryConfig,
+    CircuitBreakerConfig,
+    CacheConfig,
+)
+
+config = RollgateConfig(
+    api_key="your-api-key",
+    base_url="https://api.rollgate.io",  # Custom API URL
+    refresh_interval_ms=30000,  # Polling interval (30s default)
+    enable_streaming=False,  # Use SSE for real-time updates
+    timeout_ms=5000,  # Request timeout
+
+    # Retry configuration
+    retry=RetryConfig(
+        max_retries=3,
+        base_delay_ms=100,
+        max_delay_ms=10000,
+        jitter_factor=0.1,
+    ),
+
+    # Circuit breaker configuration
+    circuit_breaker=CircuitBreakerConfig(
+        failure_threshold=5,
+        recovery_timeout_ms=30000,
+        monitoring_window_ms=60000,
+        success_threshold=3,
+    ),
+
+    # Cache configuration
+    cache=CacheConfig(
+        ttl_ms=300000,  # 5 minutes
+        stale_ttl_ms=3600000,  # 1 hour
+        persist_path="/tmp/rollgate-cache.json",  # Optional persistence
+    ),
+)
+```
+
+## Events
+
+```python
+client = RollgateClient(config)
+
+# Register event callbacks
+client.on("ready", lambda: print("Client ready"))
+client.on("flags_updated", lambda flags: print(f"Flags updated: {flags}"))
+client.on("flag_changed", lambda key, new, old: print(f"{key}: {old} -> {new}"))
+client.on("error", lambda err: print(f"Error: {err}"))
+client.on("circuit_open", lambda *args: print("Circuit breaker opened"))
+client.on("circuit_closed", lambda: print("Circuit breaker closed"))
+
+await client.init()
+```
+
+## Features
+
+### Polling (Default)
+
+By default, the SDK polls for flag updates every 30 seconds.
+
+```python
+config = RollgateConfig(
+    api_key="your-api-key",
+    refresh_interval_ms=30000,  # Poll every 30s
+)
+```
+
+### SSE Streaming
+
+Enable Server-Sent Events for real-time flag updates:
+
+```python
+config = RollgateConfig(
+    api_key="your-api-key",
+    enable_streaming=True,
+)
+```
+
+### Circuit Breaker
+
+The SDK includes a circuit breaker to prevent cascading failures:
+
+```python
+# Check circuit state
+state = client.circuit_state  # CircuitState.CLOSED, OPEN, or HALF_OPEN
+
+# Get statistics
+stats = client.get_circuit_stats()
+
+# Force reset
+client.reset_circuit()
+```
+
+### Caching
+
+Flags are cached locally with stale-while-revalidate support:
+
+```python
+# Get cache statistics
+stats = client.get_cache_stats()
+hit_rate = client.get_cache_hit_rate()
+
+# Clear cache
+client.clear_cache()
+```
+
+### Error Handling
+
+```python
+from rollgate import (
+    RollgateError,
+    AuthenticationError,
+    NetworkError,
+    RateLimitError,
+)
+
+try:
+    await client.init()
+except AuthenticationError as e:
+    print(f"Invalid API key: {e}")
+except NetworkError as e:
+    print(f"Network error: {e}")
+except RateLimitError as e:
+    print(f"Rate limited, retry after: {e.retry_after}s")
+except RollgateError as e:
+    print(f"Rollgate error: {e}")
+```
+
+## API Reference
+
+### RollgateClient
+
+| Method                           | Description                        |
+| -------------------------------- | ---------------------------------- |
+| `init(user?)`                    | Initialize client and fetch flags  |
+| `is_enabled(flag_key, default?)` | Check if flag is enabled           |
+| `get_all_flags()`                | Get all flags as dictionary        |
+| `identify(user)`                 | Set user context and refresh flags |
+| `reset()`                        | Clear user context                 |
+| `refresh()`                      | Force refresh flags                |
+| `close()`                        | Cleanup resources                  |
+
+### UserContext
+
+| Field        | Type    | Description                     |
+| ------------ | ------- | ------------------------------- |
+| `id`         | `str`   | User identifier (required)      |
+| `email`      | `str?`  | User email                      |
+| `attributes` | `dict?` | Custom attributes for targeting |
+
+## Requirements
+
+- Python 3.9+
+- httpx >= 0.25.0
+- httpx-sse >= 0.4.0
+
+## License
+
+MIT

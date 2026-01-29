@@ -1,0 +1,65 @@
+{
+  "name": "@rollgate/sdk-react",
+  "version": "0.0.1",
+  "description": "Rollgate React SDK",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:bundle && npm run build:types",
+    "build:bundle": "esbuild src/index.tsx --bundle --platform=browser --target=es2020 --outfile=dist/index.js --format=cjs --minify --sourcemap --external:react --external:react-dom --external:react/jsx-runtime --jsx=automatic && esbuild src/index.tsx --bundle --platform=browser --target=es2020 --outfile=dist/index.mjs --format=esm --minify --sourcemap --external:react --external:react-dom --external:react/jsx-runtime --jsx=automatic",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "dev": "tsc --watch",
+    "test": "jest --testEnvironment jsdom",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "rollgate",
+    "react",
+    "hooks"
+  ],
+  "author": "Rollgate <hello@rollgate.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thejord-it/rollgate.git",
+    "directory": "packages/sdk-react"
+  },
+  "homepage": "https://rollgate.io/docs/sdk/react",
+  "bugs": {
+    "url": "https://github.com/thejord-it/rollgate/issues"
+  },
+  "dependencies": {
+    "@rollgate/sdk-core": "*"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
+    "@types/jest": "^29.5.12",
+    "@types/react": "^18.3.0",
+    "esbuild": "^0.27.2",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.0"
+  }
+}
