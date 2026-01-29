@@ -1,6 +1,15 @@
-# Rollgate Vue SDK
+# @rollgate/sdk-vue
 
-Official Vue 3 SDK for [Rollgate](https://rollgate.io) feature flags.
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@rollgate/sdk-vue.svg)](https://www.npmjs.com/package/@rollgate/sdk-vue)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Official Vue 3 SDK for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Requirements
+
+- Vue 3.0+
+- Works with Nuxt 3, Vite
 
 ## Installation
 
@@ -212,6 +221,18 @@ export default defineNuxtPlugin((nuxtApp) => {
   });
 });
 ```
+
+## Documentation
+
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+
+## About Rollgate
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely with gradual rollouts, user targeting, and instant kill switches.
 
 ## License
 

@@ -1,11 +1,19 @@
 # @rollgate/sdk-go
 
-Official Go SDK for [Rollgate](https://rollgate.io) feature flags.
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rollgate/sdks/packages/sdk-go.svg)](https://pkg.go.dev/github.com/rollgate/sdks/packages/sdk-go)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Official Go SDK for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Requirements
+
+- Go 1.21+
 
 ## Installation
 
 ```bash
-go get github.com/rollgateio/sdk-go
+go get github.com/rollgate/sdks/packages/sdk-go
 ```
 
 ## Quick Start
@@ -17,7 +25,7 @@ import (
     "context"
     "log"
 
-    rollgate "github.com/rollgateio/sdk-go"
+    rollgate "github.com/rollgate/sdks/packages/sdk-go"
 )
 
 func main() {
@@ -171,6 +179,18 @@ if err != nil {
 ## Thread Safety
 
 The SDK is fully thread-safe. You can safely call methods from multiple goroutines.
+
+## Documentation
+
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+
+## About Rollgate
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely with gradual rollouts, user targeting, and instant kill switches.
 
 ## License
 

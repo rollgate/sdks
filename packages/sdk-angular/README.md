@@ -1,6 +1,15 @@
-# Rollgate Angular SDK
+# @rollgate/sdk-angular
 
-Official Angular SDK for [Rollgate](https://rollgate.io) feature flags.
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@rollgate/sdk-angular.svg)](https://www.npmjs.com/package/@rollgate/sdk-angular)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Official Angular SDK for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Requirements
+
+- Angular 14+
+- RxJS 7+
 
 ## Installation
 
@@ -241,10 +250,17 @@ RollgateModule.forRoot({
 <ng-template #fallback>Feature disabled</ng-template>
 ```
 
-## Requirements
+## Documentation
 
-- Angular 17+ or 18+
-- RxJS 7+
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+
+## About Rollgate
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely with gradual rollouts, user targeting, and instant kill switches.
 
 ## License
 

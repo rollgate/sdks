@@ -1,6 +1,15 @@
-# Rollgate Svelte SDK
+# @rollgate/sdk-svelte
 
-Official Svelte SDK for [Rollgate](https://rollgate.io) feature flags.
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@rollgate/sdk-svelte.svg)](https://www.npmjs.com/package/@rollgate/sdk-svelte)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Official Svelte SDK for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Requirements
+
+- Svelte 4+ or 5+
+- Works with SvelteKit
 
 ## Installation
 
@@ -256,10 +265,17 @@ createRollgate({
 });
 ```
 
-## Requirements
+## Documentation
 
-- Svelte 4+ or 5+
-- @rollgate/node
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+
+## About Rollgate
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely with gradual rollouts, user targeting, and instant kill switches.
 
 ## License
 

@@ -1,6 +1,16 @@
 # Rollgate Python SDK
 
-Official Python SDK for [Rollgate](https://rollgate.io) feature flags.
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/rollgate.svg)](https://pypi.org/project/rollgate/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Official Python SDK for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Requirements
+
+- Python 3.9+
+- httpx >= 0.25.0
+- httpx-sse >= 0.4.0
 
 ## Installation
 
@@ -205,11 +215,17 @@ except RollgateError as e:
 | `email`      | `str?`  | User email                      |
 | `attributes` | `dict?` | Custom attributes for targeting |
 
-## Requirements
+## Documentation
 
-- Python 3.9+
-- httpx >= 0.25.0
-- httpx-sse >= 0.4.0
+- [Getting Started](../../docs/GETTING-STARTED.md)
+- [Architecture](../../docs/ARCHITECTURE.md)
+- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+
+Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+
+## About Rollgate
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely with gradual rollouts, user targeting, and instant kill switches.
 
 ## License
 

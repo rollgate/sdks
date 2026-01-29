@@ -1,6 +1,14 @@
 # @rollgate/sdk-node
 
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@rollgate/sdk-node.svg)](https://www.npmjs.com/package/@rollgate/sdk-node)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Official Node.js SDK for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Requirements
+
+- Node.js 18+
 
 ## Installation
 
@@ -88,6 +96,10 @@ client.on("error", (error) => {
 - [Production Setup](../../docs/PRODUCTION-SETUP.md)
 
 Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+
+## About Rollgate
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely with gradual rollouts, user targeting, and instant kill switches.
 
 ## License
 
