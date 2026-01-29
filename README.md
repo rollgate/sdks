@@ -1,6 +1,14 @@
 # Rollgate SDKs
 
+[![CI](https://github.com/rollgate/sdks/actions/workflows/ci.yml/badge.svg)](https://github.com/rollgate/sdks/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@rollgate/sdk-node.svg)](https://www.npmjs.com/package/@rollgate/sdk-node)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Official SDKs for [Rollgate](https://rollgate.io) - Feature flags made simple.
+
+## Rollgate Overview
+
+[Rollgate](https://rollgate.io) is a feature management platform that helps teams release features safely and iterate faster. [Get started](https://rollgate.io/docs) using Rollgate today!
 
 ## Available SDKs
 
@@ -15,9 +23,35 @@ Official SDKs for [Rollgate](https://rollgate.io) - Feature flags made simple.
 | **Java**    | [sdk-java](./packages/sdk-java)                 | Maven/Gradle                                      | [README](./packages/sdk-java/README.md)    |
 | **Python**  | [rollgate](./packages/sdk-python)               | `pip install rollgate`                            | [README](./packages/sdk-python/README.md)  |
 
-## Quick Start
+## Supported Versions
 
-### Node.js
+| SDK     | Minimum Version              |
+| ------- | ---------------------------- |
+| Node.js | Node.js 18+                  |
+| React   | React 16.8+ (requires Hooks) |
+| Vue     | Vue 3.0+                     |
+| Angular | Angular 14+                  |
+| Svelte  | Svelte 4+                    |
+| Go      | Go 1.21+                     |
+| Java    | Java 11+                     |
+| Python  | Python 3.9+                  |
+
+## Browser Compatibility
+
+The client-side SDKs (React, Vue, Angular, Svelte) work in all modern browsers:
+
+- Chrome (latest 2 versions)
+- Firefox (latest 2 versions)
+- Safari (latest 2 versions)
+- Edge (latest 2 versions)
+
+For SSE streaming support, the browser must support `EventSource`. All modern browsers include this natively.
+
+## Getting Started
+
+Refer to the [Getting Started Guide](./docs/GETTING-STARTED.md) for detailed installation and setup instructions.
+
+### Quick Start - Node.js
 
 ```typescript
 import { RollgateClient } from "@rollgate/sdk-node";
@@ -33,7 +67,7 @@ if (client.isEnabled("my-feature")) {
 }
 ```
 
-### React
+### Quick Start - React
 
 ```tsx
 import { RollgateProvider, useFlag } from "@rollgate/sdk-react";
@@ -52,58 +86,7 @@ function MyComponent() {
 }
 ```
 
-### Vue
-
-```typescript
-import { createApp } from "vue";
-import { RollgatePlugin } from "@rollgate/sdk-vue";
-
-const app = createApp(App);
-app.use(RollgatePlugin, { apiKey: "your-api-key" });
-```
-
-```vue
-<script setup>
-import { useFlag } from "@rollgate/sdk-vue";
-const isEnabled = useFlag("my-feature");
-</script>
-```
-
-### Go
-
-```go
-config := rollgate.DefaultConfig("your-api-key")
-client, _ := rollgate.NewClient(config)
-defer client.Close()
-
-client.Initialize(ctx)
-
-if client.IsEnabled("my-feature", false) {
-    // New feature code
-}
-```
-
-### Python
-
-```python
-from rollgate import RollgateClient, RollgateConfig
-
-async with RollgateClient(RollgateConfig(api_key="your-api-key")) as client:
-    if client.is_enabled("my-feature"):
-        # New feature code
-```
-
-### Java
-
-```java
-Config config = new Config("your-api-key");
-try (RollgateClient client = new RollgateClient(config)) {
-    client.initialize();
-    if (client.isEnabled("my-feature", false)) {
-        // New feature code
-    }
-}
-```
+For other SDKs (Vue, Go, Java, Python), see the [Getting Started Guide](./docs/GETTING-STARTED.md).
 
 ## Features
 
@@ -114,9 +97,9 @@ All SDKs include:
 - **Caching** - Built-in caching with stale-while-revalidate
 - **Circuit breaker** - Automatic fallback on API failures
 - **Retry with backoff** - Exponential backoff with jitter
-- **TypeScript support** - Full type definitions (TS SDKs)
+- **TypeScript support** - Full type definitions (TypeScript SDKs)
 
-## Documentation
+## Learn More
 
 | Document                                       | Description                   |
 | ---------------------------------------------- | ----------------------------- |
@@ -126,28 +109,40 @@ All SDKs include:
 
 Full documentation available at [docs.rollgate.io](https://rollgate.io/docs)
 
-## User Targeting
-
-All SDKs support user targeting for personalized flag evaluation:
-
-```typescript
-await client.identify({
-  id: "user-123",
-  email: "user@example.com",
-  attributes: { plan: "premium", country: "US" },
-});
-```
-
 ## API Keys
+
+Rollgate uses prefixed API keys to distinguish between server and client usage:
 
 | Type   | Prefix      | Use Case                               |
 | ------ | ----------- | -------------------------------------- |
 | Server | `sb_server` | Backend (Node, Go, Java, Python)       |
 | Client | `sb_client` | Frontend (React, Vue, Angular, Svelte) |
 
+**Important**: Never expose server keys in client-side code. Use client keys for browser applications.
+
+## Testing
+
+We run integration tests for all SDKs using GitHub Actions. Tests cover flag evaluation, caching, retry logic, circuit breaker behavior, and SSE streaming. See the [CI workflow](./.github/workflows/ci.yml) for details.
+
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We encourage pull requests and other contributions from the community. Check out our [contributing guidelines](CONTRIBUTING.md) for instructions on how to contribute to these SDKs.
+
+## About Rollgate
+
+Rollgate is a feature management platform that allows developers to ship features safely and iterate quickly. With Rollgate, you can:
+
+- **Gradual rollouts** - Release features to a percentage of users and increase gradually
+- **User targeting** - Show features to specific users based on attributes (plan, country, etc.)
+- **Kill switches** - Instantly disable features in production without redeploying
+- **A/B testing** - Run experiments and measure impact on key metrics
+- **Scheduled releases** - Plan feature launches in advance
+
+### Explore Rollgate
+
+- [rollgate.io](https://rollgate.io) - Main website
+- [docs.rollgate.io](https://rollgate.io/docs) - Documentation
+- [app.rollgate.io](https://app.rollgate.io) - Dashboard
 
 ## License
 
