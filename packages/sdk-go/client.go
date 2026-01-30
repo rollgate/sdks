@@ -139,6 +139,22 @@ func (c *Client) Initialize(ctx context.Context) error {
 }
 
 func (c *Client) initializeWithSSE(ctx context.Context) error {
+	// First, fetch flags via HTTP to have them immediately available
+	if err := c.Refresh(ctx); err != nil {
+		// If we have cached data, we can continue
+		if !c.cache.HasAny() {
+			return fmt.Errorf("failed to initialize: %w", err)
+		}
+		if c.config.Logger != nil {
+			c.config.Logger.Warn("failed to fetch fresh flags, using cache", "error", err)
+		}
+	}
+
+	c.mu.Lock()
+	c.ready = true
+	c.mu.Unlock()
+
+	// Now set up SSE for real-time updates
 	sseConfig := c.config
 	if c.config.SSEURL != "" {
 		sseConfig.BaseURL = c.config.SSEURL
@@ -162,7 +178,6 @@ func (c *Client) initializeWithSSE(ctx context.Context) error {
 				c.cache.Set(flags)
 			}
 		}
-		c.ready = true
 		c.mu.Unlock()
 	})
 
@@ -182,6 +197,7 @@ func (c *Client) initializeWithSSE(ctx context.Context) error {
 	c.streaming = true
 	c.mu.Unlock()
 
+	// Start SSE in background for updates (non-blocking)
 	return c.sseClient.Connect(ctx)
 }
 
@@ -211,6 +227,30 @@ func (c *Client) GetAllFlags() map[string]bool {
 		result[k] = v
 	}
 	return result
+}
+
+// GetString returns a string flag value, or defaultValue if not found.
+// Note: Currently the API only supports boolean flags. String flags will be
+// added in a future version. For now, this always returns the default value.
+func (c *Client) GetString(flagKey string, defaultValue string) string {
+	// TODO: Implement when API supports typed flags
+	return defaultValue
+}
+
+// GetNumber returns a numeric flag value, or defaultValue if not found.
+// Note: Currently the API only supports boolean flags. Number flags will be
+// added in a future version. For now, this always returns the default value.
+func (c *Client) GetNumber(flagKey string, defaultValue float64) float64 {
+	// TODO: Implement when API supports typed flags
+	return defaultValue
+}
+
+// GetJSON returns a JSON flag value, or defaultValue if not found.
+// Note: Currently the API only supports boolean flags. JSON flags will be
+// added in a future version. For now, this always returns the default value.
+func (c *Client) GetJSON(flagKey string, defaultValue interface{}) interface{} {
+	// TODO: Implement when API supports typed flags
+	return defaultValue
 }
 
 // Identify sets the user context for flag targeting.

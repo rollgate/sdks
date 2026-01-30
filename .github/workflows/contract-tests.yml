@@ -1,0 +1,150 @@
+name: Contract Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  MOCK_PORT: 9000
+  SDK_NODE_PORT: 8001
+  SDK_GO_PORT: 8002
+
+jobs:
+  contract-tests:
+    name: SDK Contract Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache-dependency-path: |
+            test-harness/go.sum
+            packages/sdk-go/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Build SDK Core
+        run: npm run build --workspace=packages/sdk-core
+
+      - name: Build SDK Node
+        run: npm run build --workspace=packages/sdk-node
+
+      - name: Build SDK Node Test Service
+        run: |
+          cd packages/sdk-node/test-service
+          npm install
+          npm run build
+
+      - name: Start SDK Node Test Service
+        run: |
+          cd packages/sdk-node/test-service
+          PORT=$SDK_NODE_PORT node dist/index.js &
+          echo "SDK Node test service starting on port $SDK_NODE_PORT"
+
+      - name: Build SDK Go Test Service
+        run: |
+          cd packages/sdk-go/testservice
+          go build -o testservice .
+
+      - name: Start SDK Go Test Service
+        run: |
+          cd packages/sdk-go/testservice
+          PORT=$SDK_GO_PORT ./testservice &
+          echo "SDK Go test service starting on port $SDK_GO_PORT"
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for services to start..."
+          sleep 5
+
+          # Check SDK Node service
+          for i in {1..30}; do
+            if curl -s http://localhost:$SDK_NODE_PORT > /dev/null 2>&1; then
+              echo "SDK Node service is ready"
+              break
+            fi
+            sleep 1
+          done
+
+          # Check SDK Go service
+          for i in {1..30}; do
+            if curl -s http://localhost:$SDK_GO_PORT > /dev/null 2>&1; then
+              echo "SDK Go service is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run Contract Tests
+        run: |
+          cd test-harness
+          go test -v -timeout 5m ./internal/tests/... \
+            -services="sdk-node=http://localhost:$SDK_NODE_PORT,sdk-go=http://localhost:$SDK_GO_PORT"
+        env:
+          TEST_SERVICES: "sdk-node=http://localhost:${{ env.SDK_NODE_PORT }},sdk-go=http://localhost:${{ env.SDK_GO_PORT }}"
+
+      - name: Stop services
+        if: always()
+        run: |
+          pkill -f "sdk-node/test-service" || true
+          pkill -f "sdk-go/testservice" || true
+
+  contract-tests-node-only:
+    name: SDK Node Contract Tests (Quick)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache-dependency-path: test-harness/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SDKs
+        run: |
+          npm run build --workspace=packages/sdk-core
+          npm run build --workspace=packages/sdk-node
+
+      - name: Build and start test service
+        run: |
+          cd packages/sdk-node/test-service
+          npm install
+          npm run build
+          PORT=8001 node dist/index.js &
+          sleep 3
+
+      - name: Run tests
+        run: |
+          cd test-harness
+          go test -v -timeout 3m ./internal/tests/... \
+            -services="sdk-node=http://localhost:8001"
+        env:
+          TEST_SERVICES: "sdk-node=http://localhost:8001"

@@ -1,0 +1,118 @@
+{
+  "scenarios": {
+    "basic": {
+      "flags": {
+        "enabled-flag": {
+          "key": "enabled-flag",
+          "enabled": true,
+          "rolloutPercentage": 100
+        },
+        "disabled-flag": {
+          "key": "disabled-flag",
+          "enabled": false
+        },
+        "rollout-50": {
+          "key": "rollout-50",
+          "enabled": true,
+          "rolloutPercentage": 50
+        }
+      }
+    },
+    "targeting": {
+      "flags": {
+        "enabled-flag": {
+          "key": "enabled-flag",
+          "enabled": true,
+          "rolloutPercentage": 100
+        },
+        "disabled-flag": {
+          "key": "disabled-flag",
+          "enabled": false
+        },
+        "pro-only": {
+          "key": "pro-only",
+          "enabled": true,
+          "rules": [
+            {
+              "id": "pro-rule",
+              "enabled": true,
+              "conditions": [
+                {
+                  "attribute": "plan",
+                  "operator": "eq",
+                  "value": "pro"
+                }
+              ],
+              "rolloutPercentage": 100
+            }
+          ]
+        },
+        "beta-feature": {
+          "key": "beta-feature",
+          "enabled": true,
+          "rules": [
+            {
+              "id": "beta-rule",
+              "enabled": true,
+              "conditions": [
+                {
+                  "attribute": "beta",
+                  "operator": "eq",
+                  "value": true
+                }
+              ],
+              "rolloutPercentage": 100
+            }
+          ]
+        },
+        "vip-feature": {
+          "key": "vip-feature",
+          "enabled": true,
+          "targetUsers": ["user-vip-1", "user-vip-2"]
+        }
+      }
+    },
+    "rollout": {
+      "flags": {
+        "rollout-0": {
+          "key": "rollout-0",
+          "enabled": true,
+          "rolloutPercentage": 0
+        },
+        "rollout-10": {
+          "key": "rollout-10",
+          "enabled": true,
+          "rolloutPercentage": 10
+        },
+        "rollout-25": {
+          "key": "rollout-25",
+          "enabled": true,
+          "rolloutPercentage": 25
+        },
+        "rollout-50": {
+          "key": "rollout-50",
+          "enabled": true,
+          "rolloutPercentage": 50
+        },
+        "rollout-75": {
+          "key": "rollout-75",
+          "enabled": true,
+          "rolloutPercentage": 75
+        },
+        "rollout-90": {
+          "key": "rollout-90",
+          "enabled": true,
+          "rolloutPercentage": 90
+        },
+        "rollout-100": {
+          "key": "rollout-100",
+          "enabled": true,
+          "rolloutPercentage": 100
+        }
+      }
+    },
+    "empty": {
+      "flags": {}
+    }
+  }
+}
