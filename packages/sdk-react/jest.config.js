@@ -4,10 +4,12 @@ module.exports = {
   testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
   moduleNameMapper: {
-    "^@rollgate/sdk-browser$": "<rootDir>/../sdk-browser/dist/index.js",
+    // Map to source files so ts-jest can transform them
+    "^@rollgate/sdk-browser$": "<rootDir>/../sdk-browser/src/index.ts",
+    "^@rollgate/sdk-core$": "<rootDir>/../sdk-core/src/index.ts",
   },
   transform: {
-    "^.+\.tsx?$": [
+    "^.+\\.tsx?$": [
       "ts-jest",
       {
         tsconfig: {
