@@ -415,7 +415,7 @@ func TestConcurrentEvaluations(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		for i := 0; i < numGoroutines; i++ {
 			wg.Add(1)
-			go func(svc *harness.TestService, i int) {
+			go func(svc harness.SDKService, i int) {
 				defer wg.Done()
 
 				flagKey := "enabled-flag"
@@ -497,11 +497,11 @@ func TestEmptyFlagKey(t *testing.T) {
 
 		// SDK might return error or default value for empty key
 		if resp.IsError() {
-			t.Logf("%s: empty flag key returned error (expected): %s", svc.Name, resp.Error)
+			t.Logf("%s: empty flag key returned error (expected): %s", svc.GetName(), resp.Error)
 		} else if resp.Value != nil {
 			assert.True(t, *resp.Value, "Empty flag key should return default value (true)")
 		} else {
-			t.Logf("%s: empty flag key returned nil value", svc.Name)
+			t.Logf("%s: empty flag key returned nil value", svc.GetName())
 		}
 	}
 

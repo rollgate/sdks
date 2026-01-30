@@ -8,13 +8,14 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@rollgate/sdk-angular": "file:..",
-    "@angular/core": "^17.0.0",
     "@angular/common": "^17.0.0",
+    "@angular/core": "^17.0.0",
     "@angular/platform-browser": "^17.0.0",
+    "@rollgate/sdk-angular": "file:..",
+    "eventsource": "^2.0.2",
+    "launchdarkly-eventsource": "^2.2.0",
     "rxjs": "^7.8.0",
-    "zone.js": "^0.14.0",
-    "eventsource": "^2.0.2"
+    "zone.js": "^0.14.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

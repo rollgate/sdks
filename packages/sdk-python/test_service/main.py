@@ -26,6 +26,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rollgate import RollgateClient, RollgateConfig, UserContext
 
 client: Optional[RollgateClient] = None
+current_base_url: Optional[str] = None
+current_api_key: Optional[str] = None
+
+
+async def notify_mock_identify(user: UserContext, api_key: str) -> None:
+    """Notify mock server about user context for remote evaluation."""
+    if not current_base_url:
+        return
+
+    import httpx
+    try:
+        async with httpx.AsyncClient() as http_client:
+            await http_client.post(
+                f"{current_base_url}/api/v1/sdk/identify",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                },
+                json={"user": {"id": user.id, "email": user.email, "attributes": user.attributes}},
+                timeout=5.0,
+            )
+    except Exception:
+        # Ignore errors - mock might not support identify
+        pass
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -83,6 +107,8 @@ async def handle_command(cmd: dict) -> dict:
     command = cmd.get("command")
 
     if command == "init":
+        global current_base_url, current_api_key
+
         config_data = cmd.get("config")
         if not config_data:
             return make_response(error="ValidationError", message="config is required")
@@ -91,6 +117,10 @@ async def handle_command(cmd: dict) -> dict:
         if client:
             await client.close()
             client = None
+
+        # Store for notifyMockIdentify
+        current_base_url = config_data.get("baseUrl", "https://api.rollgate.io")
+        current_api_key = config_data.get("apiKey", "")
 
         try:
             config = RollgateConfig(
@@ -109,6 +139,8 @@ async def handle_command(cmd: dict) -> dict:
                     email=user_data.get("email"),
                     attributes=user_data.get("attributes"),
                 )
+                # Notify mock about user context before init (for remote evaluation)
+                await notify_mock_identify(user, current_api_key)
 
             client = RollgateClient(config)
             await client.init(user)
@@ -179,6 +211,9 @@ async def handle_command(cmd: dict) -> dict:
                 email=user_data.get("email"),
                 attributes=user_data.get("attributes"),
             )
+            # Notify mock about user context before identify (for remote evaluation)
+            if current_api_key:
+                await notify_mock_identify(user, current_api_key)
             await client.identify(user)
             return make_response(success=True)
         except Exception as e:

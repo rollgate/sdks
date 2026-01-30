@@ -126,7 +126,7 @@ func TestConsistentHashing(t *testing.T) {
 			resp, err := svc.SendCommand(tc.Ctx, cmd)
 			require.NoError(t, err)
 			assert.Equal(t, *firstResult, *resp.Value,
-				"%s: evaluation %d should be consistent", svc.Name, i)
+				"%s: evaluation %d should be consistent", svc.GetName(), i)
 		}
 	}
 }
@@ -169,7 +169,7 @@ func TestEmptyFlags(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
-		assert.Empty(t, resp.Flags, "%s should have no flags", svc.Name)
+		assert.Empty(t, resp.Flags, "%s should have no flags", svc.GetName())
 	}
 
 	// Any flag should return default

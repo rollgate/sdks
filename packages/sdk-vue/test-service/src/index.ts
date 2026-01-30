@@ -7,10 +7,11 @@
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { createApp, App, ref } from "vue";
-import * as EventSourcePolyfill from "eventsource";
+// @ts-ignore - no types available
+import { EventSource as LDEventSource } from "launchdarkly-eventsource";
 
 // Setup globals for browser APIs
-(global as any).EventSource = EventSourcePolyfill;
+(global as any).EventSource = LDEventSource;
 
 // Import SDK after globals are set
 import {
@@ -23,6 +24,29 @@ const PORT = parseInt(process.env.PORT || "8004", 10);
 
 let app: App | null = null;
 let rollgateContext: RollgateContext | null = null;
+let currentBaseUrl: string | null = null;
+let currentApiKey: string | null = null;
+
+// Helper to notify mock server about user context (for remote evaluation)
+async function notifyMockIdentify(
+  user: UserContext,
+  apiKey: string,
+): Promise<void> {
+  if (!currentBaseUrl) return;
+
+  try {
+    await fetch(`${currentBaseUrl}/api/v1/sdk/identify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ user }),
+    });
+  } catch {
+    // Ignore errors - mock might not support identify
+  }
+}
 
 interface Config {
   apiKey: string;
@@ -85,7 +109,16 @@ async function handleCommand(cmd: Command): Promise<Response> {
         rollgateContext = null;
       }
 
+      // Store for notifyMockIdentify
+      currentBaseUrl = cmd.config.baseUrl;
+      currentApiKey = cmd.config.apiKey;
+
       try {
+        // Notify mock about user context before init (for remote evaluation)
+        if (cmd.user) {
+          await notifyMockIdentify(cmd.user, cmd.config.apiKey);
+        }
+
         // Create a minimal Vue app
         app = createApp({
           template: "<div></div>",
@@ -215,6 +248,10 @@ async function handleCommand(cmd: Command): Promise<Response> {
       }
 
       try {
+        // Notify mock about user context before identify (for remote evaluation)
+        if (currentApiKey) {
+          await notifyMockIdentify(cmd.user, currentApiKey);
+        }
         await rollgateContext.identify(cmd.user);
         return { success: true };
       } catch (err) {

@@ -46,7 +46,7 @@
     "vue": "^3.3.0"
   },
   "dependencies": {
-    "@rollgate/sdk-core": "*"
+    "@rollgate/sdk-browser": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

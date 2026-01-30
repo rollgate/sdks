@@ -38,7 +38,7 @@ func TestCircuitBreakerOpens(t *testing.T) {
 		resp, err := svc.SendCommand(tc.Ctx, protocol.NewGetStateCommand())
 		require.NoError(t, err)
 
-		t.Logf("%s: circuitState = %s", svc.Name, resp.CircuitState)
+		t.Logf("%s: circuitState = %s", svc.GetName(), resp.CircuitState)
 		// Circuit should be OPEN or at least have tracked failures
 		// Note: Exact behavior depends on SDK implementation
 
@@ -70,8 +70,8 @@ func TestCircuitBreakerFallback(t *testing.T) {
 		require.NoError(t, err)
 
 		// Should still get cached value
-		assert.True(t, *resp.Value, "%s should use cached value when server is down", svc.Name)
-		t.Logf("%s: flag value from cache = %v", svc.Name, *resp.Value)
+		assert.True(t, *resp.Value, "%s should use cached value when server is down", svc.GetName())
+		t.Logf("%s: flag value from cache = %v", svc.GetName(), *resp.Value)
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
@@ -96,7 +96,7 @@ func TestCacheFallback(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		stateBefore, err := svc.SendCommand(tc.Ctx, protocol.NewGetStateCommand())
 		require.NoError(t, err)
-		t.Logf("%s: cache stats before = %+v", svc.Name, stateBefore.CacheStats)
+		t.Logf("%s: cache stats before = %+v", svc.GetName(), stateBefore.CacheStats)
 	}
 
 	// Now kill the server (simulate network failure)
@@ -109,13 +109,13 @@ func TestCacheFallback(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			resp, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("enabled-flag", false))
 			require.NoError(t, err)
-			assert.True(t, *resp.Value, "%s should return cached value", svc.Name)
+			assert.True(t, *resp.Value, "%s should return cached value", svc.GetName())
 		}
 
 		// Check cache stats after
 		stateAfter, err := svc.SendCommand(tc.Ctx, protocol.NewGetStateCommand())
 		require.NoError(t, err)
-		t.Logf("%s: cache stats after = %+v", svc.Name, stateAfter.CacheStats)
+		t.Logf("%s: cache stats after = %+v", svc.GetName(), stateAfter.CacheStats)
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
@@ -144,7 +144,7 @@ func TestRetryOnTransientFailure(t *testing.T) {
 		// Depending on SDK retry behavior:
 		// - If SDK retries: init should succeed
 		// - If SDK doesn't retry: init will fail but that's also valid behavior
-		t.Logf("%s: init response = %+v", svc.Name, resp)
+		t.Logf("%s: init response = %+v", svc.GetName(), resp)
 
 		// If init succeeded, verify flag works
 		if !resp.IsError() {
@@ -216,10 +216,10 @@ func TestDefaultValueOnError(t *testing.T) {
 
 		// If no cache, should return the default value (true)
 		if flagResp.Value != nil {
-			t.Logf("%s: flag value = %v (expected default: true)", svc.Name, *flagResp.Value)
-			assert.True(t, *flagResp.Value, "%s should return default value", svc.Name)
+			t.Logf("%s: flag value = %v (expected default: true)", svc.GetName(), *flagResp.Value)
+			assert.True(t, *flagResp.Value, "%s should return default value", svc.GetName())
 		} else if resp.IsError() {
-			t.Logf("%s: init failed as expected, no flag value available", svc.Name)
+			t.Logf("%s: init failed as expected, no flag value available", svc.GetName())
 		}
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -242,15 +242,15 @@ func TestGetStateReportsCircuitInfo(t *testing.T) {
 
 		// Verify state fields are populated
 		assert.NotNil(t, resp.IsReady)
-		assert.True(t, *resp.IsReady, "%s should be ready", svc.Name)
+		assert.True(t, *resp.IsReady, "%s should be ready", svc.GetName())
 
 		// Circuit state should be reported
-		assert.NotEmpty(t, resp.CircuitState, "%s should report circuit state", svc.Name)
-		t.Logf("%s: isReady=%v, circuitState=%s", svc.Name, *resp.IsReady, resp.CircuitState)
+		assert.NotEmpty(t, resp.CircuitState, "%s should report circuit state", svc.GetName())
+		t.Logf("%s: isReady=%v, circuitState=%s", svc.GetName(), *resp.IsReady, resp.CircuitState)
 
 		// Cache stats might be nil or populated depending on implementation
 		if resp.CacheStats != nil {
-			t.Logf("%s: cacheStats=%+v", svc.Name, resp.CacheStats)
+			t.Logf("%s: cacheStats=%+v", svc.GetName(), resp.CacheStats)
 		}
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -278,12 +278,12 @@ func TestCacheStatsTracking(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.CacheStats != nil {
-			t.Logf("%s: cache hits=%d, misses=%d", svc.Name, resp.CacheStats.Hits, resp.CacheStats.Misses)
+			t.Logf("%s: cache hits=%d, misses=%d", svc.GetName(), resp.CacheStats.Hits, resp.CacheStats.Misses)
 			// Cache stats tracking is implementation-specific
 			// Some SDKs count in-memory lookups, others count network cache
 			// We just verify the stats are reported (no assertion on values)
 		} else {
-			t.Logf("%s: cache stats not available (implementation specific)", svc.Name)
+			t.Logf("%s: cache stats not available (implementation specific)", svc.GetName())
 		}
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())

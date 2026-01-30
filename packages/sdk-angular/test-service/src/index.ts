@@ -6,10 +6,11 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import * as EventSourcePolyfill from "eventsource";
+// @ts-ignore - no types available
+import { EventSource as LDEventSource } from "launchdarkly-eventsource";
 
 // Setup globals for browser APIs
-(global as any).EventSource = EventSourcePolyfill;
+(global as any).EventSource = LDEventSource;
 
 // Import zone.js for Angular
 import "zone.js";
@@ -20,6 +21,29 @@ import { RollgateService, type UserContext } from "@rollgate/sdk-angular";
 const PORT = parseInt(process.env.PORT || "8006", 10);
 
 let service: RollgateService | null = null;
+let currentBaseUrl: string | null = null;
+let currentApiKey: string | null = null;
+
+// Helper to notify mock server about user context (for remote evaluation)
+async function notifyMockIdentify(
+  user: UserContext,
+  apiKey: string,
+): Promise<void> {
+  if (!currentBaseUrl) return;
+
+  try {
+    await fetch(`${currentBaseUrl}/api/v1/sdk/identify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ user }),
+    });
+  } catch {
+    // Ignore errors - mock might not support identify
+  }
+}
 
 interface Config {
   apiKey: string;
@@ -81,7 +105,16 @@ async function handleCommand(cmd: Command): Promise<Response> {
         service = null;
       }
 
+      // Store for notifyMockIdentify
+      currentBaseUrl = cmd.config.baseUrl;
+      currentApiKey = cmd.config.apiKey;
+
       try {
+        // Notify mock about user context before init (for remote evaluation)
+        if (cmd.user) {
+          await notifyMockIdentify(cmd.user, cmd.config.apiKey);
+        }
+
         // Create service directly (without full Angular DI)
         service = new RollgateService(undefined);
 
@@ -102,19 +135,25 @@ async function handleCommand(cmd: Command): Promise<Response> {
             10000,
           );
 
+          let errorSub: { unsubscribe: () => void } | null = null;
+          let resolved = false;
+
           const subscription = service!.isReady$.subscribe((ready) => {
-            if (ready) {
+            if (ready && !resolved) {
+              resolved = true;
               clearTimeout(timeout);
               subscription.unsubscribe();
+              errorSub?.unsubscribe();
               resolve();
             }
           });
 
-          const errorSub = service!.error$.subscribe((err) => {
-            if (err) {
+          errorSub = service!.error$.subscribe((err) => {
+            if (err && !resolved) {
+              resolved = true;
               clearTimeout(timeout);
               subscription.unsubscribe();
-              errorSub.unsubscribe();
+              errorSub?.unsubscribe();
               reject(err);
             }
           });
@@ -200,6 +239,10 @@ async function handleCommand(cmd: Command): Promise<Response> {
       }
 
       try {
+        // Notify mock about user context before identify (for remote evaluation)
+        if (currentApiKey) {
+          await notifyMockIdentify(cmd.user, currentApiKey);
+        }
         await service.identify(cmd.user);
         return { success: true };
       } catch (err) {
@@ -325,4 +368,13 @@ process.on("SIGTERM", () => {
   server.close(() => {
     process.exit(0);
   });
+});
+
+// Global error handlers to prevent crashes
+process.on("uncaughtException", (err) => {
+  console.error("[sdk-angular test-service] Uncaught exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[sdk-angular test-service] Unhandled rejection:", reason);
 });

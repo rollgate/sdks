@@ -107,7 +107,7 @@ type Harness struct {
 	httpServer *http.Server
 	mockURL    string
 	apiKey     string
-	services   []*TestService
+	services   []SDKService
 }
 
 // Config contains harness configuration.
@@ -139,7 +139,7 @@ func New(cfg Config) *Harness {
 		mockServer: mock.NewServer(cfg.APIKey),
 		mockURL:    fmt.Sprintf("http://localhost:%d", cfg.MockPort),
 		apiKey:     cfg.APIKey,
-		services:   make([]*TestService, 0),
+		services:   make([]SDKService, 0),
 	}
 }
 
@@ -149,8 +149,13 @@ func (h *Harness) AddService(name, url string) {
 }
 
 // GetServices returns all registered test services.
-func (h *Harness) GetServices() []*TestService {
+func (h *Harness) GetServices() []SDKService {
 	return h.services
+}
+
+// AddBrowserService adds a browser test service (LaunchDarkly protocol).
+func (h *Harness) AddBrowserService(name, url string) {
+	h.services = append(h.services, NewBrowserTestService(name, url))
 }
 
 // GetMockServer returns the mock server for configuration.
@@ -223,7 +228,7 @@ func (h *Harness) WaitForServices(ctx context.Context, timeout time.Duration) er
 	for _, svc := range h.services {
 		for {
 			if time.Now().After(deadline) {
-				return fmt.Errorf("timeout waiting for service %s", svc.Name)
+				return fmt.Errorf("timeout waiting for service %s", svc.GetName())
 			}
 
 			if err := svc.Health(ctx); err == nil {
@@ -253,10 +258,10 @@ func (h *Harness) InitSDKConfig() protocol.Config {
 }
 
 // ForEachService runs a function for each service.
-func (h *Harness) ForEachService(ctx context.Context, fn func(svc *TestService) error) error {
+func (h *Harness) ForEachService(ctx context.Context, fn func(svc SDKService) error) error {
 	for _, svc := range h.services {
 		if err := fn(svc); err != nil {
-			return fmt.Errorf("%s: %w", svc.Name, err)
+			return fmt.Errorf("%s: %w", svc.GetName(), err)
 		}
 	}
 	return nil

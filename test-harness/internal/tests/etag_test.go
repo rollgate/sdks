@@ -53,7 +53,7 @@ func TestETagCacheEfficiency(t *testing.T) {
 
 		if resp.CacheStats != nil {
 			t.Logf("%s: cache stats after 20 evals = hits:%d, misses:%d",
-				svc.Name, resp.CacheStats.Hits, resp.CacheStats.Misses)
+				svc.GetName(), resp.CacheStats.Hits, resp.CacheStats.Misses)
 			// Cache should have been used effectively
 			// Note: actual implementation might vary
 		}
@@ -112,7 +112,7 @@ func TestNoUnnecessaryRefreshes(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: init failed: %s", svc.Name, resp.Error)
+			t.Logf("%s: init failed: %s", svc.GetName(), resp.Error)
 			continue
 		}
 
@@ -124,7 +124,7 @@ func TestNoUnnecessaryRefreshes(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("%s: after 3s of polling - ready=%v, circuitState=%s",
-			svc.Name, stateResp.IsReady, stateResp.CircuitState)
+			svc.GetName(), stateResp.IsReady, stateResp.CircuitState)
 
 		// Flags should still work
 		flagResp, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("enabled-flag", false))
@@ -150,14 +150,14 @@ func TestCacheConsistency(t *testing.T) {
 		allFlagsResp, err := svc.SendCommand(tc.Ctx, protocol.NewGetAllFlagsCommand())
 		require.NoError(t, err)
 
-		t.Logf("%s: getAllFlags = %+v", svc.Name, allFlagsResp.Flags)
+		t.Logf("%s: getAllFlags = %+v", svc.GetName(), allFlagsResp.Flags)
 
 		// Individual flag checks should match getAllFlags
 		for key, expected := range allFlagsResp.Flags {
 			flagResp, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand(key, !expected))
 			require.NoError(t, err)
 			assert.Equal(t, expected, *flagResp.Value,
-				"%s: flag %s should be %v", svc.Name, key, expected)
+				"%s: flag %s should be %v", svc.GetName(), key, expected)
 		}
 	}
 
@@ -226,7 +226,7 @@ func TestPollingWithETag(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: polling not supported: %s", svc.Name, resp.Error)
+			t.Logf("%s: polling not supported: %s", svc.GetName(), resp.Error)
 			continue
 		}
 
@@ -238,7 +238,7 @@ func TestPollingWithETag(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, *flagResp.Value)
 
-		t.Logf("%s: polling with ETag working", svc.Name)
+		t.Logf("%s: polling with ETag working", svc.GetName())
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }

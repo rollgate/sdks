@@ -25,6 +25,38 @@ import java.util.Map;
 public class Main {
     private static RollgateClient client = null;
     private static final Gson gson = new Gson();
+    private static String currentBaseUrl = null;
+    private static String currentApiKey = null;
+
+    /**
+     * Notify mock server about user context for remote evaluation.
+     */
+    private static void notifyMockIdentify(JsonObject userObj, String apiKey) {
+        if (currentBaseUrl == null || apiKey == null) return;
+
+        try {
+            java.net.URL url = new java.net.URL(currentBaseUrl + "/api/v1/sdk/identify");
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            JsonObject body = new JsonObject();
+            body.add("user", userObj);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(gson.toJson(body).getBytes(StandardCharsets.UTF_8));
+            }
+
+            conn.getResponseCode(); // Trigger the request
+            conn.disconnect();
+        } catch (Exception e) {
+            // Ignore errors - mock might not support identify
+        }
+    }
 
     public static void main(String[] args) throws IOException {
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8008"));
@@ -148,6 +180,10 @@ public class Main {
                 JsonObject configObj = cmd.getAsJsonObject("config");
                 String apiKey = configObj.get("apiKey").getAsString();
                 String baseUrl = configObj.has("baseUrl") ? configObj.get("baseUrl").getAsString() : "https://api.rollgate.io";
+
+                // Store for notifyMockIdentify
+                currentBaseUrl = baseUrl;
+                currentApiKey = apiKey;
                 int refreshInterval = configObj.has("refreshInterval") ? configObj.get("refreshInterval").getAsInt() : 0;
                 boolean enableStreaming = configObj.has("enableStreaming") && configObj.get("enableStreaming").getAsBoolean();
                 int timeout = configObj.has("timeout") ? configObj.get("timeout").getAsInt() : 5000;
@@ -163,6 +199,10 @@ public class Main {
                 // Handle user context
                 if (cmd.has("user") && !cmd.get("user").isJsonNull()) {
                     JsonObject userObj = cmd.getAsJsonObject("user");
+
+                    // Notify mock about user context before init (for remote evaluation)
+                    notifyMockIdentify(userObj, apiKey);
+
                     UserContext.Builder userBuilder = UserContext.builder(userObj.get("id").getAsString());
 
                     if (userObj.has("email") && !userObj.get("email").isJsonNull()) {
@@ -296,6 +336,12 @@ public class Main {
 
             try {
                 JsonObject userObj = cmd.getAsJsonObject("user");
+
+                // Notify mock about user context before identify (for remote evaluation)
+                if (currentApiKey != null) {
+                    notifyMockIdentify(userObj, currentApiKey);
+                }
+
                 UserContext.Builder userBuilder = UserContext.builder(userObj.get("id").getAsString());
 
                 if (userObj.has("email") && !userObj.get("email").isJsonNull()) {

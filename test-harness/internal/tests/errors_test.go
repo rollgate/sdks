@@ -26,11 +26,11 @@ func TestAuthError(t *testing.T) {
 
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
-		require.NoError(t, err, "SendCommand should not fail for %s", svc.Name)
+		require.NoError(t, err, "SendCommand should not fail for %s", svc.GetName())
 
 		// SDK should report an error (either in response or via failed init)
 		// The exact behavior depends on SDK implementation
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 
 		// Cleanup
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -52,7 +52,7 @@ func TestForbiddenError(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -73,7 +73,7 @@ func TestRateLimitError(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -93,7 +93,7 @@ func TestServerError500(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -113,7 +113,7 @@ func TestServerError502(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -133,7 +133,7 @@ func TestServerError503(t *testing.T) {
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -162,9 +162,9 @@ func TestTransientErrorRecovery(t *testing.T) {
 		if !resp.IsError() {
 			flagResp, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("enabled-flag", false))
 			require.NoError(t, err)
-			t.Logf("%s: flag value = %v", svc.Name, flagResp.Value)
+			t.Logf("%s: flag value = %v", svc.GetName(), flagResp.Value)
 		} else {
-			t.Logf("%s: init failed (expected if SDK doesn't retry): %s", svc.Name, resp.Error)
+			t.Logf("%s: init failed (expected if SDK doesn't retry): %s", svc.GetName(), resp.Error)
 		}
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -216,7 +216,7 @@ func TestBadRequestError(t *testing.T) {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		require.NoError(t, err)
 		// 400 errors should not be retried
-		t.Logf("%s: response = %+v", svc.Name, resp)
+		t.Logf("%s: response = %+v", svc.GetName(), resp)
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -246,7 +246,7 @@ func TestNetworkTimeout(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.NoError(t, err)
-		t.Logf("%s: response = %+v, elapsed = %v", svc.Name, resp, elapsed)
+		t.Logf("%s: response = %+v, elapsed = %v", svc.GetName(), resp, elapsed)
 
 		// Should timeout relatively quickly, not wait 10s
 		assert.Less(t, elapsed, 8*time.Second, "Should timeout before full delay")

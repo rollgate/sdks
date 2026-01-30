@@ -220,6 +220,104 @@ Typical latencies:
 4. **Handle errors gracefully**: Always provide default values to `isEnabled()`
 5. **Clean up**: Call `close()` when the client is no longer needed
 
+## Contract Testing
+
+### Test Harness Architecture
+
+All SDKs are validated against a shared contract test suite written in Go. This ensures consistent behavior across all implementations.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          TEST HARNESS (Go)                               │
+│   - Orchestratore test                                                  │
+│   - Mock Rollgate API (flags, SSE)                                      │
+│   - Test cases parametrizzati                                           │
+└────────────────────┬────────────────────────────────────────────────────┘
+                     │ HTTP
+┌────────────────────▼────────────────────────────────────────────────────┐
+│                    TEST SERVICES (uno per SDK)                          │
+│   Node.js │ Go │ Python │ Java │ Vue │ Svelte │ React* │ Angular*      │
+│   Wrappano SDK e espongono REST API standard                            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+\*React e Angular richiedono browser testing (vedi sotto).
+
+### Test Service Protocol
+
+Ogni test service implementa questa interfaccia REST:
+
+| Method | Endpoint | Descrizione      |
+| ------ | -------- | ---------------- |
+| GET    | `/`      | Health check     |
+| POST   | `/`      | Esegui comando   |
+| DELETE | `/`      | Cleanup/shutdown |
+
+**Comandi supportati**:
+
+- `init` - Inizializza SDK con config
+- `isEnabled` - Valuta flag booleano
+- `getString` - Valuta flag stringa
+- `getNumber` - Valuta flag numerico
+- `getJson` - Valuta flag JSON
+- `identify` - Imposta user context
+- `reset` - Resetta user context
+- `getAllFlags` - Ottieni tutti i flag
+- `getState` - Ottieni stato interno (circuit breaker, cache)
+- `close` - Chiudi client
+
+### Browser Testing (React/Angular)
+
+Gli SDK browser-based non possono essere testati in Node.js per limitazioni tecniche:
+
+- **React**: ESM import hoisting precede JSDOM globals
+- **Angular**: Zone.js richiede ambiente browser reale
+
+**Architettura Browser Testing**:
+
+```
+┌─────────────────┐     HTTP      ┌─────────────────┐    WebSocket    ┌─────────────────┐
+│  Test Harness   │ ──────────►  │  Browser Adapter │ ◄─────────────► │   Browser App   │
+│     (Go)        │  :8080       │   (Node.js)      │    :8081        │  (Vite + SDK)   │
+└─────────────────┘              └─────────────────┘                 └─────────────────┘
+                                         │
+                                         ▼
+                                 ┌─────────────────┐
+                                 │   Playwright    │
+                                 │  (headless)     │
+                                 └─────────────────┘
+```
+
+**Flusso**:
+
+1. Test harness invia comando REST all'adapter
+2. Adapter inoltra via WebSocket alla browser app
+3. Browser app esegue comando sull'SDK reale nel browser
+4. Risposta torna via WebSocket → REST
+
+**Perché questo approccio**:
+
+- Riflette l'uso reale degli SDK (browser vero, non mock)
+- Testa il bundle pubblicato su npm
+- Compatibile con CI (Playwright headless)
+- Isolamento: ogni test parte con browser pulito
+
+**Tecnologie**:
+
+- **Adapter**: Node.js + ws (WebSocket)
+- **Browser App**: Vite (bundler veloce, dev-friendly)
+- **Automation**: Playwright (multi-browser, headless)
+
+### Running Contract Tests
+
+```bash
+# Tutti gli SDK Node-based
+cd test-harness/cmd && go run . -services node,go,vue,svelte,python,java
+
+# Solo browser SDK (richiede browser)
+cd test-harness/cmd && go run . -services react,angular
+```
+
 ## See Also
 
 - [Getting Started](./GETTING-STARTED.md)

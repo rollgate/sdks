@@ -9,8 +9,9 @@
   },
   "dependencies": {
     "@rollgate/sdk-svelte": "file:..",
-    "svelte": "^4.2.0",
-    "eventsource": "^2.0.2"
+    "eventsource": "^2.0.2",
+    "launchdarkly-eventsource": "^2.2.0",
+    "svelte": "^4.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
