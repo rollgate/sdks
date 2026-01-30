@@ -8,7 +8,7 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import EventSourcePolyfill from "eventsource";
+import * as EventSourcePolyfill from "eventsource";
 
 // Setup globals for browser APIs
 (global as any).EventSource = EventSourcePolyfill;
@@ -276,8 +276,8 @@ async function handleCommand(cmd: Command): Promise<Response> {
         isReady,
         circuitState,
         cacheStats: {
-          hits: Number(metrics.cache?.hits ?? 0),
-          misses: Number(metrics.cache?.misses ?? 0),
+          hits: Number(metrics.cacheHits ?? 0),
+          misses: Number(metrics.cacheMisses ?? 0),
         },
       };
     }

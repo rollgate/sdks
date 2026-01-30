@@ -9,7 +9,7 @@ import { createServer, IncomingMessage, ServerResponse } from "http";
 import { JSDOM } from "jsdom";
 import React, { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import EventSourcePolyfill from "eventsource";
+import * as EventSourcePolyfill from "eventsource";
 
 // Setup global browser environment
 const dom = new JSDOM(
@@ -20,10 +20,19 @@ const dom = new JSDOM(
   },
 );
 
-(global as any).window = dom.window;
-(global as any).document = dom.window.document;
-(global as any).navigator = dom.window.navigator;
-(global as any).EventSource = EventSourcePolyfill;
+Object.defineProperty(global, "window", { value: dom.window, writable: true });
+Object.defineProperty(global, "document", {
+  value: dom.window.document,
+  writable: true,
+});
+Object.defineProperty(global, "navigator", {
+  value: dom.window.navigator,
+  writable: true,
+});
+Object.defineProperty(global, "EventSource", {
+  value: EventSourcePolyfill,
+  writable: true,
+});
 
 // Now import the SDK (after globals are set up)
 import {
@@ -280,8 +289,8 @@ async function handleCommand(cmd: Command): Promise<Response> {
         isReady: !contextRef.isLoading,
         circuitState: contextRef.circuitState.toLowerCase(),
         cacheStats: {
-          hits: Number(metrics.cache?.hits ?? 0),
-          misses: Number(metrics.cache?.misses ?? 0),
+          hits: Number(metrics.cacheHits ?? 0),
+          misses: Number(metrics.cacheMisses ?? 0),
         },
       };
     }
