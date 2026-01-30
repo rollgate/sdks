@@ -57,3 +57,8 @@ target/
 *.dll
 *.so
 *.dylib
+# Binaries
+test-harness/harness
+test-harness/harness.exe
+packages/sdk-go/testservice/testservice
+packages/sdk-go/testservice/testservice.exe
