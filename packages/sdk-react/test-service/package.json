@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node --experimental-specifier-resolution=node dist/index.js"
+    "start": "node --preserve-symlinks --preserve-symlinks-main dist/index.js"
   },
   "dependencies": {
     "@rollgate/sdk-react": "file:..",

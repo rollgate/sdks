@@ -7,8 +7,9 @@
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { JSDOM } from "jsdom";
-import React, { useEffect, useRef } from "react";
-import { createRoot } from "react-dom/client";
+import React from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { flushSync } from "react-dom";
 import * as EventSourcePolyfill from "eventsource";
 
 // Setup global browser environment
@@ -17,9 +18,11 @@ const dom = new JSDOM(
   {
     url: "http://localhost",
     pretendToBeVisual: true,
+    runScripts: "dangerously",
   },
 );
 
+// Setup globals BEFORE importing React
 Object.defineProperty(global, "window", { value: dom.window, writable: true });
 Object.defineProperty(global, "document", {
   value: dom.window.document,
@@ -34,6 +37,28 @@ Object.defineProperty(global, "EventSource", {
   writable: true,
 });
 
+// Polyfills for React 18
+Object.defineProperty(global, "requestAnimationFrame", {
+  value: (cb: FrameRequestCallback) => setTimeout(cb, 0),
+  writable: true,
+});
+Object.defineProperty(global, "cancelAnimationFrame", {
+  value: (id: number) => clearTimeout(id),
+  writable: true,
+});
+Object.defineProperty(global, "HTMLElement", {
+  value: dom.window.HTMLElement,
+  writable: true,
+});
+Object.defineProperty(global, "Element", {
+  value: dom.window.Element,
+  writable: true,
+});
+Object.defineProperty(global, "Node", {
+  value: dom.window.Node,
+  writable: true,
+});
+
 // Now import the SDK (after globals are set up)
 import {
   RollgateProvider,
@@ -45,9 +70,8 @@ import {
 const PORT = parseInt(process.env.PORT || "8003", 10);
 
 // Store for test harness communication
-let resolveReady: (() => void) | null = null;
 let contextRef: ReturnType<typeof useRollgate> | null = null;
-let rootRef: ReturnType<typeof createRoot> | null = null;
+let rootRef: Root | null = null;
 
 interface Config {
   apiKey: string;
@@ -82,18 +106,12 @@ interface Response {
   message?: string;
 }
 
-// Component that captures the Rollgate context
-function ContextCapture({ onReady }: { onReady: () => void }) {
+// Component that captures the Rollgate context and exposes it globally
+function ContextCapture() {
   const context = useRollgate();
-  const hasNotified = useRef(false);
 
-  useEffect(() => {
-    contextRef = context;
-    if (!hasNotified.current && !context.isLoading) {
-      hasNotified.current = true;
-      onReady();
-    }
-  }, [context, context.isLoading, onReady]);
+  // Update contextRef on every render
+  contextRef = context;
 
   return null;
 }
@@ -135,31 +153,54 @@ async function handleCommand(cmd: Command): Promise<Response> {
       };
 
       try {
-        const readyPromise = new Promise<void>((resolve) => {
-          resolveReady = resolve;
-        });
-
         const container = dom.window.document.getElementById("root");
         if (!container) {
           return { error: "InitError", message: "Root container not found" };
         }
 
         rootRef = createRoot(container);
-        rootRef.render(
-          <RollgateProvider config={config} user={cmd.user}>
-            <ContextCapture onReady={() => resolveReady?.()} />
-          </RollgateProvider>,
-        );
 
-        // Wait for ready with timeout
-        await Promise.race([
-          readyPromise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Init timeout")), 10000),
-          ),
-        ]);
+        // Use flushSync to force synchronous rendering
+        flushSync(() => {
+          rootRef!.render(
+            <RollgateProvider config={config} user={cmd.user}>
+              <ContextCapture />
+            </RollgateProvider>,
+          );
+        });
 
-        return { success: true };
+        // Poll for isLoading to become false
+        const startTime = Date.now();
+        const timeout = 10000;
+
+        while (Date.now() - startTime < timeout) {
+          // Force re-render to update contextRef
+          flushSync(() => {
+            rootRef!.render(
+              <RollgateProvider config={config} user={cmd.user}>
+                <ContextCapture />
+              </RollgateProvider>,
+            );
+          });
+
+          // Check if SDK is ready
+          if (contextRef && !contextRef.isLoading) {
+            return { success: true };
+          }
+
+          // Check for error
+          if (contextRef && contextRef.isError) {
+            return {
+              error: "RollgateError",
+              message: "SDK initialization failed",
+            };
+          }
+
+          // Wait a bit before next poll
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        return { error: "Error", message: "Init timeout" };
       } catch (err) {
         const error = err as Error;
         return { error: error.name || "Error", message: error.message };
@@ -366,4 +407,13 @@ process.on("SIGTERM", () => {
   server.close(() => {
     process.exit(0);
   });
+});
+
+// Global error handlers to prevent crashes
+process.on("uncaughtException", (err) => {
+  console.error("[sdk-react test-service] Uncaught exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[sdk-react test-service] Unhandled rejection:", reason);
 });
