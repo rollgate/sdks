@@ -5,9 +5,7 @@ module.exports = {
   roots: ["<rootDir>/src"],
   testMatch: ["**/*.test.ts"],
   collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts"],
-  setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
   moduleNameMapper: {
-    "^@angular/core$": "<rootDir>/node_modules/@angular/core",
-    "^@angular/common$": "<rootDir>/node_modules/@angular/common",
+    "^@rollgate/sdk-browser$": "<rootDir>/../sdk-browser/dist/index.js",
   },
 };

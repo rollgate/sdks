@@ -140,18 +140,18 @@ SDK core per browser - **TUTTE le implementazioni browser derivano da questo**:
 
 ## Stato Implementazione
 
-| Componente  | Stato        | Note                      |
-| ----------- | ------------ | ------------------------- |
-| sdk-core    | ✅ Completo  | Utilities condivise       |
-| sdk-node    | ✅ Completo  | Server-side SDK           |
-| sdk-browser | ✅ Completo  | Core browser SDK          |
-| sdk-react   | ✅ Completo  | Wrapper sdk-browser       |
-| sdk-vue     | ✅ Completo  | Wrapper sdk-browser       |
-| sdk-angular | ✅ Completo  | Wrapper sdk-browser       |
-| sdk-svelte  | ✅ Completo  | Wrapper sdk-browser       |
-| sdk-go      | ✅ Completo  | Implementazione nativa Go |
-| sdk-python  | 📋 Skeleton  | Da implementare           |
-| sdk-java    | 📋 Skeleton  | Da implementare           |
+| Componente  | Stato       | Note                      |
+| ----------- | ----------- | ------------------------- |
+| sdk-core    | ✅ Completo | Utilities condivise       |
+| sdk-node    | ✅ Completo | Server-side SDK           |
+| sdk-browser | ✅ Completo | Core browser SDK          |
+| sdk-react   | ✅ Completo | Wrapper sdk-browser       |
+| sdk-vue     | ✅ Completo | Wrapper sdk-browser       |
+| sdk-angular | ✅ Completo | Wrapper sdk-browser       |
+| sdk-svelte  | ✅ Completo | Wrapper sdk-browser       |
+| sdk-go      | ✅ Completo | Implementazione nativa Go |
+| sdk-python  | 📋 Skeleton | Da implementare           |
+| sdk-java    | 📋 Skeleton | Da implementare           |
 
 ## Principi Architetturali
 
