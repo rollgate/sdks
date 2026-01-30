@@ -13,12 +13,13 @@ import * as EventSourcePolyfill from "eventsource";
 // Setup globals for browser APIs
 (global as any).EventSource = EventSourcePolyfill;
 
-// Import SDK after globals are set
+// Import SDK after globals are set - use relative path for local development
 import {
   createRollgate,
   type RollgateStores,
   type UserContext,
-} from "@rollgate/sdk-svelte";
+  type CircuitState,
+} from "../../dist/index.mjs";
 
 const PORT = parseInt(process.env.PORT || "8005", 10);
 
@@ -97,9 +98,11 @@ async function handleCommand(cmd: Command): Promise<Response> {
         });
 
         // Subscribe to flags store
-        const unsubscribe = rollgate.flags.subscribe((flags) => {
-          currentFlags = flags;
-        });
+        const unsubscribe = rollgate.flags.subscribe(
+          (flags: Record<string, boolean>) => {
+            currentFlags = flags;
+          },
+        );
 
         // Wait for ready
         await new Promise<void>((resolve, reject) => {
@@ -110,7 +113,7 @@ async function handleCommand(cmd: Command): Promise<Response> {
           let isReady = false;
           let hasError: Error | null = null;
 
-          const unsubReady = rollgate!.isReady.subscribe((ready) => {
+          const unsubReady = rollgate!.isReady.subscribe((ready: boolean) => {
             isReady = ready;
             if (ready && !hasError) {
               clearTimeout(timeout);
@@ -118,7 +121,7 @@ async function handleCommand(cmd: Command): Promise<Response> {
             }
           });
 
-          const unsubError = rollgate!.error.subscribe((err) => {
+          const unsubError = rollgate!.error.subscribe((err: Error | null) => {
             if (err) {
               hasError = err;
               clearTimeout(timeout);
@@ -262,12 +265,12 @@ async function handleCommand(cmd: Command): Promise<Response> {
       let isReady = false;
       let circuitState = "closed";
 
-      rollgate.isReady.subscribe((ready) => {
+      rollgate.isReady.subscribe((ready: boolean) => {
         isReady = ready;
       })();
 
-      rollgate.circuitState.subscribe((state) => {
-        circuitState = state.toLowerCase();
+      rollgate.circuitState.subscribe((state: CircuitState) => {
+        circuitState = String(state).toLowerCase();
       })();
 
       const metrics = rollgate.getMetrics();
