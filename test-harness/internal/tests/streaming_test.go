@@ -25,7 +25,7 @@ func TestSSEConnectionEstablished(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: streaming not supported or init failed: %s", svc.Name, resp.Error)
+			t.Logf("%s: streaming not supported or init failed: %s", svc.GetName(), resp.Error)
 			svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 			continue
 		}
@@ -35,7 +35,7 @@ func TestSSEConnectionEstablished(t *testing.T) {
 
 		// Check if SSE client is connected
 		clientCount := h.GetSSEClientCount()
-		t.Logf("%s: SSE clients connected = %d", svc.Name, clientCount)
+		t.Logf("%s: SSE clients connected = %d", svc.GetName(), clientCount)
 
 		// Cleanup
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -59,7 +59,7 @@ func TestSSEInitialFlags(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: streaming init failed: %s", svc.Name, resp.Error)
+			t.Logf("%s: streaming init failed: %s", svc.GetName(), resp.Error)
 			svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 			continue
 		}
@@ -69,20 +69,20 @@ func TestSSEInitialFlags(t *testing.T) {
 		require.NoError(t, err)
 
 		if flagResp.Value == nil {
-			t.Logf("%s: flag value is nil (streaming may not be fully supported)", svc.Name)
+			t.Logf("%s: flag value is nil (streaming may not be fully supported)", svc.GetName())
 			svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 			continue
 		}
 
-		assert.True(t, *flagResp.Value, "%s should have received enabled-flag=true via SSE init", svc.Name)
+		assert.True(t, *flagResp.Value, "%s should have received enabled-flag=true via SSE init", svc.GetName())
 
 		flagResp2, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("disabled-flag", true))
 		require.NoError(t, err)
 		if flagResp2.Value != nil {
-			assert.False(t, *flagResp2.Value, "%s should have received disabled-flag=false via SSE init", svc.Name)
+			assert.False(t, *flagResp2.Value, "%s should have received disabled-flag=false via SSE init", svc.GetName())
 		}
 
-		t.Logf("%s: SSE init flags received correctly", svc.Name)
+		t.Logf("%s: SSE init flags received correctly", svc.GetName())
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }
@@ -103,7 +103,7 @@ func TestSSEFlagUpdate(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: streaming not supported: %s", svc.Name, resp.Error)
+			t.Logf("%s: streaming not supported: %s", svc.GetName(), resp.Error)
 			svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 			continue
 		}
@@ -128,9 +128,9 @@ func TestSSEFlagUpdate(t *testing.T) {
 		flagResp2, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("enabled-flag", true))
 		require.NoError(t, err)
 		if flagResp2.Value != nil {
-			t.Logf("%s: flag value after SSE update = %v (expected: false)", svc.Name, *flagResp2.Value)
+			t.Logf("%s: flag value after SSE update = %v (expected: false)", svc.GetName(), *flagResp2.Value)
 		} else {
-			t.Logf("%s: flag value is nil after SSE update", svc.Name)
+			t.Logf("%s: flag value is nil after SSE update", svc.GetName())
 		}
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -158,13 +158,13 @@ func TestSSEFallbackToPolling(t *testing.T) {
 			flagResp, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("enabled-flag", false))
 			require.NoError(t, err)
 			if flagResp.Value != nil {
-				assert.True(t, *flagResp.Value, "%s should have flag value (via SSE or polling)", svc.Name)
-				t.Logf("%s: SDK working with streaming config", svc.Name)
+				assert.True(t, *flagResp.Value, "%s should have flag value (via SSE or polling)", svc.GetName())
+				t.Logf("%s: SDK working with streaming config", svc.GetName())
 			} else {
-				t.Logf("%s: flag value is nil (SDK init may have issues)", svc.Name)
+				t.Logf("%s: flag value is nil (SDK init may have issues)", svc.GetName())
 			}
 		} else {
-			t.Logf("%s: SDK fell back to polling or error: %s", svc.Name, resp.Error)
+			t.Logf("%s: SDK fell back to polling or error: %s", svc.GetName(), resp.Error)
 		}
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
@@ -187,7 +187,7 @@ func TestSSEDisconnectRecovery(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: streaming not supported: %s", svc.Name, resp.Error)
+			t.Logf("%s: streaming not supported: %s", svc.GetName(), resp.Error)
 			svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 			continue
 		}
@@ -199,14 +199,14 @@ func TestSSEDisconnectRecovery(t *testing.T) {
 
 		// Disconnect all SSE clients
 		disconnected := h.DisconnectSSEClients()
-		t.Logf("%s: disconnected %d SSE clients", svc.Name, disconnected)
+		t.Logf("%s: disconnected %d SSE clients", svc.GetName(), disconnected)
 
 		// SDK should still work (using cache or reconnecting)
 		time.Sleep(200 * time.Millisecond)
 
 		flagResp2, err := svc.SendCommand(tc.Ctx, protocol.NewIsEnabledCommand("enabled-flag", false))
 		require.NoError(t, err)
-		assert.True(t, *flagResp2.Value, "%s should still have flag value after disconnect", svc.Name)
+		assert.True(t, *flagResp2.Value, "%s should still have flag value after disconnect", svc.GetName())
 
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
@@ -230,7 +230,7 @@ func TestSSEWithPollingDisabled(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.IsError() {
-			t.Logf("%s: streaming-only mode not supported: %s", svc.Name, resp.Error)
+			t.Logf("%s: streaming-only mode not supported: %s", svc.GetName(), resp.Error)
 			svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 			continue
 		}
@@ -243,7 +243,7 @@ func TestSSEWithPollingDisabled(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, *flagResp.Value)
 
-		t.Logf("%s: streaming-only mode working", svc.Name)
+		t.Logf("%s: streaming-only mode working", svc.GetName())
 		svc.SendCommand(tc.Ctx, protocol.NewCloseCommand())
 	}
 }

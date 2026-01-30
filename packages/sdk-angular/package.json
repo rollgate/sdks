@@ -44,7 +44,7 @@
     "rxjs": "^7.0.0"
   },
   "dependencies": {
-    "@rollgate/sdk-core": "*"
+    "@rollgate/sdk-browser": "*"
   },
   "devDependencies": {
     "@angular/common": "^18.0.0",

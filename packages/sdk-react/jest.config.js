@@ -2,8 +2,18 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
-  roots: ["<rootDir>/src"],
-  testMatch: ["**/*.test.tsx", "**/*.test.ts"],
-  collectCoverageFrom: ["src/**/*.tsx", "src/**/*.ts", "!src/**/*.d.ts"],
   setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
+  moduleNameMapper: {
+    "^@rollgate/sdk-browser$": "<rootDir>/../sdk-browser/dist/index.js",
+  },
+  transform: {
+    "^.+\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: {
+          jsx: "react-jsx",
+        },
+      },
+    ],
+  },
 };

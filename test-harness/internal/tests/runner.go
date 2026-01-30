@@ -50,10 +50,10 @@ func (tc *TestContext) InitAllSDKs(user *protocol.UserContext) error {
 	for _, svc := range tc.Harness.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			return fmt.Errorf("%s init failed: %w", svc.Name, err)
+			return fmt.Errorf("%s init failed: %w", svc.GetName(), err)
 		}
 		if resp.IsError() {
-			return fmt.Errorf("%s init error: %s - %s", svc.Name, resp.Error, resp.Message)
+			return fmt.Errorf("%s init error: %s - %s", svc.GetName(), resp.Error, resp.Message)
 		}
 	}
 
@@ -67,7 +67,7 @@ func (tc *TestContext) CloseAllSDKs() error {
 	for _, svc := range tc.Harness.GetServices() {
 		_, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			return fmt.Errorf("%s close failed: %w", svc.Name, err)
+			return fmt.Errorf("%s close failed: %w", svc.GetName(), err)
 		}
 	}
 
@@ -83,19 +83,19 @@ func (tc *TestContext) AssertFlagValue(flagKey string, expected bool, defaultVal
 	for _, svc := range tc.Harness.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			tc.T.Errorf("%s: isEnabled failed: %v", svc.Name, err)
+			tc.T.Errorf("%s: isEnabled failed: %v", svc.GetName(), err)
 			continue
 		}
 		if resp.IsError() {
-			tc.T.Errorf("%s: isEnabled error: %s - %s", svc.Name, resp.Error, resp.Message)
+			tc.T.Errorf("%s: isEnabled error: %s - %s", svc.GetName(), resp.Error, resp.Message)
 			continue
 		}
 		if resp.Value == nil {
-			tc.T.Errorf("%s: isEnabled returned nil value", svc.Name)
+			tc.T.Errorf("%s: isEnabled returned nil value", svc.GetName())
 			continue
 		}
 		if *resp.Value != expected {
-			tc.T.Errorf("%s: isEnabled(%q) = %v, want %v", svc.Name, flagKey, *resp.Value, expected)
+			tc.T.Errorf("%s: isEnabled(%q) = %v, want %v", svc.GetName(), flagKey, *resp.Value, expected)
 		}
 	}
 }
@@ -109,22 +109,22 @@ func (tc *TestContext) AssertAllFlags(expected map[string]bool) {
 	for _, svc := range tc.Harness.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			tc.T.Errorf("%s: getAllFlags failed: %v", svc.Name, err)
+			tc.T.Errorf("%s: getAllFlags failed: %v", svc.GetName(), err)
 			continue
 		}
 		if resp.IsError() {
-			tc.T.Errorf("%s: getAllFlags error: %s - %s", svc.Name, resp.Error, resp.Message)
+			tc.T.Errorf("%s: getAllFlags error: %s - %s", svc.GetName(), resp.Error, resp.Message)
 			continue
 		}
 
 		for key, expectedVal := range expected {
 			actualVal, ok := resp.Flags[key]
 			if !ok {
-				tc.T.Errorf("%s: flag %q not found in getAllFlags response", svc.Name, key)
+				tc.T.Errorf("%s: flag %q not found in getAllFlags response", svc.GetName(), key)
 				continue
 			}
 			if actualVal != expectedVal {
-				tc.T.Errorf("%s: flag %q = %v, want %v", svc.Name, key, actualVal, expectedVal)
+				tc.T.Errorf("%s: flag %q = %v, want %v", svc.GetName(), key, actualVal, expectedVal)
 			}
 		}
 	}
@@ -137,10 +137,10 @@ func (tc *TestContext) IdentifyUser(user protocol.UserContext) error {
 	for _, svc := range tc.Harness.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			return fmt.Errorf("%s identify failed: %w", svc.Name, err)
+			return fmt.Errorf("%s identify failed: %w", svc.GetName(), err)
 		}
 		if resp.IsError() {
-			return fmt.Errorf("%s identify error: %s - %s", svc.Name, resp.Error, resp.Message)
+			return fmt.Errorf("%s identify error: %s - %s", svc.GetName(), resp.Error, resp.Message)
 		}
 	}
 
@@ -154,10 +154,10 @@ func (tc *TestContext) ResetUser() error {
 	for _, svc := range tc.Harness.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			return fmt.Errorf("%s reset failed: %w", svc.Name, err)
+			return fmt.Errorf("%s reset failed: %w", svc.GetName(), err)
 		}
 		if resp.IsError() {
-			return fmt.Errorf("%s reset error: %s - %s", svc.Name, resp.Error, resp.Message)
+			return fmt.Errorf("%s reset error: %s - %s", svc.GetName(), resp.Error, resp.Message)
 		}
 	}
 
@@ -172,9 +172,9 @@ func (tc *TestContext) GetState() (map[string]protocol.Response, error) {
 	for _, svc := range tc.Harness.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
 		if err != nil {
-			return nil, fmt.Errorf("%s getState failed: %w", svc.Name, err)
+			return nil, fmt.Errorf("%s getState failed: %w", svc.GetName(), err)
 		}
-		results[svc.Name] = resp
+		results[svc.GetName()] = resp
 	}
 
 	return results, nil
@@ -197,11 +197,11 @@ func (tc *TestContext) AssertAllReady() {
 }
 
 // RunForEachSDK runs a test function for each SDK independently.
-func (tc *TestContext) RunForEachSDK(name string, fn func(t *testing.T, svc *harness.TestService)) {
+func (tc *TestContext) RunForEachSDK(name string, fn func(t *testing.T, svc harness.SDKService)) {
 	tc.T.Helper()
 
 	for _, svc := range tc.Harness.GetServices() {
-		tc.T.Run(fmt.Sprintf("%s/%s", name, svc.Name), func(t *testing.T) {
+		tc.T.Run(fmt.Sprintf("%s/%s", name, svc.GetName()), func(t *testing.T) {
 			fn(t, svc)
 		})
 	}

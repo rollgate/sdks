@@ -47,7 +47,7 @@
     "url": "https://github.com/thejord-it/rollgate/issues"
   },
   "dependencies": {
-    "@rollgate/sdk-core": "*"
+    "@rollgate/sdk-browser": "*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",

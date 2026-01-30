@@ -1,0 +1,26 @@
+{
+  "name": "@rollgate/browser-contract-test-adapter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adapter between test harness and browser entity",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "yarn build && node dist/index.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.3.0"
+  }
+}

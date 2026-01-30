@@ -1,3 +1,13 @@
+/**
+ * Rollgate React SDK
+ *
+ * Thin wrapper around @rollgate/sdk-browser providing React-specific bindings:
+ * - RollgateProvider (React Context)
+ * - useFlag, useFlags, useRollgate hooks
+ * - Feature component
+ *
+ * All HTTP, caching, circuit breaker logic is delegated to sdk-browser.
+ */
 import React, {
   createContext,
   useContext,
@@ -5,149 +15,71 @@ import React, {
   useState,
   useCallback,
   useRef,
-  useMemo,
   ReactNode,
 } from "react";
 import {
-  // Retry
-  fetchWithRetry,
-  DEFAULT_RETRY_CONFIG,
-  // Circuit Breaker
-  CircuitBreaker,
+  createClient,
+  RollgateBrowserClient,
+  CircuitState,
+  RollgateError,
+  ErrorCategory,
+} from "@rollgate/sdk-browser";
+import type {
+  UserContext,
+  RollgateOptions,
+  MetricsSnapshot,
+  RetryConfig,
+  CircuitBreakerConfig,
+  CacheConfig,
+} from "@rollgate/sdk-browser";
+
+// Re-export types from sdk-browser for convenience
+export type {
+  UserContext,
+  RollgateOptions,
+  MetricsSnapshot,
+  RetryConfig,
+  CircuitBreakerConfig,
+  CacheConfig,
+} from "@rollgate/sdk-browser";
+export {
   CircuitState,
   CircuitOpenError,
-  DEFAULT_CIRCUIT_BREAKER_CONFIG,
-  // Cache
-  FlagCache,
-  DEFAULT_CACHE_CONFIG,
-  // Dedup
-  RequestDeduplicator,
-  // Errors
   RollgateError,
   ErrorCategory,
-  classifyError,
-  // Metrics
-  createMetrics,
-  // Tracing
-  createTraceContext,
-  getTraceHeaders,
-} from "@rollgate/sdk-core";
-import type {
-  RetryConfig,
-  CircuitBreakerConfig,
-  CacheConfig,
-  SDKMetrics,
-  MetricsSnapshot,
-  FlagEvaluationMetrics,
-  FlagStats,
-  TimeWindowMetrics,
-  WindowedStats,
-} from "@rollgate/sdk-core";
+} from "@rollgate/sdk-browser";
 
-export interface RollgateConfig {
-  /** Your Rollgate API key (server or client key) */
+/**
+ * React SDK configuration (extends browser SDK options)
+ */
+export interface RollgateConfig extends RollgateOptions {
+  /** Your Rollgate API key */
   apiKey: string;
-  /** Base URL for Rollgate API (default: https://api.rollgate.io) */
-  baseUrl?: string;
-  /** SSE URL for streaming connections (default: same as baseUrl). Use when SSE needs a separate endpoint (e.g., to bypass Cloudflare proxy). */
-  sseUrl?: string;
-  /** Polling interval in ms (default: 30000 = 30s). Set to 0 to disable polling. */
-  refreshInterval?: number;
-  /**
-   * Enable SSE streaming for real-time updates (default: false).
-   *
-   * ⚠️ For production with many users, we recommend using the proxy pattern
-   * with @rollgate/sdk-node on your backend instead of direct browser connections.
-   * See: https://docs.rollgate.io/guides/production-setup
-   */
-  enableStreaming?: boolean;
-  /** Alias for enableStreaming */
-  streaming?: boolean;
-  /** Request timeout in milliseconds (default: 5000) */
-  timeout?: number;
-  /** Retry configuration for failed requests */
-  retry?: Partial<RetryConfig>;
-  /** Circuit breaker configuration for fault tolerance */
-  circuitBreaker?: Partial<CircuitBreakerConfig>;
-  /** Cache configuration for offline support */
-  cache?: Partial<CacheConfig>;
-}
-
-// Re-export from sdk-core
-export type {
-  RetryConfig,
-  CircuitBreakerConfig,
-  CacheConfig,
-} from "@rollgate/sdk-core";
-export { CircuitState } from "@rollgate/sdk-core";
-export {
-  RollgateError,
-  AuthenticationError,
-  ValidationError,
-  NetworkError,
-  RateLimitError,
-  InternalError,
-  ErrorCategory,
-  ErrorCode,
-  classifyError,
-  isRetryable,
-  isAuthError,
-  isNetworkError,
-  isRateLimitError,
-  isValidationError,
-  isNotFoundError,
-  isInternalError,
-} from "@rollgate/sdk-core";
-export type {
-  SDKMetrics,
-  MetricsSnapshot,
-  FlagEvaluationMetrics,
-  FlagStats,
-  TimeWindowMetrics,
-  WindowedStats,
-} from "@rollgate/sdk-core";
-export {
-  TraceHeaders,
-  createTraceContext,
-  getTraceHeaders,
-  generateTraceId,
-  generateSpanId,
-  generateRequestId,
-} from "@rollgate/sdk-core";
-export type { TraceContext } from "@rollgate/sdk-core";
-
-export interface UserContext {
-  id: string;
-  email?: string;
-  attributes?: Record<string, string | number | boolean>;
-}
-
-interface FlagsResponse {
-  flags: Record<string, boolean>;
 }
 
 interface RollgateContextValue {
+  /** Check if a flag is enabled */
   isEnabled: (flagKey: string, defaultValue?: boolean) => boolean;
+  /** True while initial flags are loading */
   isLoading: boolean;
+  /** True if there was an error fetching flags */
   isError: boolean;
+  /** True if using cached/stale flags */
   isStale: boolean;
-  retryCount: number;
+  /** Current circuit breaker state */
   circuitState: CircuitState;
+  /** All flags as key-value object */
   flags: Record<string, boolean>;
+  /** Change user context */
   identify: (user: UserContext) => Promise<void>;
+  /** Clear user context */
   reset: () => Promise<void>;
+  /** Force refresh flags */
   refresh: () => Promise<void>;
+  /** Get metrics snapshot */
   getMetrics: () => MetricsSnapshot;
-  resetMetrics: () => void;
-  getPrometheusMetrics: (prefix?: string) => string;
-  onMetrics: (
-    event: "request" | "evaluation" | "circuit-change",
-    callback: (metrics: MetricsSnapshot) => void,
-  ) => void;
-  offMetrics: (
-    event: "request" | "evaluation" | "circuit-change",
-    callback: (metrics: MetricsSnapshot) => void,
-  ) => void;
+  /** Access the underlying browser client */
+  client: RollgateBrowserClient | null;
 }
 
 const RollgateContext = createContext<RollgateContextValue | null>(null);
@@ -158,6 +90,18 @@ interface RollgateProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Rollgate Provider component
+ *
+ * Wraps your app to provide feature flag access via hooks.
+ *
+ * @example
+ * ```tsx
+ * <RollgateProvider config={{ apiKey: 'your-api-key' }} user={{ id: 'user-1' }}>
+ *   <App />
+ * </RollgateProvider>
+ * ```
+ */
 export function RollgateProvider({
   config,
   user,
@@ -167,393 +111,149 @@ export function RollgateProvider({
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isStale, setIsStale] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
   const [circuitState, setCircuitState] = useState<CircuitState>(
     CircuitState.CLOSED,
   );
-  const [currentUser, setCurrentUser] = useState<UserContext | undefined>(user);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastETagRef = useRef<string | null>(null);
+  const clientRef = useRef<RollgateBrowserClient | null>(null);
 
-  const baseUrl = config.baseUrl || "https://api.rollgate.io";
-  const sseUrl = config.sseUrl || baseUrl; // Use dedicated SSE URL if provided
-  const refreshInterval = config.refreshInterval ?? 30000; // 30 seconds default
-  const enableStreaming = config.enableStreaming ?? config.streaming ?? false; // Default to polling (SSE opt-in)
-  const timeout = config.timeout ?? 5000;
-  const retryConfig: RetryConfig = { ...DEFAULT_RETRY_CONFIG, ...config.retry };
-  const circuitBreakerConfig: CircuitBreakerConfig = {
-    ...DEFAULT_CIRCUIT_BREAKER_CONFIG,
-    ...config.circuitBreaker,
-  };
-  const cacheConfig: CacheConfig = { ...DEFAULT_CACHE_CONFIG, ...config.cache };
-
-  // Create stable instances across renders
-  const metricsRef = useRef<SDKMetrics | null>(null);
-  const circuitBreaker = useMemo(() => {
-    const cb = new CircuitBreaker(circuitBreakerConfig);
-    cb.on("state-change", (data) => {
-      if (!data?.to) return;
-      setCircuitState(data.to);
-      // Track in metrics
-      if (metricsRef.current) {
-        let metricsState: "closed" | "open" | "half-open" = "closed";
-        if (data.to === CircuitState.OPEN) metricsState = "open";
-        else if (data.to === CircuitState.HALF_OPEN) metricsState = "half-open";
-        metricsRef.current.recordCircuitStateChange(metricsState);
-      }
-    });
-    return cb;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const cache = useMemo(() => new FlagCache(cacheConfig), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const dedup = useMemo(() => new RequestDeduplicator(), []);
-  const metrics = useMemo(() => createMetrics(), []);
-
-  // Link metrics ref for circuit breaker callbacks
+  // Create client on mount
   useEffect(() => {
-    metricsRef.current = metrics;
-  }, [metrics]);
+    const { apiKey, ...options } = config;
 
-  // Load cached flags on mount
-  useEffect(() => {
-    cache.load();
-    const cached = cache.get();
-    if (cached) {
-      setFlags(cached.flags);
-      setIsStale(cached.stale);
-    }
-  }, [cache]);
+    const client = createClient(apiKey, user || null, options);
+    clientRef.current = client;
 
-  const fetchFlags = useCallback(async () => {
-    // Use request deduplication
-    return dedup.dedupe("fetch-flags", async () => {
-      const url = new URL(`${baseUrl}/api/v1/sdk/flags`);
-      const endpoint = "/api/v1/sdk/flags";
-      const startTime = Date.now();
-      let statusCode = 0;
-
-      if (currentUser?.id) {
-        url.searchParams.set("user_id", currentUser.id);
-      }
-
-      // Check if circuit breaker allows requests
-      if (!circuitBreaker.isAllowingRequests()) {
-        console.warn("[Rollgate] Circuit breaker is open, using cached flags");
-        useCachedFallback();
-        return;
-      }
-
-      try {
-        // Execute through circuit breaker
-        const data = await circuitBreaker.execute(async () => {
-          const result = await fetchWithRetry(async () => {
-            // Setup timeout with AbortController
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-            try {
-              // Create trace context for this request
-              const traceContext = createTraceContext();
-              const traceHeaders = getTraceHeaders(traceContext);
-
-              // Build headers with optional ETag for conditional request
-              const headers: Record<string, string> = {
-                Authorization: `Bearer ${config.apiKey}`,
-                "Content-Type": "application/json",
-                ...traceHeaders,
-              };
-              if (lastETagRef.current) {
-                headers["If-None-Match"] = lastETagRef.current;
-              }
-
-              const response = await fetch(url.toString(), {
-                headers,
-                signal: controller.signal,
-              });
-
-              // Track status code for metrics
-              statusCode = response.status;
-
-              // Handle 304 Not Modified - flags haven't changed
-              if (response.status === 304) {
-                return null; // Signal that flags are unchanged
-              }
-
-              if (!response.ok) {
-                // Try to parse structured error from server
-                const error = await RollgateError.fromHTTPResponse(response);
-                throw error;
-              }
-
-              // Store the new ETag for next request
-              const newETag = response.headers.get("ETag");
-              if (newETag) {
-                lastETagRef.current = newETag;
-              }
-
-              return (await response.json()) as FlagsResponse;
-            } finally {
-              clearTimeout(timeoutId);
-            }
-          }, retryConfig);
-
-          // If retry failed, throw so circuit breaker can track it
-          if (!result.success) {
-            setRetryCount(result.attempts);
-            throw result.error;
-          }
-
-          if (result.attempts > 1) {
-            setRetryCount(result.attempts);
-          }
-
-          return result.data; // Can be null for 304
-        });
-
-        // If null, it means 304 Not Modified - record metrics and skip update
-        if (data === null) {
-          metrics.recordRequest({
-            endpoint,
-            statusCode: 304,
-            latencyMs: Date.now() - startTime,
-            cacheHit: true,
-            notModified: true,
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        // Record successful request metrics
-        metrics.recordRequest({
-          endpoint,
-          statusCode: statusCode || 200,
-          latencyMs: Date.now() - startTime,
-          cacheHit: false,
-          notModified: false,
-        });
-
-        // Update cache with fresh data
-        const flagsData = (data as FlagsResponse).flags || {};
-        cache.set(flagsData);
-
-        setFlags(flagsData);
-        setIsStale(false);
-        setIsError(false);
-      } catch (error) {
-        // Classify the error - always results in RollgateError
-        const classifiedError: RollgateError =
-          error instanceof RollgateError ? error : classifyError(error);
-
-        // Record failed request metrics
-        metrics.recordRequest({
-          endpoint,
-          statusCode: statusCode || 0,
-          latencyMs: Date.now() - startTime,
-          cacheHit: false,
-          notModified: false,
-          error: classifiedError.message,
-          errorCategory: classifiedError.category,
-        });
-
-        if (error instanceof CircuitOpenError) {
-          console.warn("[Rollgate] Circuit breaker is open:", error.message);
-        } else if (classifiedError.category === ErrorCategory.AUTH) {
-          console.error(
-            "[Rollgate] Authentication error:",
-            classifiedError.message,
-          );
-        } else if (classifiedError.category === ErrorCategory.RATE_LIMIT) {
-          console.warn("[Rollgate] Rate limited:", classifiedError.message);
-        } else {
-          console.error(
-            "[Rollgate] Error fetching flags:",
-            classifiedError.message,
-          );
-        }
-        // Use cached fallback on error
-        useCachedFallback();
-        setIsError(true);
-      } finally {
-        setIsLoading(false);
-      }
+    // Subscribe to client events
+    client.on("ready", () => {
+      setFlags(client.allFlags());
+      setIsLoading(false);
+      setIsError(false);
+      setIsStale(false);
     });
 
-    function useCachedFallback() {
-      const cached = cache.get();
-      if (cached) {
-        setFlags(cached.flags);
-        setIsStale(cached.stale);
-      }
-    }
-  }, [
-    baseUrl,
-    config.apiKey,
-    currentUser?.id,
-    timeout,
-    retryConfig,
-    circuitBreaker,
-    cache,
-    dedup,
-    metrics,
-  ]);
-
-  // Setup SSE streaming
-  useEffect(() => {
-    if (!enableStreaming) return;
-
-    const url = new URL(`${sseUrl}/api/v1/sdk/stream`);
-    // EventSource doesn't support custom headers, pass API key as query param
-    url.searchParams.set("token", config.apiKey);
-    if (currentUser?.id) {
-      url.searchParams.set("user_id", currentUser.id);
-    }
-
-    const eventSource = new EventSource(url.toString());
-    eventSourceRef.current = eventSource;
-
-    eventSource.addEventListener("init", (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data) as FlagsResponse;
-        setFlags(data.flags || {});
-        setIsLoading(false);
-        setIsError(false);
-      } catch (e) {
-        console.error("[Rollgate] Failed to parse init event:", e);
-      }
+    client.on("flags-updated", (newFlags) => {
+      setFlags(newFlags as Record<string, boolean>);
+      setIsStale(false);
     });
 
-    // Handle flag-changed event (server notifies that a flag changed, client refetches)
-    eventSource.addEventListener("flag-changed", () => {
-      // Refetch all flags to get values evaluated for current user context
-      fetchFlags();
-    });
-
-    // Handle legacy flag-update event (deprecated, kept for backwards compatibility)
-    eventSource.addEventListener("flag-update", (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data) as {
-          key: string;
-          enabled: boolean;
-        };
-        setFlags((prev) => ({ ...prev, [data.key]: data.enabled }));
-      } catch (e) {
-        console.error("[Rollgate] Failed to parse flag-update event:", e);
-      }
-    });
-
-    eventSource.onerror = () => {
-      console.warn("[Rollgate] SSE connection error");
+    client.on("error", () => {
       setIsError(true);
-      // EventSource will auto-reconnect
-    };
-
-    return () => {
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [sseUrl, config.apiKey, currentUser?.id, enableStreaming]);
-
-  // Fallback to polling if streaming is disabled
-  useEffect(() => {
-    if (enableStreaming) return;
-
-    fetchFlags();
-
-    if (refreshInterval > 0) {
-      intervalRef.current = setInterval(fetchFlags, refreshInterval);
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      // Use cached flags if available
+      const currentFlags = client.allFlags();
+      if (Object.keys(currentFlags).length > 0) {
+        setFlags(currentFlags);
+        setIsStale(true);
       }
-    };
-  }, [fetchFlags, refreshInterval, enableStreaming]);
+    });
 
-  // Initial fetch when not streaming
+    client.on("circuit-state-change", (data) => {
+      const stateData = data as { to: CircuitState };
+      setCircuitState(stateData.to);
+    });
+
+    // Wait for initialization
+    client.waitForInitialization().catch(() => {
+      setIsError(true);
+      setIsLoading(false);
+    });
+
+    return () => {
+      client.close();
+      clientRef.current = null;
+    };
+  }, [config.apiKey]); // Only recreate client if API key changes
+
+  // Handle user changes
   useEffect(() => {
-    if (!enableStreaming) {
-      fetchFlags();
+    if (clientRef.current && user) {
+      clientRef.current.identify(user).catch(() => {
+        setIsError(true);
+      });
     }
-  }, [enableStreaming, fetchFlags]);
+  }, [user?.id, user?.email]);
 
   const isEnabled = useCallback(
     (flagKey: string, defaultValue: boolean = false): boolean => {
-      const startTime = performance.now();
-      const result = flags[flagKey] ?? defaultValue;
-      const evaluationTime = performance.now() - startTime;
-      metrics.recordEvaluation(flagKey, result, evaluationTime);
-      return result;
+      if (clientRef.current) {
+        return clientRef.current.isEnabled(flagKey, defaultValue);
+      }
+      return defaultValue;
     },
-    [flags, metrics],
+    [],
   );
 
-  const identify = useCallback(async (user: UserContext): Promise<void> => {
-    setCurrentUser(user);
-    // Flags will be re-fetched due to dependency change
+  const identify = useCallback(async (newUser: UserContext): Promise<void> => {
+    if (clientRef.current) {
+      await clientRef.current.identify(newUser);
+    }
   }, []);
 
   const reset = useCallback(async (): Promise<void> => {
-    setCurrentUser(undefined);
+    if (clientRef.current) {
+      await clientRef.current.reset();
+    }
   }, []);
 
   const refresh = useCallback(async (): Promise<void> => {
-    await fetchFlags();
-  }, [fetchFlags]);
+    if (clientRef.current) {
+      await clientRef.current.refresh();
+    }
+  }, []);
 
-  const getMetricsSnapshot = useCallback((): MetricsSnapshot => {
-    return metrics.snapshot();
-  }, [metrics]);
-
-  const resetMetricsData = useCallback((): void => {
-    metrics.reset();
-  }, [metrics]);
-
-  const getPrometheusMetricsData = useCallback(
-    (prefix?: string): string => {
-      return metrics.toPrometheus(prefix);
-    },
-    [metrics],
-  );
-
-  const onMetricsEvent = useCallback(
-    (
-      event: "request" | "evaluation" | "circuit-change",
-      callback: (metricsData: MetricsSnapshot) => void,
-    ): void => {
-      metrics.on(event, callback);
-    },
-    [metrics],
-  );
-
-  const offMetricsEvent = useCallback(
-    (
-      event: "request" | "evaluation" | "circuit-change",
-      callback: (metricsData: MetricsSnapshot) => void,
-    ): void => {
-      metrics.off(event, callback);
-    },
-    [metrics],
-  );
+  const getMetrics = useCallback((): MetricsSnapshot => {
+    if (clientRef.current) {
+      return clientRef.current.getMetrics();
+    }
+    // Return empty metrics when client not ready
+    return {
+      totalRequests: 0,
+      successfulRequests: 0,
+      failedRequests: 0,
+      successRate: 0,
+      errorRate: 0,
+      avgLatencyMs: 0,
+      minLatencyMs: 0,
+      maxLatencyMs: 0,
+      p50LatencyMs: 0,
+      p95LatencyMs: 0,
+      p99LatencyMs: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      cacheHitRate: 0,
+      notModifiedResponses: 0,
+      errorsByCategory: {},
+      circuitOpens: 0,
+      circuitCloses: 0,
+      circuitState: "closed",
+      flagEvaluations: {
+        totalEvaluations: 0,
+        evaluationsPerFlag: {},
+        avgEvaluationTimeMs: 0,
+      },
+      windows: {
+        "1m": { requests: 0, errors: 0, avgLatencyMs: 0, errorRate: 0 },
+        "5m": { requests: 0, errors: 0, avgLatencyMs: 0, errorRate: 0 },
+        "15m": { requests: 0, errors: 0, avgLatencyMs: 0, errorRate: 0 },
+        "1h": { requests: 0, errors: 0, avgLatencyMs: 0, errorRate: 0 },
+      },
+      uptimeMs: 0,
+      lastRequestAt: null,
+    };
+  }, []);
 
   const value: RollgateContextValue = {
     isEnabled,
     isLoading,
     isError,
     isStale,
-    retryCount,
     circuitState,
     flags,
     identify,
     reset,
     refresh,
-    getMetrics: getMetricsSnapshot,
-    resetMetrics: resetMetricsData,
-    getPrometheusMetrics: getPrometheusMetricsData,
-    onMetrics: onMetricsEvent,
-    offMetrics: offMetricsEvent,
+    getMetrics,
+    client: clientRef.current,
   };
 
   return (
@@ -565,6 +265,11 @@ export function RollgateProvider({
 
 /**
  * Hook to check if a single flag is enabled
+ *
+ * @example
+ * ```tsx
+ * const showNewFeature = useFlag('new-feature', false);
+ * ```
  */
 export function useFlag(
   flagKey: string,
@@ -581,6 +286,11 @@ export function useFlag(
 
 /**
  * Hook to get multiple flags at once
+ *
+ * @example
+ * ```tsx
+ * const flags = useFlags(['feature-a', 'feature-b']);
+ * ```
  */
 export function useFlags(flagKeys: string[]): Record<string, boolean> {
   const context = useContext(RollgateContext);
@@ -598,6 +308,11 @@ export function useFlags(flagKeys: string[]): Record<string, boolean> {
 
 /**
  * Hook to access the full Rollgate context
+ *
+ * @example
+ * ```tsx
+ * const { identify, refresh, circuitState } = useRollgate();
+ * ```
  */
 export function useRollgate(): RollgateContextValue {
   const context = useContext(RollgateContext);
@@ -611,8 +326,14 @@ export function useRollgate(): RollgateContextValue {
 
 /**
  * Hook to access SDK metrics
+ *
+ * @example
+ * ```tsx
+ * const { metrics } = useMetrics();
+ * console.log(metrics.requests.total);
+ * ```
  */
-export function useMetrics(): { metrics: MetricsSnapshot; reset: () => void } {
+export function useMetrics(): { metrics: MetricsSnapshot } {
   const context = useContext(RollgateContext);
 
   if (!context) {
@@ -621,12 +342,18 @@ export function useMetrics(): { metrics: MetricsSnapshot; reset: () => void } {
 
   return {
     metrics: context.getMetrics(),
-    reset: context.resetMetrics,
   };
 }
 
 /**
  * Component that renders children only if flag is enabled
+ *
+ * @example
+ * ```tsx
+ * <Feature flag="new-dashboard" fallback={<OldDashboard />}>
+ *   <NewDashboard />
+ * </Feature>
+ * ```
  */
 interface FeatureProps {
   flag: string;
@@ -643,5 +370,5 @@ export function Feature({
   return <>{enabled ? children : fallback}</>;
 }
 
-// Re-export types
+// Re-export types for backwards compatibility
 export type { RollgateContextValue, RollgateProviderProps };

@@ -3,16 +3,17 @@
  *
  * This HTTP server wraps the RollgateProvider and hooks, exposing a standard
  * interface for the test harness to interact with.
+ *
+ * IMPORTANT: JSDOM globals must be set up BEFORE importing React.
+ * We use dynamic imports to ensure proper initialization order.
  */
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { JSDOM } from "jsdom";
-import React from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { flushSync } from "react-dom";
-import * as EventSourcePolyfill from "eventsource";
+// @ts-ignore - no types available
+import { EventSource as LDEventSource } from "launchdarkly-eventsource";
 
-// Setup global browser environment
+// Setup global browser environment FIRST - before any React imports
 const dom = new JSDOM(
   "<!DOCTYPE html><html><body><div id='root'></div></body></html>",
   {
@@ -33,7 +34,7 @@ Object.defineProperty(global, "navigator", {
   writable: true,
 });
 Object.defineProperty(global, "EventSource", {
-  value: EventSourcePolyfill,
+  value: LDEventSource,
   writable: true,
 });
 
@@ -59,26 +60,19 @@ Object.defineProperty(global, "Node", {
   writable: true,
 });
 
-// Now import the SDK (after globals are set up)
-import {
-  RollgateProvider,
-  useRollgate,
-  type RollgateConfig,
-  type UserContext,
-} from "@rollgate/sdk-react";
-
-const PORT = parseInt(process.env.PORT || "8003", 10);
-
-// Store for test harness communication
-let contextRef: ReturnType<typeof useRollgate> | null = null;
-let rootRef: Root | null = null;
-
+// Types
 interface Config {
   apiKey: string;
   baseUrl: string;
   refreshInterval?: number;
   enableStreaming?: boolean;
   timeout?: number;
+}
+
+interface UserContext {
+  id: string;
+  email?: string;
+  attributes?: Record<string, unknown>;
 }
 
 interface Command {
@@ -106,13 +100,47 @@ interface Response {
   message?: string;
 }
 
+const PORT = parseInt(process.env.PORT || "8003", 10);
+
+// Store for test harness communication - will be populated after dynamic import
+let contextRef: any = null;
+let rootRef: any = null;
+let currentBaseUrl: string | null = null;
+let currentApiKey: string | null = null;
+
+// React modules - loaded dynamically
+let React: any = null;
+let createRoot: any = null;
+let flushSync: any = null;
+let RollgateProvider: any = null;
+let useRollgate: any = null;
+
+// Helper to notify mock server about user context (for remote evaluation)
+async function notifyMockIdentify(
+  user: UserContext,
+  apiKey: string,
+): Promise<void> {
+  if (!currentBaseUrl) return;
+
+  try {
+    await fetch(`${currentBaseUrl}/api/v1/sdk/identify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ user }),
+    });
+  } catch {
+    // Ignore errors - mock might not support identify
+  }
+}
+
 // Component that captures the Rollgate context and exposes it globally
 function ContextCapture() {
   const context = useRollgate();
-
   // Update contextRef on every render
   contextRef = context;
-
   return null;
 }
 
@@ -144,7 +172,7 @@ async function handleCommand(cmd: Command): Promise<Response> {
         contextRef = null;
       }
 
-      const config: RollgateConfig = {
+      const config = {
         apiKey: cmd.config.apiKey,
         baseUrl: cmd.config.baseUrl,
         refreshInterval: cmd.config.refreshInterval ?? 0,
@@ -152,7 +180,16 @@ async function handleCommand(cmd: Command): Promise<Response> {
         timeout: cmd.config.timeout ?? 5000,
       };
 
+      // Store for notifyMockIdentify
+      currentBaseUrl = cmd.config.baseUrl;
+      currentApiKey = cmd.config.apiKey;
+
       try {
+        // Notify mock about user context before init (for remote evaluation)
+        if (cmd.user) {
+          await notifyMockIdentify(cmd.user, cmd.config.apiKey);
+        }
+
         const container = dom.window.document.getElementById("root");
         if (!container) {
           return { error: "InitError", message: "Root container not found" };
@@ -163,9 +200,11 @@ async function handleCommand(cmd: Command): Promise<Response> {
         // Use flushSync to force synchronous rendering
         flushSync(() => {
           rootRef!.render(
-            <RollgateProvider config={config} user={cmd.user}>
-              <ContextCapture />
-            </RollgateProvider>,
+            React.createElement(
+              RollgateProvider,
+              { config, user: cmd.user },
+              React.createElement(ContextCapture),
+            ),
           );
         });
 
@@ -177,9 +216,11 @@ async function handleCommand(cmd: Command): Promise<Response> {
           // Force re-render to update contextRef
           flushSync(() => {
             rootRef!.render(
-              <RollgateProvider config={config} user={cmd.user}>
-                <ContextCapture />
-              </RollgateProvider>,
+              React.createElement(
+                RollgateProvider,
+                { config, user: cmd.user },
+                React.createElement(ContextCapture),
+              ),
             );
           });
 
@@ -280,6 +321,10 @@ async function handleCommand(cmd: Command): Promise<Response> {
       }
 
       try {
+        // Notify mock about user context before identify (for remote evaluation)
+        if (currentApiKey) {
+          await notifyMockIdentify(cmd.user, currentApiKey);
+        }
         await contextRef.identify(cmd.user);
         return { success: true };
       } catch (err) {
@@ -353,61 +398,76 @@ async function handleCommand(cmd: Command): Promise<Response> {
   }
 }
 
-const server = createServer(async (req, res) => {
-  if (req.method === "GET") {
-    sendJSON(res, { success: true });
-    return;
-  }
+// Main entry point - load React dynamically after globals are set
+async function main() {
+  // Dynamic imports - these happen AFTER globals are set up
+  const reactModule = await import("react");
+  const reactDomClientModule = await import("react-dom/client");
+  const reactDomModule = await import("react-dom");
+  const sdkModule = await import("@rollgate/sdk-react");
 
-  if (req.method === "POST") {
-    try {
-      const body = await getRequestBody(req);
-      const cmd: Command = JSON.parse(body);
-      const result = await handleCommand(cmd);
-      sendJSON(res, result);
-    } catch (err) {
-      const error = err as Error;
-      sendJSON(res, { error: "ParseError", message: error.message }, 400);
+  React = reactModule.default;
+  createRoot = reactDomClientModule.createRoot;
+  flushSync = reactDomModule.flushSync;
+  RollgateProvider = sdkModule.RollgateProvider;
+  useRollgate = sdkModule.useRollgate;
+
+  const server = createServer(async (req, res) => {
+    if (req.method === "GET") {
+      sendJSON(res, { success: true });
+      return;
     }
-    return;
-  }
 
-  if (req.method === "DELETE") {
+    if (req.method === "POST") {
+      try {
+        const body = await getRequestBody(req);
+        const cmd: Command = JSON.parse(body);
+        const result = await handleCommand(cmd);
+        sendJSON(res, result);
+      } catch (err) {
+        const error = err as Error;
+        sendJSON(res, { error: "ParseError", message: error.message }, 400);
+      }
+      return;
+    }
+
+    if (req.method === "DELETE") {
+      if (rootRef) {
+        rootRef.unmount();
+        rootRef = null;
+        contextRef = null;
+      }
+      sendJSON(res, { success: true });
+      return;
+    }
+
+    res.writeHead(405);
+    res.end();
+  });
+
+  server.listen(PORT, () => {
+    console.log(`[sdk-react test-service] Listening on port ${PORT}`);
+  });
+
+  process.on("SIGINT", () => {
+    console.log("\n[sdk-react test-service] Shutting down...");
     if (rootRef) {
       rootRef.unmount();
-      rootRef = null;
-      contextRef = null;
     }
-    sendJSON(res, { success: true });
-    return;
-  }
-
-  res.writeHead(405);
-  res.end();
-});
-
-server.listen(PORT, () => {
-  console.log(`[sdk-react test-service] Listening on port ${PORT}`);
-});
-
-process.on("SIGINT", () => {
-  console.log("\n[sdk-react test-service] Shutting down...");
-  if (rootRef) {
-    rootRef.unmount();
-  }
-  server.close(() => {
-    process.exit(0);
+    server.close(() => {
+      process.exit(0);
+    });
   });
-});
 
-process.on("SIGTERM", () => {
-  if (rootRef) {
-    rootRef.unmount();
-  }
-  server.close(() => {
-    process.exit(0);
+  process.on("SIGTERM", () => {
+    if (rootRef) {
+      rootRef.unmount();
+    }
+    server.close(() => {
+      process.exit(0);
+    });
   });
-});
+}
 
 // Global error handlers to prevent crashes
 process.on("uncaughtException", (err) => {
@@ -416,4 +476,10 @@ process.on("uncaughtException", (err) => {
 
 process.on("unhandledRejection", (reason) => {
   console.error("[sdk-react test-service] Unhandled rejection:", reason);
+});
+
+// Start the service
+main().catch((err) => {
+  console.error("[sdk-react test-service] Failed to start:", err);
+  process.exit(1);
 });

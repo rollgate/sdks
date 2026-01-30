@@ -26,15 +26,15 @@ func TestGetStringFlag(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getString not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getString not supported (V2 feature)", svc.GetName())
 		}
 
 		if resp.IsError() {
-			t.Logf("%s: getString error: %s", svc.Name, resp.Error)
+			t.Logf("%s: getString error: %s", svc.GetName(), resp.Error)
 		} else if resp.StringValue != nil {
-			t.Logf("%s: getString = %s", svc.Name, *resp.StringValue)
+			t.Logf("%s: getString = %s", svc.GetName(), *resp.StringValue)
 		} else {
-			t.Logf("%s: getString returned nil (flag not found, using default)", svc.Name)
+			t.Logf("%s: getString returned nil (flag not found, using default)", svc.GetName())
 		}
 	}
 
@@ -57,14 +57,14 @@ func TestGetStringFlagDefault(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getString not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getString not supported (V2 feature)", svc.GetName())
 		}
 
 		if resp.StringValue != nil {
 			assert.Equal(t, defaultValue, *resp.StringValue,
-				"%s: non-existent flag should return default", svc.Name)
+				"%s: non-existent flag should return default", svc.GetName())
 		} else {
-			t.Logf("%s: getString returned nil", svc.Name)
+			t.Logf("%s: getString returned nil", svc.GetName())
 		}
 	}
 
@@ -86,15 +86,15 @@ func TestGetNumberFlag(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getNumber not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getNumber not supported (V2 feature)", svc.GetName())
 		}
 
 		if resp.IsError() {
-			t.Logf("%s: getNumber error: %s", svc.Name, resp.Error)
+			t.Logf("%s: getNumber error: %s", svc.GetName(), resp.Error)
 		} else if resp.NumberValue != nil {
-			t.Logf("%s: getNumber = %f", svc.Name, *resp.NumberValue)
+			t.Logf("%s: getNumber = %f", svc.GetName(), *resp.NumberValue)
 		} else {
-			t.Logf("%s: getNumber returned nil (flag not found, using default)", svc.Name)
+			t.Logf("%s: getNumber returned nil (flag not found, using default)", svc.GetName())
 		}
 	}
 
@@ -117,14 +117,14 @@ func TestGetNumberFlagDefault(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getNumber not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getNumber not supported (V2 feature)", svc.GetName())
 		}
 
 		if resp.NumberValue != nil {
 			assert.Equal(t, defaultValue, *resp.NumberValue,
-				"%s: non-existent flag should return default", svc.Name)
+				"%s: non-existent flag should return default", svc.GetName())
 		} else {
-			t.Logf("%s: getNumber returned nil", svc.Name)
+			t.Logf("%s: getNumber returned nil", svc.GetName())
 		}
 	}
 
@@ -147,15 +147,15 @@ func TestGetJSONFlag(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getJson not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getJson not supported (V2 feature)", svc.GetName())
 		}
 
 		if resp.IsError() {
-			t.Logf("%s: getJson error: %s", svc.Name, resp.Error)
+			t.Logf("%s: getJson error: %s", svc.GetName(), resp.Error)
 		} else if resp.JSONValue != nil {
-			t.Logf("%s: getJson = %+v", svc.Name, resp.JSONValue)
+			t.Logf("%s: getJson = %+v", svc.GetName(), resp.JSONValue)
 		} else {
-			t.Logf("%s: getJson returned nil (flag not found, using default)", svc.Name)
+			t.Logf("%s: getJson returned nil (flag not found, using default)", svc.GetName())
 		}
 	}
 
@@ -182,14 +182,14 @@ func TestGetJSONFlagDefault(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getJson not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getJson not supported (V2 feature)", svc.GetName())
 		}
 
 		if resp.JSONValue != nil {
-			t.Logf("%s: getJson default = %+v", svc.Name, resp.JSONValue)
+			t.Logf("%s: getJson default = %+v", svc.GetName(), resp.JSONValue)
 			// Note: Deep comparison of interfaces is complex, just verify not nil
 		} else {
-			t.Logf("%s: getJson returned nil", svc.Name)
+			t.Logf("%s: getJson returned nil", svc.GetName())
 		}
 	}
 
@@ -213,12 +213,12 @@ func TestTypeMismatch(t *testing.T) {
 		require.NoError(t, err)
 
 		if resp.Error == "UnknownCommand" {
-			t.Skipf("%s: getString not supported (V2 feature)", svc.Name)
+			t.Skipf("%s: getString not supported (V2 feature)", svc.GetName())
 		}
 
 		// SDK should return default or handle type mismatch gracefully
 		t.Logf("%s: type mismatch result: stringValue=%v, error=%s",
-			svc.Name, resp.StringValue, resp.Error)
+			svc.GetName(), resp.StringValue, resp.Error)
 
 		// Try to get boolean flag as number
 		cmdNum := protocol.NewGetNumberCommand("enabled-flag", 0)
@@ -226,7 +226,7 @@ func TestTypeMismatch(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("%s: type mismatch (number) result: numberValue=%v, error=%s",
-			svc.Name, respNum.NumberValue, respNum.Error)
+			svc.GetName(), respNum.NumberValue, respNum.Error)
 	}
 
 	tc.CloseAllSDKs()
@@ -246,21 +246,21 @@ func TestAllTypedFlagsNotSupported(t *testing.T) {
 		resp1, err := svc.SendCommand(tc.Ctx, protocol.NewGetStringCommand("flag", "default"))
 		require.NoError(t, err)
 		if resp1.Error == "UnknownCommand" {
-			t.Logf("%s: getString not supported (expected for V1 SDKs)", svc.Name)
+			t.Logf("%s: getString not supported (expected for V1 SDKs)", svc.GetName())
 		}
 
 		// getNumber
 		resp2, err := svc.SendCommand(tc.Ctx, protocol.NewGetNumberCommand("flag", 0))
 		require.NoError(t, err)
 		if resp2.Error == "UnknownCommand" {
-			t.Logf("%s: getNumber not supported (expected for V1 SDKs)", svc.Name)
+			t.Logf("%s: getNumber not supported (expected for V1 SDKs)", svc.GetName())
 		}
 
 		// getJson
 		resp3, err := svc.SendCommand(tc.Ctx, protocol.NewGetJSONCommand("flag", nil))
 		require.NoError(t, err)
 		if resp3.Error == "UnknownCommand" {
-			t.Logf("%s: getJson not supported (expected for V1 SDKs)", svc.Name)
+			t.Logf("%s: getJson not supported (expected for V1 SDKs)", svc.GetName())
 		}
 	}
 

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,8 +24,8 @@ func TestInit(t *testing.T) {
 
 		for _, svc := range h.GetServices() {
 			resp, err := svc.SendCommand(tc.Ctx, cmd)
-			require.NoError(t, err, "SendCommand failed for %s", svc.Name)
-			assert.False(t, resp.IsError(), "Init should succeed for %s: %s - %s", svc.Name, resp.Error, resp.Message)
+			require.NoError(t, err, "SendCommand failed for %s", svc.GetName())
+			assert.False(t, resp.IsError(), "Init should succeed for %s: %s - %s", svc.GetName(), resp.Error, resp.Message)
 		}
 
 		// Verify all SDKs are ready
@@ -47,8 +48,8 @@ func TestInit(t *testing.T) {
 
 		for _, svc := range h.GetServices() {
 			resp, err := svc.SendCommand(tc.Ctx, cmd)
-			require.NoError(t, err, "SendCommand failed for %s", svc.Name)
-			assert.False(t, resp.IsError(), "Init with user should succeed for %s", svc.Name)
+			require.NoError(t, err, "SendCommand failed for %s", svc.GetName())
+			assert.False(t, resp.IsError(), "Init with user should succeed for %s", svc.GetName())
 		}
 
 		tc.AssertAllReady()
@@ -94,9 +95,9 @@ func TestInitTimeout(t *testing.T) {
 
 	for _, svc := range h.GetServices() {
 		resp, err := svc.SendCommand(tc.Ctx, cmd)
-		require.NoError(t, err, "SendCommand should not fail for %s", svc.Name)
+		require.NoError(t, err, "SendCommand should not fail for %s", svc.GetName())
 		// Should succeed since mock responds immediately
-		assert.False(t, resp.IsError(), "Init should succeed for %s", svc.Name)
+		assert.False(t, resp.IsError(), "Init should succeed for %s", svc.GetName())
 	}
 
 	tc.CloseAllSDKs()
@@ -163,9 +164,13 @@ func SetupHarness(services map[string]string) (*harness.Harness, error) {
 	cfg := harness.DefaultConfig()
 	h := harness.New(cfg)
 
-	// Add services
+	// Add services - browser services use LaunchDarkly protocol
 	for name, url := range services {
-		h.AddService(name, url)
+		if strings.HasPrefix(name, "sdk-browser") {
+			h.AddBrowserService(name, url)
+		} else {
+			h.AddService(name, url)
+		}
 	}
 
 	// Start mock server

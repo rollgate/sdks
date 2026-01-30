@@ -1,550 +1,347 @@
+/**
+ * Tests for @rollgate/sdk-react
+ *
+ * These tests focus ONLY on React-specific functionality:
+ * - Provider/Context setup
+ * - Hooks behavior
+ * - Feature component
+ *
+ * HTTP, caching, circuit breaker logic is tested in @rollgate/sdk-browser.
+ */
 import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import {
   RollgateProvider,
   useFlag,
   useFlags,
   useRollgate,
+  useMetrics,
   Feature,
 } from "./index";
 
-// Mock fetch
-const mockFetch = global.fetch as jest.Mock;
+// Mock sdk-browser
+jest.mock("@rollgate/sdk-browser", () => {
+  const mockClient = {
+    waitForInitialization: jest.fn().mockResolvedValue(undefined),
+    isEnabled: jest.fn((key: string, defaultValue: boolean) => {
+      const flags: Record<string, boolean> = {
+        "enabled-flag": true,
+        "disabled-flag": false,
+      };
+      return flags[key] ?? defaultValue;
+    }),
+    allFlags: jest.fn(() => ({
+      "enabled-flag": true,
+      "disabled-flag": false,
+    })),
+    identify: jest.fn().mockResolvedValue(undefined),
+    reset: jest.fn().mockResolvedValue(undefined),
+    refresh: jest.fn().mockResolvedValue(undefined),
+    getMetrics: jest.fn(() => ({
+      totalRequests: 5,
+      successfulRequests: 4,
+      failedRequests: 1,
+      successRate: 0.8,
+      errorRate: 0.2,
+      avgLatencyMs: 50,
+      minLatencyMs: 10,
+      maxLatencyMs: 100,
+      p50LatencyMs: 45,
+      p95LatencyMs: 90,
+      p99LatencyMs: 98,
+      cacheHits: 2,
+      cacheMisses: 3,
+      cacheHitRate: 0.4,
+      notModifiedResponses: 1,
+      errorsByCategory: {},
+      circuitOpens: 0,
+      circuitCloses: 0,
+      circuitState: "closed",
+      flagEvaluations: {
+        totalEvaluations: 10,
+        evaluationsPerFlag: {},
+        avgEvaluationTimeMs: 0.1,
+      },
+      windows: {
+        "1m": { requests: 5, errors: 1, avgLatencyMs: 50, errorRate: 0.2 },
+        "5m": { requests: 5, errors: 1, avgLatencyMs: 50, errorRate: 0.2 },
+        "15m": { requests: 5, errors: 1, avgLatencyMs: 50, errorRate: 0.2 },
+        "1h": { requests: 5, errors: 1, avgLatencyMs: 50, errorRate: 0.2 },
+      },
+      uptimeMs: 10000,
+      lastRequestAt: Date.now(),
+    })),
+    close: jest.fn(),
+    on: jest.fn((event: string, callback: Function) => {
+      // Simulate ready event on next tick
+      if (event === "ready") {
+        setTimeout(() => callback(), 0);
+      }
+    }),
+    off: jest.fn(),
+  };
 
-// Helper to create mock response with headers (needed for ETag support)
-const createMockResponse = (
-  data: unknown,
-  options: { ok?: boolean; status?: number; etag?: string } = {},
-) => ({
-  ok: options.ok ?? true,
-  status: options.status ?? 200,
-  json: async () => data,
-  headers: {
-    get: (name: string) => {
-      if (name === "ETag" && options.etag) return options.etag;
-      return null;
+  return {
+    createClient: jest.fn(() => mockClient),
+    RollgateBrowserClient: jest.fn(),
+    CircuitState: {
+      CLOSED: "CLOSED",
+      OPEN: "OPEN",
+      HALF_OPEN: "HALF_OPEN",
     },
-  },
-});
-
-beforeEach(() => {
-  mockFetch.mockClear();
+    CircuitOpenError: class extends Error {},
+    RollgateError: class extends Error {},
+    ErrorCategory: {
+      AUTH: "AUTH",
+      NETWORK: "NETWORK",
+      RATE_LIMIT: "RATE_LIMIT",
+      VALIDATION: "VALIDATION",
+      INTERNAL: "INTERNAL",
+      UNKNOWN: "UNKNOWN",
+    },
+  };
 });
 
 describe("RollgateProvider", () => {
-  it("should render children", async () => {
-    mockFetch.mockResolvedValueOnce(createMockResponse({ flags: {} }));
-
+  it("renders children", async () => {
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
         <div data-testid="child">Hello</div>
       </RollgateProvider>,
     );
 
-    expect(screen.getByTestId("child")).toBeInTheDocument();
-  });
-
-  it("should fetch flags on mount", async () => {
-    mockFetch.mockResolvedValue(
-      createMockResponse({ flags: { "test-flag": true } }),
-    );
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
-        <div>Test</div>
-      </RollgateProvider>,
-    );
-
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled();
+      expect(screen.getByTestId("child")).toHaveTextContent("Hello");
     });
   });
 
-  it("should include user_id when user provided", async () => {
-    mockFetch.mockResolvedValueOnce(createMockResponse({ flags: {} }));
+  it("provides context to children", async () => {
+    function TestComponent() {
+      const { flags } = useRollgate();
+      return <div data-testid="flags">{JSON.stringify(flags)}</div>;
+    }
 
     render(
-      <RollgateProvider
-        config={{ apiKey: "test-key", enableStreaming: false }}
-        user={{ id: "user-123" }}
-      >
-        <div>Test</div>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <TestComponent />
       </RollgateProvider>,
     );
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("user_id=user-123"),
-        expect.any(Object),
-      );
+      expect(screen.getByTestId("flags")).toBeInTheDocument();
     });
   });
 });
 
 describe("useFlag", () => {
-  it("should return flag value", async () => {
-    mockFetch.mockResolvedValue(
-      createMockResponse({ flags: { "my-feature": true } }),
-    );
-
+  it("returns true for enabled flag", async () => {
     function TestComponent() {
-      const isEnabled = useFlag("my-feature");
-      return (
-        <div data-testid="result">{isEnabled ? "enabled" : "disabled"}</div>
-      );
+      const enabled = useFlag("enabled-flag", false);
+      return <div data-testid="result">{enabled ? "yes" : "no"}</div>;
     }
 
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
         <TestComponent />
       </RollgateProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("result")).toHaveTextContent("enabled");
+      expect(screen.getByTestId("result")).toHaveTextContent("yes");
     });
   });
 
-  it("should return default value for unknown flags", async () => {
-    mockFetch.mockResolvedValue(createMockResponse({ flags: {} }));
-
+  it("returns false for disabled flag", async () => {
     function TestComponent() {
-      const withDefault = useFlag("unknown", true);
-      const withoutDefault = useFlag("unknown");
-      return (
-        <div>
-          <span data-testid="with-default">{withDefault ? "yes" : "no"}</span>
-          <span data-testid="without-default">
-            {withoutDefault ? "yes" : "no"}
-          </span>
-        </div>
-      );
+      const enabled = useFlag("disabled-flag", true);
+      return <div data-testid="result">{enabled ? "yes" : "no"}</div>;
     }
 
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
         <TestComponent />
       </RollgateProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("with-default")).toHaveTextContent("yes");
-      expect(screen.getByTestId("without-default")).toHaveTextContent("no");
+      expect(screen.getByTestId("result")).toHaveTextContent("no");
     });
   });
 
-  it("should throw when used outside provider", () => {
+  it("returns default value for unknown flag", async () => {
     function TestComponent() {
-      useFlag("test");
+      const enabled = useFlag("unknown-flag", true);
+      return <div data-testid="result">{enabled ? "yes" : "no"}</div>;
+    }
+
+    render(
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <TestComponent />
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("result")).toHaveTextContent("yes");
+    });
+  });
+
+  it("throws when used outside provider", () => {
+    function TestComponent() {
+      useFlag("test-flag");
       return null;
     }
 
-    const errorSpy = jest.spyOn(console, "error").mockImplementation();
+    // Suppress console.error for this test
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     expect(() => render(<TestComponent />)).toThrow(
       "useFlag must be used within a RollgateProvider",
     );
 
-    errorSpy.mockRestore();
+    consoleSpy.mockRestore();
   });
 });
 
 describe("useFlags", () => {
-  it("should return multiple flag values", async () => {
-    mockFetch.mockResolvedValue(
-      createMockResponse({
-        flags: {
-          "flag-a": true,
-          "flag-b": false,
-          "flag-c": true,
-        },
-      }),
-    );
-
+  it("returns multiple flags", async () => {
     function TestComponent() {
-      const flags = useFlags(["flag-a", "flag-b", "flag-c"]);
-      return <div data-testid="result">{JSON.stringify(flags)}</div>;
+      const flags = useFlags(["enabled-flag", "disabled-flag"]);
+      return (
+        <div data-testid="result">
+          {flags["enabled-flag"] ? "E" : "e"}
+          {flags["disabled-flag"] ? "D" : "d"}
+        </div>
+      );
     }
 
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
         <TestComponent />
       </RollgateProvider>,
     );
 
     await waitFor(() => {
-      const result = JSON.parse(
-        screen.getByTestId("result").textContent || "{}",
-      );
-      expect(result["flag-a"]).toBe(true);
-      expect(result["flag-b"]).toBe(false);
-      expect(result["flag-c"]).toBe(true);
+      expect(screen.getByTestId("result")).toHaveTextContent("Ed");
     });
   });
 });
 
 describe("useRollgate", () => {
-  it("should provide loading state", async () => {
-    mockFetch.mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve(createMockResponse({ flags: {} })), 100),
-        ),
-    );
-
+  it("provides identify function", async () => {
     function TestComponent() {
-      const { isLoading } = useRollgate();
-      return <div data-testid="loading">{isLoading ? "loading" : "ready"}</div>;
-    }
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
-        <TestComponent />
-      </RollgateProvider>,
-    );
-
-    expect(screen.getByTestId("loading")).toHaveTextContent("loading");
-
-    await waitFor(
-      () => {
-        expect(screen.getByTestId("loading")).toHaveTextContent("ready");
-      },
-      { timeout: 200 },
-    );
-  });
-
-  it("should provide error state on failure", async () => {
-    mockFetch.mockResolvedValueOnce(
-      createMockResponse({}, { ok: false, status: 401 }),
-    );
-
-    const errorSpy = jest.spyOn(console, "error").mockImplementation();
-
-    function TestComponent() {
-      const { isError } = useRollgate();
-      return <div data-testid="error">{isError ? "error" : "ok"}</div>;
-    }
-
-    render(
-      <RollgateProvider
-        config={{ apiKey: "invalid-key", enableStreaming: false }}
-      >
-        <TestComponent />
-      </RollgateProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("error")).toHaveTextContent("error");
-    });
-
-    errorSpy.mockRestore();
-  });
-
-  it("should provide refresh function", async () => {
-    mockFetch
-      .mockResolvedValueOnce(createMockResponse({ flags: { flag: false } }))
-      .mockResolvedValueOnce(createMockResponse({ flags: { flag: true } }));
-
-    function TestComponent() {
-      const { isEnabled, refresh } = useRollgate();
+      const { identify } = useRollgate();
       return (
-        <div>
-          <span data-testid="value">{isEnabled("flag") ? "on" : "off"}</span>
-          <button onClick={() => refresh()}>Refresh</button>
-        </div>
+        <button
+          data-testid="identify"
+          onClick={() => identify({ id: "user-1" })}
+        >
+          Identify
+        </button>
       );
     }
 
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
         <TestComponent />
       </RollgateProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("value")).toHaveTextContent("off");
+      expect(screen.getByTestId("identify")).toBeInTheDocument();
     });
+  });
 
-    await act(async () => {
-      screen.getByText("Refresh").click();
-    });
+  it("provides refresh function", async () => {
+    function TestComponent() {
+      const { refresh } = useRollgate();
+      return (
+        <button data-testid="refresh" onClick={() => refresh()}>
+          Refresh
+        </button>
+      );
+    }
+
+    render(
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <TestComponent />
+      </RollgateProvider>,
+    );
 
     await waitFor(() => {
-      expect(screen.getByTestId("value")).toHaveTextContent("on");
+      expect(screen.getByTestId("refresh")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("useMetrics", () => {
+  it("returns metrics snapshot", async () => {
+    function TestComponent() {
+      const { metrics } = useMetrics();
+      return <div data-testid="requests">{metrics.totalRequests}</div>;
+    }
+
+    render(
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <TestComponent />
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("requests")).toHaveTextContent("5");
     });
   });
 });
 
 describe("Feature", () => {
-  it("should render children when flag is enabled", async () => {
-    mockFetch.mockResolvedValueOnce(
-      createMockResponse({ flags: { "show-feature": true } }),
-    );
-
+  it("renders children when flag is enabled", async () => {
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
-        <Feature flag="show-feature">
-          <div data-testid="feature">Feature Content</div>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <Feature flag="enabled-flag">
+          <div data-testid="feature">Enabled content</div>
         </Feature>
       </RollgateProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("feature")).toBeInTheDocument();
+      expect(screen.getByTestId("feature")).toHaveTextContent(
+        "Enabled content",
+      );
     });
   });
 
-  it("should not render children when flag is disabled", async () => {
-    mockFetch.mockResolvedValueOnce(
-      createMockResponse({ flags: { "show-feature": false } }),
-    );
-
+  it("renders fallback when flag is disabled", async () => {
     render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
-        <Feature flag="show-feature">
-          <div data-testid="feature">Feature Content</div>
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <Feature
+          flag="disabled-flag"
+          fallback={<div data-testid="fallback">Fallback</div>}
+        >
+          <div data-testid="feature">Enabled content</div>
         </Feature>
       </RollgateProvider>,
     );
 
     await waitFor(() => {
+      expect(screen.getByTestId("fallback")).toHaveTextContent("Fallback");
+    });
+  });
+
+  it("renders nothing when flag is disabled and no fallback", async () => {
+    render(
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <Feature flag="disabled-flag">
+          <div data-testid="feature">Enabled content</div>
+        </Feature>
+        <div data-testid="marker">Marker</div>
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("marker")).toBeInTheDocument();
       expect(screen.queryByTestId("feature")).not.toBeInTheDocument();
     });
-  });
-
-  it("should render fallback when flag is disabled", async () => {
-    mockFetch.mockResolvedValueOnce(
-      createMockResponse({ flags: { "new-feature": false } }),
-    );
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
-        <Feature
-          flag="new-feature"
-          fallback={<div data-testid="fallback">Old Feature</div>}
-        >
-          <div data-testid="new">New Feature</div>
-        </Feature>
-      </RollgateProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("new")).not.toBeInTheDocument();
-      expect(screen.getByTestId("fallback")).toBeInTheDocument();
-    });
-  });
-
-  it("should render new content when flag is enabled", async () => {
-    mockFetch.mockResolvedValueOnce(
-      createMockResponse({ flags: { "new-feature": true } }),
-    );
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: false }}>
-        <Feature
-          flag="new-feature"
-          fallback={<div data-testid="fallback">Old Feature</div>}
-        >
-          <div data-testid="new">New Feature</div>
-        </Feature>
-      </RollgateProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("new")).toBeInTheDocument();
-      expect(screen.queryByTestId("fallback")).not.toBeInTheDocument();
-    });
-  });
-});
-
-describe("SSE streaming integration", () => {
-  let mockEventSource: jest.Mock;
-  let eventListeners: Map<string, ((event: MessageEvent) => void)[]>;
-  let mockEventSourceInstance: {
-    onmessage: ((event: MessageEvent) => void) | null;
-    onerror: (() => void) | null;
-    close: jest.Mock;
-    addEventListener: jest.Mock;
-    removeEventListener: jest.Mock;
-  };
-
-  beforeEach(() => {
-    eventListeners = new Map();
-
-    mockEventSourceInstance = {
-      onmessage: null,
-      onerror: null,
-      close: jest.fn(),
-      addEventListener: jest.fn(
-        (type: string, handler: (event: MessageEvent) => void) => {
-          const handlers = eventListeners.get(type) || [];
-          handlers.push(handler);
-          eventListeners.set(type, handlers);
-        },
-      ),
-      removeEventListener: jest.fn(),
-    };
-
-    mockEventSource = jest
-      .fn()
-      .mockImplementation(() => mockEventSourceInstance);
-    (global as any).EventSource = mockEventSource;
-  });
-
-  afterEach(() => {
-    delete (global as any).EventSource;
-  });
-
-  const triggerEvent = (type: string, data: any) => {
-    const handlers = eventListeners.get(type) || [];
-    handlers.forEach((handler) =>
-      handler({ data: JSON.stringify(data) } as MessageEvent),
-    );
-  };
-
-  it("should start streaming when enableStreaming is true", async () => {
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: true }}>
-        <div data-testid="child">Content</div>
-      </RollgateProvider>,
-    );
-
-    expect(mockEventSource).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/sdk/stream"),
-    );
-  });
-
-  it("should update flags when SSE init event received", async () => {
-    function TestComponent() {
-      const { isLoading } = useRollgate();
-      const isEnabled = useFlag("dynamic-flag");
-      return (
-        <div>
-          <span data-testid="loading">{isLoading ? "loading" : "ready"}</span>
-          <span data-testid="flag-value">
-            {isEnabled ? "enabled" : "disabled"}
-          </span>
-        </div>
-      );
-    }
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: true }}>
-        <TestComponent />
-      </RollgateProvider>,
-    );
-
-    expect(screen.getByTestId("loading")).toHaveTextContent("loading");
-    expect(screen.getByTestId("flag-value")).toHaveTextContent("disabled");
-
-    await act(async () => {
-      triggerEvent("init", { flags: { "dynamic-flag": true } });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("loading")).toHaveTextContent("ready");
-      expect(screen.getByTestId("flag-value")).toHaveTextContent("enabled");
-    });
-  });
-
-  it("should update single flag when SSE flag-update event received", async () => {
-    function TestComponent() {
-      const isEnabled = useFlag("single-flag");
-      const otherFlag = useFlag("other-flag");
-      return (
-        <div>
-          <span data-testid="single-flag">
-            {isEnabled ? "enabled" : "disabled"}
-          </span>
-          <span data-testid="other-flag">
-            {otherFlag ? "enabled" : "disabled"}
-          </span>
-        </div>
-      );
-    }
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: true }}>
-        <TestComponent />
-      </RollgateProvider>,
-    );
-
-    await act(async () => {
-      triggerEvent("init", {
-        flags: { "single-flag": false, "other-flag": true },
-      });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("single-flag")).toHaveTextContent("disabled");
-      expect(screen.getByTestId("other-flag")).toHaveTextContent("enabled");
-    });
-
-    await act(async () => {
-      triggerEvent("flag-update", { key: "single-flag", enabled: true });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("single-flag")).toHaveTextContent("enabled");
-      expect(screen.getByTestId("other-flag")).toHaveTextContent("enabled");
-    });
-  });
-
-  it("should handle SSE errors gracefully", async () => {
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation();
-
-    function TestComponent() {
-      const { isError } = useRollgate();
-      const isEnabled = useFlag("error-flag");
-      return (
-        <div>
-          <span data-testid="error">{isError ? "error" : "ok"}</span>
-          <span data-testid="flag">{isEnabled ? "on" : "off"}</span>
-        </div>
-      );
-    }
-
-    render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: true }}>
-        <TestComponent />
-      </RollgateProvider>,
-    );
-
-    await act(async () => {
-      triggerEvent("init", { flags: { "error-flag": true } });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("flag")).toHaveTextContent("on");
-      expect(screen.getByTestId("error")).toHaveTextContent("ok");
-    });
-
-    await act(async () => {
-      if (mockEventSourceInstance.onerror) {
-        mockEventSourceInstance.onerror();
-      }
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("error")).toHaveTextContent("error");
-    });
-
-    expect(screen.getByTestId("flag")).toHaveTextContent("on");
-
-    warnSpy.mockRestore();
-  });
-
-  it("should clean up EventSource on unmount", async () => {
-    const { unmount } = render(
-      <RollgateProvider config={{ apiKey: "test-key", enableStreaming: true }}>
-        <div>Content</div>
-      </RollgateProvider>,
-    );
-
-    expect(mockEventSource).toHaveBeenCalled();
-
-    unmount();
-
-    expect(mockEventSourceInstance.close).toHaveBeenCalled();
   });
 });
