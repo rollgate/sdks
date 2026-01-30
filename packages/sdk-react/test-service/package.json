@@ -1,0 +1,24 @@
+{
+  "name": "@rollgate/sdk-react-test-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --experimental-specifier-resolution=node dist/index.js"
+  },
+  "dependencies": {
+    "@rollgate/sdk-react": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "jsdom": "^24.0.0",
+    "eventsource": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/jsdom": "^21.1.6",
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@rollgate/sdk-svelte-test-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@rollgate/sdk-svelte": "workspace:*",
+    "svelte": "^4.2.0",
+    "eventsource": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  }
+}
