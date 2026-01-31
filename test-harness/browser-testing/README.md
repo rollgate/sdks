@@ -1,10 +1,10 @@
 # Browser Contract Testing
 
-Infrastruttura per testare SDK browser nel browser reale (non JSDOM).
+Infrastructure for testing browser SDKs in real browsers (not JSDOM).
 
-## Architettura
+## Architecture
 
-Basata su [LaunchDarkly js-core contract-tests](https://github.com/launchdarkly/js-core/tree/main/packages/sdk/browser/contract-tests).
+Based on [LaunchDarkly js-core contract-tests](https://github.com/launchdarkly/js-core/tree/main/packages/sdk/browser/contract-tests).
 
 ```
 ┌─────────────────┐     HTTP      ┌─────────────────┐    WebSocket    ┌─────────────────┐
@@ -13,100 +13,87 @@ Basata su [LaunchDarkly js-core contract-tests](https://github.com/launchdarkly/
 └─────────────────┘              └─────────────────┘                 └─────────────────┘
 ```
 
-## Componenti
+## Browser Entities
+
+Each framework SDK has its own browser entity:
+
+| SDK         | Entity Directory          | Status     |
+| ----------- | ------------------------- | ---------- |
+| sdk-browser | `browser-entity/`         | ✅ Tested  |
+| sdk-react   | `browser-entity-react/`   | ✅ Tested  |
+| sdk-vue     | `browser-entity-vue/`     | ✅ Tested  |
+| sdk-svelte  | `browser-entity-svelte/`  | ✅ Tested  |
+| sdk-angular | `browser-entity-angular/` | ✅ Created |
+
+## Components
 
 ### browser-adapter (`test-harness/browser-adapter/`)
 
-- Server Node.js che fa da ponte tra test harness e browser
-- REST API su porta 8000 per test harness
-- WebSocket su porta 8001 per browser entity
+- Node.js server bridging test harness and browser
+- REST API on port 8000 for test harness
+- WebSocket on port 8001 for browser entity
 
-### browser-entity (`test-harness/browser-entity/`)
+### browser-entity-_ (`test-harness/browser-entity-_/`)
 
-- App Vite che gira nel browser
-- Si connette all'adapter via WebSocket
-- Esegue comandi SDK nel browser reale
+- Vite apps running in real browser
+- Connect to adapter via WebSocket
+- Execute SDK commands in browser context
 
-### sdk-browser (`packages/sdk-browser/`)
+### mock-server.js
 
-- SDK JavaScript per browser
-- API simile a LaunchDarkly: `createClient()`, `isEnabled()`, etc.
+Simple mock Rollgate API server returning test flags:
 
-## Quickstart
+- `test-flag`: true
+- `enabled-flag`: true
+- `disabled-flag`: false
 
-### 1. Build
+## Quick Start
 
-```bash
-# Dalla root del monorepo
-cd /c/Projects/rollgate-sdks
-
-# Build sdk-browser
-npm run build --workspace=packages/sdk-browser
-
-# Build adapter
-cd test-harness/browser-adapter && npm install && npm run build
-
-# Install entity deps
-cd ../browser-entity && npm install
-```
-
-### 2. Avvio servizi
-
-In terminali separati:
+### Test a specific SDK
 
 ```bash
-# Terminale 1: Adapter
+# 1. Build the SDK
+npm run build --workspace=packages/sdk-react
+
+# 2. Install entity dependencies
+cd test-harness/browser-entity-react
+npm install
+
+# 3. Start services (4 terminals)
+
+# Terminal 1: Mock server (port 9000)
+cd test-harness/browser-testing
+node mock-server.js
+
+# Terminal 2: Adapter (ports 8000, 8001)
 cd test-harness/browser-adapter
 node dist/index.js
 
-# Terminale 2: Entity (apre browser automaticamente)
-cd test-harness/browser-entity
-npx vite --open
+# Terminal 3: Entity (port 5173)
+cd test-harness/browser-entity-react
+npx vite --port 5173
+
+# Terminal 4: Browser (Playwright headless)
+cd test-harness/browser-entity-react
+npx tsx test-e2e.ts
+
+# 4. Test via curl
+curl http://localhost:8000/  # Get capabilities
 ```
 
-### 3. Test manuale
-
-Con i servizi avviati, puoi testare via curl:
+### Run E2E script (sdk-browser only)
 
 ```bash
-# Get capabilities
-curl http://localhost:8000/
-
-# Create client
-curl -X POST http://localhost:8000/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tag": "test-client",
-    "configuration": {
-      "credential": "test-api-key",
-      "serviceEndpoints": {
-        "polling": "http://localhost:9000"
-      }
-    }
-  }'
-
-# Evaluate flag (dopo aver creato client)
-curl -X POST http://localhost:8000/clients/0 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "evaluate",
-    "evaluate": {
-      "flagKey": "test-flag",
-      "valueType": "bool",
-      "defaultValue": false,
-      "detail": false
-    }
-  }'
-
-# Delete client
-curl -X DELETE http://localhost:8000/clients/0
+cd test-harness/browser-testing
+./run-e2e.sh  # Linux/Mac/Git Bash
+run-e2e.bat   # Windows CMD
 ```
 
-## Protocollo
+## Protocol
 
 ### Endpoints (Adapter REST API)
 
-| Method | Endpoint       | Descrizione      |
+| Method | Endpoint       | Description      |
 | ------ | -------------- | ---------------- |
 | GET    | `/`            | Get capabilities |
 | POST   | `/`            | Create client    |
@@ -114,47 +101,92 @@ curl -X DELETE http://localhost:8000/clients/0
 | DELETE | `/clients/:id` | Delete client    |
 | DELETE | `/`            | Shutdown         |
 
-### Comandi supportati
+### Commands
 
-- `evaluate` - Valuta flag booleano
-- `evaluateAll` - Ottieni tutti i flag
-- `identifyEvent` - Cambia utente
-- `flushEvents` - Flush eventi
+```json
+// evaluate - Check flag value
+{
+  "command": "evaluate",
+  "evaluate": {
+    "flagKey": "test-flag",
+    "valueType": "bool",
+    "defaultValue": false
+  }
+}
 
-## Quick Start (E2E Test)
+// evaluateAll - Get all flags
+{ "command": "evaluateAll" }
 
-### Windows
+// identifyEvent - Change user
+{
+  "command": "identifyEvent",
+  "identifyEvent": {
+    "user": { "id": "user-1", "email": "test@example.com" }
+  }
+}
 
-```cmd
-cd test-harness\browser-testing
-run-e2e.bat
+// flushEvents - Flush events (no-op for browser SDKs)
+{ "command": "flushEvents" }
 ```
 
-### Linux/Mac (Git Bash su Windows)
+### Responses
+
+```json
+// evaluate
+{ "value": true }
+
+// evaluateAll
+{ "state": { "test-flag": true, "disabled-flag": false } }
+```
+
+## Manual Testing
+
+With services running:
 
 ```bash
-cd test-harness/browser-testing
-./run-e2e.sh
+# Create client
+curl -X POST http://localhost:8000/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tag": "test-client",
+    "configuration": {
+      "credential": "test-api-key",
+      "serviceEndpoints": {"polling": "http://localhost:9000"}
+    }
+  }'
+
+# Evaluate flag
+curl -X POST http://localhost:8000/clients/0 \
+  -H "Content-Type: application/json" \
+  -d '{"command": "evaluate", "evaluate": {"flagKey": "test-flag", "valueType": "bool", "defaultValue": false}}'
+
+# Delete client
+curl -X DELETE http://localhost:8000/clients/0
 ```
 
-Lo script avvia automaticamente:
+## Go Test Harness Integration
 
-1. Mock server (porta 9000)
-2. Browser adapter (porte 8000, 8001)
-3. Vite dev server (porta 5173)
-4. Browser Playwright (headless)
-
-## Test con Go Harness
-
-Dopo aver avviato i servizi:
+After starting browser services:
 
 ```bash
 cd test-harness
 go test -v ./internal/tests/... -services sdk-browser=http://localhost:8000
 ```
 
-## Prossimi passi
+## Why Browser Testing?
 
-1. ~~Adattare test harness Go per usare questo protocollo~~ ✓
-2. ~~Aggiungere test automatici con Playwright~~ ✓
-3. Integrare in CI (GitHub Actions)
+1. **Real browser environment** - Tests actual DOM, WebSocket, fetch behavior
+2. **Framework integration** - Tests React hooks, Vue composables, Angular DI
+3. **Cross-SDK consistency** - Same tests for all SDKs verify identical behavior
+4. **Bug detection** - Catches issues that mocked unit tests miss (e.g., API format mismatches)
+
+## Test Results
+
+All browser SDKs pass contract tests:
+
+| SDK     | Create Client | Flag Evaluation | Identify | Result |
+| ------- | ------------- | --------------- | -------- | ------ |
+| React   | ✅            | ✅              | ✅       | PASS   |
+| Vue     | ✅            | ✅              | ✅       | PASS   |
+| Svelte  | ✅            | ✅              | ✅       | PASS   |
+| Angular | ✅            | ✅              | ✅       | PASS   |

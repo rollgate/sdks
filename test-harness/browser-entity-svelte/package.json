@@ -1,0 +1,23 @@
+{
+  "name": "@rollgate/browser-entity-svelte",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "npx tsx test-e2e.ts"
+  },
+  "dependencies": {
+    "@rollgate/sdk-svelte": "file:../../packages/sdk-svelte"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "svelte": "^4.2.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

@@ -1,20 +1,18 @@
 /**
  * Simple mock Rollgate API server for testing.
+ *
+ * Important: sdk-browser expects flags in the format:
+ * { flags: { "flag-key": boolean } }
+ *
+ * NOT: { flags: { "flag-key": { enabled: boolean, ... } } }
  */
 import http from "http";
 
+// Flags in the format expected by sdk-browser
 const FLAGS = {
-  "test-flag": { key: "test-flag", enabled: true, rolloutPercentage: 100 },
-  "enabled-flag": {
-    key: "enabled-flag",
-    enabled: true,
-    rolloutPercentage: 100,
-  },
-  "disabled-flag": {
-    key: "disabled-flag",
-    enabled: false,
-    rolloutPercentage: 0,
-  },
+  "test-flag": true,
+  "enabled-flag": true,
+  "disabled-flag": false,
 };
 
 const server = http.createServer((req, res) => {

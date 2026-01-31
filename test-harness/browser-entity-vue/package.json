@@ -1,0 +1,23 @@
+{
+  "name": "@rollgate/browser-entity-vue",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "npx tsx test-e2e.ts"
+  },
+  "dependencies": {
+    "@rollgate/sdk-vue": "file:../../packages/sdk-vue",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@rollgate/browser-entity-angular",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "npx tsx test-e2e.ts"
+  },
+  "dependencies": {
+    "@angular/common": "^17.1.0",
+    "@angular/core": "^17.1.0",
+    "@angular/platform-browser": "^17.1.0",
+    "@angular/platform-browser-dynamic": "^17.1.0",
+    "@rollgate/sdk-angular": "file:../../packages/sdk-angular",
+    "rxjs": "^7.8.1",
+    "zone.js": "^0.14.3"
+  },
+  "devDependencies": {
+    "@analogjs/vite-plugin-angular": "^1.10.0",
+    "@angular/compiler": "^17.1.0",
+    "@angular/compiler-cli": "^17.1.0",
+    "@angular-devkit/build-angular": "^17.3.17",
+    "@playwright/test": "^1.40.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vite": "^6.0.0"
+  }
+}
