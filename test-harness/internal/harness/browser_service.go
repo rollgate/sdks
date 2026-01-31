@@ -111,6 +111,20 @@ func (bs *BrowserTestService) CreateClient(ctx context.Context, config protocol.
 
 // SendCommand sends a command to the current client.
 func (bs *BrowserTestService) SendCommand(ctx context.Context, cmd protocol.Command) (protocol.Response, error) {
+	// Auto-create client on init command
+	if cmd.Command == protocol.CommandInit && bs.clientID == "" {
+		var config protocol.Config
+		if cmd.Config != nil {
+			config = *cmd.Config
+		}
+		if err := bs.CreateClient(ctx, config, cmd.User); err != nil {
+			return protocol.Response{}, fmt.Errorf("auto-create client failed: %w", err)
+		}
+		// Return success for init (client creation includes initialization)
+		trueVal := true
+		return protocol.Response{Success: &trueVal}, nil
+	}
+
 	if bs.clientID == "" {
 		return protocol.Response{}, fmt.Errorf("no client created, call CreateClient first")
 	}
@@ -262,8 +276,9 @@ func (bs *BrowserTestService) convertToLDCommand(cmd protocol.Command) map[strin
 
 // convertFromLDResponse converts LaunchDarkly response to our format.
 func (bs *BrowserTestService) convertFromLDResponse(cmdType string, body []byte) (protocol.Response, error) {
+	trueVal := true
 	if len(body) == 0 {
-		return protocol.Response{Success: true}, nil
+		return protocol.Response{Success: &trueVal}, nil
 	}
 
 	var rawResp map[string]interface{}
@@ -284,7 +299,7 @@ func (bs *BrowserTestService) convertFromLDResponse(cmdType string, body []byte)
 	case protocol.CommandGetString:
 		if val, ok := rawResp["value"]; ok {
 			if strVal, ok := val.(string); ok {
-				response.StringValue = strVal
+				response.StringValue = &strVal
 			}
 		}
 
@@ -308,7 +323,7 @@ func (bs *BrowserTestService) convertFromLDResponse(cmdType string, body []byte)
 		}
 
 	case protocol.CommandIdentify, protocol.CommandReset, protocol.CommandClose:
-		response.Success = true
+		response.Success = &trueVal
 	}
 
 	// Check for errors
