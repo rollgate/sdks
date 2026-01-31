@@ -20,8 +20,6 @@
             <groupId>io.rollgate</groupId>
             <artifactId>rollgate-sdk</artifactId>
             <version>0.1.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/../target/rollgate-sdk-0.1.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -48,6 +46,23 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.1</version>
+                <configuration>
+                    <artifactSet>
+                        <includes>
+                            <include>*:*</include>
+                        </includes>
+                    </artifactSet>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>

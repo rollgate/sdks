@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import io.rollgate.RollgateClient;
 import io.rollgate.Config;
+import io.rollgate.FlagCache;
 import io.rollgate.UserContext;
 
 import java.io.*;
@@ -102,7 +103,7 @@ public class Main {
                 }
             } catch (Exception e) {
                 JsonObject error = new JsonObject();
-                error.addProperty("error", "ParseError");
+                error.addProperty("error", e.getClass().getSimpleName());
                 error.addProperty("message", e.getMessage());
                 sendResponse(exchange, 400, gson.toJson(error));
             }
@@ -415,10 +416,10 @@ public class Main {
             response.addProperty("isReady", client.isReady());
             response.addProperty("circuitState", client.getCircuitState().toString().toLowerCase());
 
-            Map<String, Long> cacheStats = client.getCacheStats();
+            FlagCache.CacheStats cacheStats = client.getCacheStats();
             JsonObject stats = new JsonObject();
-            stats.addProperty("hits", cacheStats.getOrDefault("hits", 0L));
-            stats.addProperty("misses", cacheStats.getOrDefault("misses", 0L));
+            stats.addProperty("hits", cacheStats.getHits());
+            stats.addProperty("misses", cacheStats.getMisses());
             response.add("cacheStats", stats);
 
             return response;
