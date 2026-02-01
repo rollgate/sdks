@@ -54,8 +54,34 @@ Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract 
 - [x] Test sdk-svelte
 - [x] Test sdk-angular
 - [x] Fix retry bug
-- [ ] Commit tutti i fix
+- [x] Commit tutti i fix (fb877b5)
+- [x] Push branch
 - [ ] Creare PR
+
+---
+
+## Sessione 2026-02-01 #6 (Test All Script)
+
+### Obiettivo
+Creare script per testare tutti i 9 SDK insieme.
+
+### Lavoro Completato
+
+1. **Creato `test-harness/test-all.sh`**
+   - Testa tutti i 9 SDK (4 backend + 5 frontend)
+   - Kill automatico dei processi sulle porte usate
+   - Backend tests in parallelo
+   - Frontend tests in sequenza (condividono browser-adapter)
+   - 756 test totali (9 SDK × 84 test)
+
+### Come usare
+
+```bash
+cd test-harness
+./test-all.sh
+```
+
+Dashboard: http://localhost:8080/static/
 
 ---
 
