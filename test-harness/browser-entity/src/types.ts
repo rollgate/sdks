@@ -9,6 +9,7 @@ export enum CommandType {
   IdentifyEvent = "identifyEvent",
   CustomEvent = "customEvent",
   FlushEvents = "flushEvents",
+  Reset = "reset",
 }
 
 export enum ValueType {
