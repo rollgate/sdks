@@ -4,16 +4,6 @@
 import TestHarnessWebSocket from "./TestHarnessWebSocket";
 import { log } from "./types";
 
-function App() {
-  return (
-    <div style={{ padding: "20px", fontFamily: "monospace" }}>
-      <h1>Rollgate React SDK - Contract Test Entity</h1>
-      <p>Connected to adapter via WebSocket</p>
-      <p>Check console for logs</p>
-    </div>
-  );
-}
-
 async function runContractTests() {
   log("Starting React contract test entity...");
 

@@ -4,6 +4,61 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Sessione 2026-02-01 #5 (Test Framework SDK - COMPLETO)
+
+### Obiettivo
+Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract test.
+
+### Lavoro Completato
+
+1. **Fix test harness** (`test-harness/internal/tests/init_test.go`)
+   - Aggiunto riconoscimento sdk-react, sdk-vue, sdk-svelte, sdk-angular come browser services
+
+2. **Fix browser-adapter package.json** (`test-harness/browser-adapter/package.json`)
+   - Cambiato `yarn build` → `npm run build`
+
+3. **Fix WebSocket ports** (tutti i framework usano porta 8011)
+   - `browser-entity-angular/src/main.ts`: 8041 → 8011
+   - `browser-entity-vue/src/main.ts`: 8021 → 8011
+   - `browser-entity-svelte/src/main.ts`: 8031 → 8011
+
+4. **Fix retry logic per errori 5xx** (BUG CRITICO)
+   - `sdk-core/src/errors.ts`: Default `retryable` basato su status code quando risposta JSON non lo specifica
+   - `sdk-core/src/retry.ts`: Check `error.retryable` property prima del message-based check
+   - `test-harness/internal/mock/server.go`: Formato errore JSON corretto con struttura `{error: {code, message, retryable}}`
+
+5. **Test Results - TUTTI 84/84**
+   - ✅ sdk-react: 84/84 pass
+   - ✅ sdk-vue: 84/84 pass
+   - ✅ sdk-svelte: 84/84 pass
+   - ✅ sdk-angular: 84/84 pass
+
+### Stato SDK Attuale - TUTTI COMPLETI
+
+| SDK | Porta | Pass | Fail | Note |
+|-----|-------|------|------|------|
+| sdk-node | 8001 | 84 | 0 | ✅ Completo |
+| sdk-go | 8003 | 84 | 0 | ✅ Completo |
+| sdk-java | 8005 | 84 | 0 | ✅ Completo |
+| sdk-python | 8004 | 84 | 0 | ✅ Completo |
+| sdk-browser | 8010 | 84 | 0 | ✅ Completo |
+| sdk-react | 8010 | 84 | 0 | ✅ Completo |
+| sdk-vue | 8010 | 84 | 0 | ✅ Completo |
+| sdk-svelte | 8010 | 84 | 0 | ✅ Completo |
+| sdk-angular | 8010 | 84 | 0 | ✅ Completo |
+| sdk-react-native | - | - | - | Non testabile (mobile) |
+
+### Prossimi Step
+- [x] Test sdk-react
+- [x] Test sdk-vue
+- [x] Test sdk-svelte
+- [x] Test sdk-angular
+- [x] Fix retry bug
+- [ ] Commit tutti i fix
+- [ ] Creare PR
+
+---
+
 ## Sessione 2026-02-01 #4 (Test SDK Browser)
 
 ### Obiettivo
@@ -41,10 +96,10 @@ Configurare browser-adapter e testare sdk-browser con i 84 contract test.
 | sdk-java | 8005 | 84 | 0 | ✅ Fixato sessione #2 |
 | sdk-python | 8004 | 84 | 0 | ✅ Fixato sessione #3 |
 | sdk-browser | 8000 | 84 | 0 | ✅ Fixato questa sessione |
-| sdk-react | 8010 | ? | ? | Wrappa sdk-browser |
-| sdk-vue | 8020 | ? | ? | Wrappa sdk-browser |
-| sdk-svelte | 8030 | ? | ? | Wrappa sdk-browser |
-| sdk-angular | 8040 | ? | ? | Wrappa sdk-browser |
+| sdk-react | 8010 | 83 | 1 | ✅ Wrappa sdk-browser |
+| sdk-vue | 8010 | 83 | 1 | ✅ Wrappa sdk-browser |
+| sdk-svelte | 8010 | 83 | 1 | ✅ Wrappa sdk-browser |
+| sdk-angular | 8010 | 84 | 0 | ✅ Wrappa sdk-browser |
 | sdk-react-native | - | - | - | Non testabile (mobile) |
 
 ### Come Testare sdk-browser

@@ -79,6 +79,10 @@ function makeInitialContext(options: SDKConfigParams): UserContext | undefined {
   };
 }
 
+// Store config for identify notifications
+let globalBaseUrl: string | undefined;
+let globalApiKey: string | undefined;
+
 /**
  * Entity that wraps a Svelte SDK instance
  */
@@ -151,15 +155,26 @@ export class ClientEntity {
         }
         const user = identifyParams.user || identifyParams.context;
         if (user) {
-          await this.stores.identify({
+          const userContext = {
             id: user.id || user.key || "unknown",
             email: user.email,
             attributes: user.attributes as
               | Record<string, string | number | boolean>
               | undefined,
-          });
+          };
+          // Notify mock server about user context BEFORE SDK identify
+          if (globalBaseUrl && globalApiKey) {
+            await notifyMockIdentify(globalBaseUrl, globalApiKey, userContext);
+          }
+          await this.stores.identify(userContext);
         }
         log(`[${this.tag}] identify: ${JSON.stringify(user)}`);
+        return undefined;
+      }
+
+      case CommandType.Reset: {
+        await this.stores.reset();
+        log(`[${this.tag}] reset`);
         return undefined;
       }
 
@@ -214,6 +229,10 @@ export async function newSdkClientEntity(
 
   const config = makeSdkConfig(options.configuration, tag);
   const initialUser = makeInitialContext(options.configuration);
+
+  // Store config for identify notifications
+  globalBaseUrl = config.baseUrl;
+  globalApiKey = config.apiKey;
 
   // Notify mock server about user context BEFORE SDK init (for remote evaluation)
   if (initialUser && config.baseUrl && config.apiKey) {

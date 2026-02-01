@@ -164,9 +164,17 @@ func SetupHarness(services map[string]string) (*harness.Harness, error) {
 	cfg := harness.DefaultConfig()
 	h := harness.New(cfg)
 
-	// Add services - browser services use LaunchDarkly protocol
+	// Add services - browser-based SDKs use LaunchDarkly protocol
+	browserSDKs := []string{"sdk-browser", "sdk-react", "sdk-vue", "sdk-svelte", "sdk-angular"}
 	for name, url := range services {
-		if strings.HasPrefix(name, "sdk-browser") {
+		isBrowser := false
+		for _, prefix := range browserSDKs {
+			if strings.HasPrefix(name, prefix) {
+				isBrowser = true
+				break
+			}
+		}
+		if isBrowser {
 			h.AddBrowserService(name, url)
 		} else {
 			h.AddService(name, url)

@@ -3,12 +3,11 @@
  *
  * Uses RollgateProvider and hooks to execute commands from test harness.
  */
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect } from "react";
 import { createRoot, Root } from "react-dom/client";
 import {
   RollgateProvider,
   useRollgate,
-  useFlag,
   type RollgateConfig,
   type UserContext,
 } from "@rollgate/sdk-react";
@@ -85,11 +84,10 @@ type CommandHandler = (params: CommandParams) => Promise<unknown>;
 
 // Global command handler that will be set by the mounted component
 let globalCommandHandler: CommandHandler | null = null;
-let commandResolvers: Map<
-  number,
-  { resolve: (value: unknown) => void; reject: (error: Error) => void }
-> = new Map();
-let commandId = 0;
+
+// Store config for identify notifications
+let globalBaseUrl: string | undefined;
+let globalApiKey: string | undefined;
 
 /**
  * Inner component that has access to Rollgate context
@@ -159,15 +157,26 @@ function RollgateCommandHandler({
           }
           const user = identifyParams.user || identifyParams.context;
           if (user) {
-            await rollgate.identify({
+            const userContext = {
               id: user.id || user.key || "unknown",
               email: user.email,
               attributes: user.attributes as
                 | Record<string, string | number | boolean>
                 | undefined,
-            });
+            };
+            // Notify mock server about user context BEFORE SDK identify
+            if (globalBaseUrl && globalApiKey) {
+              await notifyMockIdentify(globalBaseUrl, globalApiKey, userContext);
+            }
+            await rollgate.identify(userContext);
           }
           log(`[${tag}] identify: ${JSON.stringify(user)}`);
+          return undefined;
+        }
+
+        case CommandType.Reset: {
+          await rollgate.reset();
+          log(`[${tag}] reset`);
           return undefined;
         }
 
@@ -259,6 +268,10 @@ export async function newSdkClientEntity(
 
   const config = makeSdkConfig(options.configuration, tag);
   const initialUser = makeInitialContext(options.configuration);
+
+  // Store config for identify notifications
+  globalBaseUrl = config.baseUrl;
+  globalApiKey = config.apiKey;
 
   // Notify mock server about user context BEFORE SDK init (for remote evaluation)
   if (initialUser && config.baseUrl && config.apiKey) {
