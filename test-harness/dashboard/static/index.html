@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contract Tests Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 20px; }
+    h1 { margin-bottom: 20px; }
+    .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 14px; margin-left: 12px; }
+    .connected { background: #238636; }
+    .disconnected { background: #da3633; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+    .sdk { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .sdk h2 { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .progress { background: #21262d; border-radius: 4px; height: 8px; margin: 12px 0; }
+    .progress-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .stats { display: flex; gap: 16px; font-size: 14px; }
+    .pass { color: #3fb950; }
+    .fail { color: #f85149; }
+    .skip { color: #8b949e; }
+    .tests { margin-top: 12px; max-height: 200px; overflow-y: auto; font-size: 13px; }
+    .test { padding: 4px 0; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
+    .test:last-child { border-bottom: none; }
+    .icon { width: 16px; text-align: center; }
+    .running { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</head>
+<body>
+  <h1>Contract Tests <span id="status" class="status disconnected">Disconnected</span></h1>
+  <div class="grid" id="sdks"></div>
+
+  <script>
+    const sdks = {};
+    const container = document.getElementById('sdks');
+    const statusEl = document.getElementById('status');
+
+    function connect() {
+      const ws = new WebSocket(`ws://${location.host}/ws`);
+      ws.onopen = () => { statusEl.textContent = 'Connected'; statusEl.className = 'status connected'; };
+      ws.onclose = () => { statusEl.textContent = 'Disconnected'; statusEl.className = 'status disconnected'; setTimeout(connect, 2000); };
+      ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
+    }
+
+    function handleEvent(event) {
+      const { type, sdk, test, status, total, passed, failed, skipped } = event;
+
+      if (!sdks[sdk]) {
+        sdks[sdk] = { total: 0, passed: 0, failed: 0, skipped: 0, tests: {} };
+        renderSDK(sdk);
+      }
+
+      const s = sdks[sdk];
+
+      if (type === 'start') {
+        s.total = total || 84;
+        s.passed = s.failed = s.skipped = 0;
+        s.tests = {};
+      } else if (type === 'test') {
+        s.tests[test] = status;
+        if (status === 'pass') s.passed++;
+        else if (status === 'fail') s.failed++;
+        else if (status === 'skip') s.skipped++;
+      } else if (type === 'done') {
+        s.passed = passed; s.failed = failed; s.skipped = skipped;
+      }
+
+      updateSDK(sdk);
+    }
+
+    function renderSDK(name) {
+      const div = document.createElement('div');
+      div.className = 'sdk';
+      div.id = `sdk-${name}`;
+      div.innerHTML = `
+        <h2><span class="icon">📦</span>${name}</h2>
+        <div class="progress"><div class="progress-bar" style="width:0%;background:#238636"></div></div>
+        <div class="stats"><span class="pass">✓ 0</span><span class="fail">✗ 0</span><span class="skip">○ 0</span></div>
+        <div class="tests"></div>
+      `;
+      container.appendChild(div);
+    }
+
+    function updateSDK(name) {
+      const s = sdks[name];
+      const el = document.getElementById(`sdk-${name}`);
+      const done = s.passed + s.failed + s.skipped;
+      const pct = s.total ? (done / s.total * 100) : 0;
+      const color = s.failed > 0 ? '#f85149' : '#238636';
+
+      el.querySelector('.progress-bar').style.cssText = `width:${pct}%;background:${color}`;
+      el.querySelector('.pass').textContent = `✓ ${s.passed}`;
+      el.querySelector('.fail').textContent = `✗ ${s.failed}`;
+      el.querySelector('.skip').textContent = `○ ${s.skipped}`;
+
+      const testsEl = el.querySelector('.tests');
+      testsEl.innerHTML = Object.entries(s.tests).slice(-10).map(([t, st]) => {
+        const icon = st === 'pass' ? '✓' : st === 'fail' ? '✗' : '○';
+        const cls = st === 'pass' ? 'pass' : st === 'fail' ? 'fail' : 'skip';
+        return `<div class="test"><span class="icon ${cls}">${icon}</span>${t}</div>`;
+      }).join('');
+    }
+
+    connect();
+  </script>
+</body>
+</html>
