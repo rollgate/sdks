@@ -1,0 +1,67 @@
+{
+  "name": "@rollgate/sdk-react-native",
+  "version": "0.1.0",
+  "description": "Rollgate React Native SDK - Feature flags for React Native apps",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "react-native": "dist/index.mjs",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:bundle && npm run build:types",
+    "build:bundle": "esbuild src/index.ts --bundle --platform=neutral --target=es2020 --outfile=dist/index.js --format=cjs --minify --sourcemap --external:react --external:react-native --external:@react-native-async-storage/async-storage && esbuild src/index.ts --bundle --platform=neutral --target=es2020 --outfile=dist/index.mjs --format=esm --minify --sourcemap --external:react --external:react-native --external:@react-native-async-storage/async-storage",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.70.0",
+    "@react-native-async-storage/async-storage": ">=1.17.0"
+  },
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "rollgate",
+    "react-native",
+    "mobile",
+    "ios",
+    "android"
+  ],
+  "author": "Rollgate <hello@rollgate.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollgate/sdks.git",
+    "directory": "packages/sdk-react-native"
+  },
+  "homepage": "https://rollgate.io/docs/sdk/react-native",
+  "bugs": {
+    "url": "https://github.com/rollgate/sdks/issues"
+  },
+  "dependencies": {
+    "@rollgate/sdk-core": "*"
+  },
+  "devDependencies": {
+    "@react-native-async-storage/async-storage": "^1.23.0",
+    "@types/jest": "^29.5.12",
+    "@types/react": "^18.3.0",
+    "esbuild": "^0.27.2",
+    "jest": "^29.7.0",
+    "react": "^18.3.0",
+    "react-native": "^0.73.0",
+    "typescript": "^5.4.0"
+  }
+}
