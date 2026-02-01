@@ -48,39 +48,59 @@ test-harness/      → Cross-SDK contract tests (Go)
 
 ## Contract Tests & Dashboard
 
-### Avviare la Dashboard
+### Eseguire TUTTI i 756 Contract Tests (9 SDK)
 
 ```bash
-# Terminal 1: Dashboard (http://localhost:8080)
-cd test-harness/dashboard
-go run main.go
-
-# Terminal 2: Eseguire test con runner
-cd test-harness/dashboard
-./runner.exe sdk-node ./internal/tests/... -count=1
+# Comando unico per testare tutti gli SDK
+cd test-harness
+./test-all.sh
 ```
+
+Questo script:
+1. Killa processi esistenti sulle porte usate
+2. Avvia la dashboard e apre il browser
+3. Avvia tutti i backend test services (node, go, python, java)
+4. Esegue i test sequenzialmente per ogni SDK
+5. Cleanup automatico alla fine
+
+Dashboard: http://localhost:8080/static/
 
 ### Test Services (porte)
 
-| SDK | Porta | Comando |
-|-----|-------|---------|
-| sdk-node | 8001 | `cd packages/sdk-node/test-service && npm start` |
-| sdk-go | 8003 | `cd packages/sdk-go/test-service && go run .` |
-| sdk-python | 8004 | `cd packages/sdk-python/test-service && python main.py` |
-| sdk-java | 8005 | `cd packages/sdk-java/test-service && java -jar target/*.jar` |
+| SDK | Porta | Tipo |
+|-----|-------|------|
+| sdk-node | 8001 | Backend |
+| sdk-go | 8003 | Backend |
+| sdk-python | 8004 | Backend |
+| sdk-java | 8005 | Backend |
+| sdk-browser | 8010 | Frontend (via browser-adapter) |
+| sdk-react | 8010 | Frontend (via browser-adapter) |
+| sdk-vue | 8010 | Frontend (via browser-adapter) |
+| sdk-svelte | 8010 | Frontend (via browser-adapter) |
+| sdk-angular | 8010 | Frontend (via browser-adapter) |
 
-### Eseguire Contract Tests
+### Eseguire Test Singolo SDK
 
 ```bash
-# Singolo SDK
-TEST_SERVICES="sdk-node=http://localhost:8001" go test -v ./internal/tests/... -count=1
-
-# Multipli SDK
-TEST_SERVICES="sdk-node=http://localhost:8001,sdk-go=http://localhost:8003" go test -v ./internal/tests/...
-
-# Con dashboard (runner invia eventi real-time)
+# Backend SDK (avvia test service prima)
+cd packages/sdk-node/test-service && PORT=8001 node dist/index.js &
 cd test-harness/dashboard
-./runner.exe sdk-node ./internal/tests/... -count=1
+TEST_SERVICES="sdk-node=http://localhost:8001" ./runner.exe sdk-node ./internal/tests/... -count=1
+
+# Frontend SDK (avvia browser-adapter + entity prima)
+cd test-harness/browser-adapter && PORT=8010 WS_PORT=8011 node dist/index.js &
+cd test-harness/browser-entity-react && npm run dev &
+cd test-harness/browser-entity-react && node open-browser.mjs &
+cd test-harness/dashboard
+TEST_SERVICES="sdk-react=http://localhost:8010" ./runner.exe sdk-react ./internal/tests/... -count=1
+```
+
+### Solo Dashboard (senza test)
+
+```bash
+cd test-harness/dashboard
+go run main.go
+# Apri http://localhost:8080/static/
 ```
 
 ---
