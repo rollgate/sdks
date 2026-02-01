@@ -44,6 +44,7 @@ func main() {
 	cmd.Start()
 
 	passed, failed, skipped := 0, 0, 0
+	seen := make(map[string]bool)
 	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
@@ -52,21 +53,34 @@ func main() {
 			continue
 		}
 
-		// Only process test-level events (not package-level)
-		if e.Test == "" || strings.Contains(e.Test, "/") {
+		// Skip package-level events
+		if e.Test == "" {
+			continue
+		}
+
+		// Skip subtest events - only count parent test results
+		if strings.Contains(e.Test, "/") {
+			continue
+		}
+
+		// Only count each test once
+		if seen[e.Test] {
 			continue
 		}
 
 		switch e.Action {
-		case "pass":
-			passed++
-			send(dashboardURL, map[string]any{"type": "test", "sdk": sdk, "test": e.Test, "status": "pass"})
-		case "fail":
-			failed++
-			send(dashboardURL, map[string]any{"type": "test", "sdk": sdk, "test": e.Test, "status": "fail"})
-		case "skip":
-			skipped++
-			send(dashboardURL, map[string]any{"type": "test", "sdk": sdk, "test": e.Test, "status": "skip"})
+		case "pass", "fail", "skip":
+			seen[e.Test] = true
+			status := e.Action
+			if status == "pass" {
+				passed++
+			} else if status == "fail" {
+				failed++
+			} else {
+				skipped++
+			}
+			fmt.Printf("[%s] %s: %s\n", sdk, e.Test, status)
+			send(dashboardURL, map[string]any{"type": "test", "sdk": sdk, "test": e.Test, "status": status})
 		}
 	}
 
