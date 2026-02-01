@@ -4,7 +4,124 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
-## Sessione 2026-02-01 (Contract Test Dashboard)
+## Sessione 2026-02-01 #2 (Fix SDK e estensione test)
+
+### Obiettivo
+Fixare bug negli SDK rilevati dai contract test e preparare estensione a tutti gli SDK.
+
+### Lavoro Completato
+
+1. **Fix sdk-go** (`packages/sdk-go/`)
+   - Aggiunto `sendIdentify()` in `client.go` per POST attributi utente al server
+   - Aggiunti alias operatori in `evaluate.go`: eq, neq, gt, gte, lt, lte
+   - Commit: `897ffc7 fix(sdk-go): add identify endpoint and operator aliases`
+   - **Risultato: 84/84 test passano**
+
+2. **Fix sdk-java** (`packages/sdk-java/test-service/`)
+   - Fix gestione attributi null (skip invece di getAsString su JsonNull)
+   - Aggiunto thread pool (50 thread) e backlog (100) per concurrent requests
+   - Import `java.util.concurrent.Executors`
+   - Commit: `ce40b72 fix(sdk-java): handle null attributes and concurrent requests`
+   - **Risultato: 84/84 test passano**
+
+3. **Formatting sdk-react-native**
+   - Commit: `3a31a3e style(sdk-react-native): apply prettier formatting`
+
+### Stato SDK Attuale
+
+| SDK | Porta | Pass | Fail | Note |
+|-----|-------|------|------|------|
+| sdk-node | 8001 | 84 | 0 | ✅ Completo |
+| sdk-go | 8003 | 84 | 0 | ✅ Fixato questa sessione |
+| sdk-java | 8005 | 84 | 0 | ✅ Fixato questa sessione |
+| sdk-python | 8004 | ? | ? | Test service completo, SDK esiste, da testare |
+| sdk-browser | 8000 | ? | ? | Richiede browser-adapter + Playwright |
+| sdk-react | 8010 | ? | ? | Wrappa sdk-browser |
+| sdk-vue | 8020 | ? | ? | Wrappa sdk-browser |
+| sdk-svelte | 8030 | ? | ? | Wrappa sdk-browser |
+| sdk-angular | 8040 | ? | ? | Wrappa sdk-browser |
+| sdk-react-native | - | - | - | Non testabile (mobile) |
+
+### Come Avviare Test Services
+
+```bash
+# Kill processi esistenti
+taskkill //F //IM java.exe 2>/dev/null
+taskkill //F //IM node.exe 2>/dev/null
+
+# sdk-node (porta 8001)
+cd /c/Projects/rollgate-sdks/packages/sdk-node/test-service
+PORT=8001 nohup node dist/index.js > /tmp/sdk-node.log 2>&1 &
+
+# sdk-go (porta 8003) - NOTA: cartella è "testservice" non "test-service"
+cd /c/Projects/rollgate-sdks/packages/sdk-go/testservice
+PORT=8003 nohup go run . > /tmp/sdk-go.log 2>&1 &
+
+# sdk-java (porta 8005)
+cd /c/Projects/rollgate-sdks/packages/sdk-java/test-service
+PORT=8005 nohup java -jar target/rollgate-sdk-test-service-0.1.0-shaded.jar > /tmp/sdk-java.log 2>&1 &
+
+# sdk-python (porta 8004)
+cd /c/Projects/rollgate-sdks/packages/sdk-python/test_service
+PORT=8004 python main.py
+
+# Verifica
+curl -s http://localhost:8001 && echo " - node OK"
+curl -s http://localhost:8003 && echo " - go OK"
+curl -s http://localhost:8005 && echo " - java OK"
+```
+
+### Come Eseguire Contract Tests
+
+```bash
+# Dashboard (http://localhost:8080/static/)
+cd /c/Projects/rollgate-sdks/test-harness/dashboard
+go run main.go
+
+# Runner per singolo SDK (invia eventi real-time alla dashboard)
+cd /c/Projects/rollgate-sdks/test-harness/dashboard
+TEST_SERVICES="sdk-node=http://localhost:8001" ./runner.exe sdk-node ./internal/tests/... -count=1
+TEST_SERVICES="sdk-go=http://localhost:8003" ./runner.exe sdk-go ./internal/tests/... -count=1
+TEST_SERVICES="sdk-java=http://localhost:8005" ./runner.exe sdk-java ./internal/tests/... -count=1
+
+# Tutti insieme (mostra come "all" nella dashboard)
+TEST_SERVICES="sdk-node=http://localhost:8001,sdk-go=http://localhost:8003,sdk-java=http://localhost:8005" ./runner.exe all ./internal/tests/... -count=1
+```
+
+### Browser SDK Testing (da configurare)
+
+Struttura:
+- `test-harness/browser-adapter/` - Express + WebSocket bridge
+- `test-harness/browser-entity/` - Vite app con @rollgate/sdk-browser
+- `test-harness/browser-entity-react/` - Per sdk-react
+- `test-harness/browser-entity-vue/` - Per sdk-vue
+- `test-harness/browser-entity-svelte/` - Per sdk-svelte
+- `test-harness/browser-entity-angular/` - Per sdk-angular
+
+Flusso:
+1. Test harness → HTTP → browser-adapter (Express :8000)
+2. browser-adapter → WebSocket → browser-entity (Vite :5173)
+3. browser-entity esegue SDK e risponde via WebSocket
+
+### Branch
+`feat/test-dashboard`
+
+### Commits questa sessione
+```
+3a31a3e style(sdk-react-native): apply prettier formatting
+ce40b72 fix(sdk-java): handle null attributes and concurrent requests
+897ffc7 fix(sdk-go): add identify endpoint and operator aliases
+```
+
+### Prossimi Step
+- [ ] Push branch e creare PR
+- [ ] Testare sdk-python (test service già pronto)
+- [ ] Configurare browser-adapter + browser-entity per sdk-browser
+- [ ] Testare sdk-react, sdk-vue, sdk-svelte, sdk-angular
+
+---
+
+## Sessione 2026-02-01 #1 (Contract Test Dashboard)
 
 ### Obiettivo
 Implementare dashboard per monitorare contract tests e fixare bug conteggio.
@@ -28,50 +145,12 @@ Implementare dashboard per monitorare contract tests e fixare bug conteggio.
    - Test falliti mostrati per primi (in rosso), poi skipped, poi passed
    - Commit: `520b026 feat(dashboard): show all tests with failed first`
 
-### Stato SDK (risultati reali dopo fix)
-
-| SDK | Test Service | Porta | Pass | Fail | Note |
-|-----|--------------|-------|------|------|------|
-| sdk-node | Node.js | 8001 | 84 | 0 | ✓ Completo |
-| sdk-go | Go | 8003 | 62 | 22 | Bug in targeting/identify |
-| sdk-java | Java | 8005 | 82 | 2 | Bug in AttributeNull, ConcurrentEvaluations |
-| sdk-python | Python | 8004 | - | - | Skeleton (non implementato) |
-| sdk-browser | Browser | 8000 | - | - | Richiede Playwright |
-| sdk-react | Browser | 8010 | - | - | Richiede Playwright |
-| sdk-vue | Browser | 8020 | - | - | Richiede Playwright |
-| sdk-svelte | Browser | 8030 | - | - | Richiede Playwright |
-| sdk-angular | Browser | 8040 | - | - | Richiede Playwright |
-| sdk-react-native | N/A | - | - | - | Non testabile (mobile) |
-
-### Bug Rilevati negli SDK
-
-**sdk-go (22 test falliti):**
-- TestIdentify, TestReset
-- TestAttributeEmpty, TestAttributeBoolean, TestAttributeNumber
-- TestManyAttributes, TestETagWithUserContext
-- TestAttributeTargeting, TestMultipleConditions
-- Tutti i test Operator (Eq, Neq, Contains, StartsWith, EndsWith, Gt, Lte, In, NotIn, Regex, SemverGt, SemverEq, CombinedOperators)
-
-**sdk-java (2 test falliti):**
-- TestAttributeNull
-- TestConcurrentEvaluations
-
-### Branch
-`feat/test-dashboard`
-
 ### Commits
 ```
 520b026 feat(dashboard): show all tests with failed first
 1f9531a docs: add session-state tracking and update CLAUDE.md
 38fbc0f fix(dashboard): count only parent test events, ignore subtests
 ```
-
-### Prossimi Step
-- [ ] Push branch e creare PR
-- [ ] Fixare bug in sdk-go (targeting/operators)
-- [ ] Fixare bug in sdk-java (AttributeNull, ConcurrentEvaluations)
-- [ ] Completare sdk-python test service
-- [ ] Configurare browser SDK con Playwright
 
 ---
 
