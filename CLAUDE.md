@@ -6,6 +6,13 @@ Questo repo contiene gli SDK client per Rollgate. Le regole generali sono le ste
 
 ---
 
+## SEMPRE all'inizio sessione
+
+1. **Leggere `.claude/session-state.md`** - contiene stato attuale, bug noti, prossimi step
+2. **Leggere `docs/SDK-ARCHITECTURE.md`** - prima di modificare qualsiasi SDK
+
+---
+
 ## File di Contesto
 
 | File | Scopo | Quando leggere |
