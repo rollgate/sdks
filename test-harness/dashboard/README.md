@@ -5,15 +5,27 @@ Real-time dashboard for monitoring SDK contract test execution.
 ## Quick Start
 
 ```bash
-# Terminal 1: Start dashboard
+# Terminal 1: Start dashboard (http://localhost:8080)
 cd test-harness/dashboard
-go mod tidy
 go run main.go
 
-# Terminal 2: Run tests with dashboard
+# Terminal 2: Start test service (es. sdk-node)
+cd packages/sdk-node/test-service
+npm start
+
+# Terminal 3: Run tests with dashboard
 cd test-harness/dashboard
-go build -o runner runner.go
-./runner sdk-node ./internal/tests/... -count=1
+TEST_SERVICES="sdk-node=http://localhost:8001" ./runner.exe sdk-node ./internal/tests/... -count=1
+```
+
+## Build
+
+```bash
+# Dashboard server
+go build -o dashboard.exe main.go
+
+# Test runner
+go build -o runner.exe runner.go
 ```
 
 ## Architecture
