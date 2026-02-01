@@ -56,23 +56,33 @@ Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract 
 - [x] Fix retry bug
 - [x] Commit tutti i fix (fb877b5)
 - [x] Push branch
+- [x] Script test-all.sh (sessione #7)
+- [x] Dashboard con categorie e persistenza (sessione #7)
 - [ ] Creare PR
 
 ---
 
-## Sessione 2026-02-01 #6 (Test All Script)
+## Sessione 2026-02-02 #7 (Test All Script + Dashboard Migliorata)
 
 ### Obiettivo
-Creare script per testare tutti i 9 SDK insieme.
+Creare script per testare tutti i 9 SDK e migliorare la dashboard con categorie e persistenza.
 
 ### Lavoro Completato
 
-1. **Creato `test-harness/test-all.sh`**
+1. **Creato `test-harness/test-all.sh`** (commit 9433f30, 208c662)
    - Testa tutti i 9 SDK (4 backend + 5 frontend)
-   - Kill automatico dei processi sulle porte usate
-   - Backend tests in parallelo
-   - Frontend tests in sequenza (condividono browser-adapter)
+   - Kill automatico dei processi sulle porte usate con verifica
+   - Backend e frontend tests in sequenza (parallelo non funzionava con dashboard WebSocket)
+   - Avvio automatico dashboard e apertura browser
    - 756 test totali (9 SDK × 84 test)
+
+2. **Dashboard migliorata** (`test-harness/dashboard/static/index.html`) (commit ad27f56)
+   - **Toggle Cards/Table**: due modalità di visualizzazione
+   - **11 Categorie test**: Input Validation, Scale & Performance, Error Handling, Caching & ETag, Flag Evaluation, Identity & Targeting, Initialization, Operators, Resilience, SSE Streaming, Typed Flags
+   - **Cards view**: categorie collassabili, quelle con errori espanse di default
+   - **Table view**: SDK sulle colonne, test sulle righe, separatori categoria
+   - **localStorage persistence**: risultati sopravvivono al refresh per 1 ora
+   - **Clear button**: per resettare tutti i risultati
 
 ### Come usare
 
@@ -82,6 +92,17 @@ cd test-harness
 ```
 
 Dashboard: http://localhost:8080/static/
+
+### Commits
+```
+ad27f56 feat(dashboard): add categories, table view, and localStorage persistence
+208c662 fix(test-harness): run backend tests sequentially for dashboard visibility
+9433f30 feat(test-harness): add test-all.sh script for running all SDK tests
+```
+
+---
+
+## Sessione 2026-02-01 #6 (MERGED INTO #7)
 
 ---
 
