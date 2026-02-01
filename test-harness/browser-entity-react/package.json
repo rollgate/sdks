@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "vite --port 5174",
-    "dev": "vite",
+    "dev": "vite --port 5174",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "npx tsx test-e2e.ts"

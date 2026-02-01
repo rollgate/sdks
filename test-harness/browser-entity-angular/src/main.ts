@@ -19,8 +19,8 @@ log("Starting Angular contract test entity...");
 import("./TestHarnessWebSocket")
   .then(({ default: TestHarnessWebSocket }) => {
     log("Connecting to adapter...");
-    // Angular uses port 8041
-    const wsPort = (import.meta as any).env?.VITE_WS_PORT || "8041";
+    // Use standard adapter port 8011
+    const wsPort = (import.meta as any).env?.VITE_WS_PORT || "8011";
     const ws = new TestHarnessWebSocket(`ws://localhost:${wsPort}`);
     ws.connect();
   })
