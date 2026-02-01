@@ -259,14 +259,85 @@ func (c *Client) Identify(ctx context.Context, user *UserContext) error {
 	c.user = user
 	c.mu.Unlock()
 
+	// Send identify request to server with user attributes
+	if user != nil && user.ID != "" {
+		if err := c.sendIdentify(ctx, user); err != nil {
+			// Log but don't fail - refresh will still work with user_id param
+			if c.config.Logger != nil {
+				c.config.Logger.Warn("failed to send identify", "error", err)
+			}
+		}
+	}
+
 	return c.Refresh(ctx)
+}
+
+// sendIdentify sends user context to the server for server-side evaluation.
+func (c *Client) sendIdentify(ctx context.Context, user *UserContext) error {
+	u := c.config.BaseURL + "/api/v1/sdk/identify"
+
+	body := map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":         user.ID,
+			"email":      user.Email,
+			"attributes": user.Attributes,
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, io.NopCloser(
+		&bytesReader{data: jsonBody},
+	))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("identify failed with status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// bytesReader wraps a byte slice to implement io.Reader.
+type bytesReader struct {
+	data []byte
+	pos  int
+}
+
+func (r *bytesReader) Read(p []byte) (n int, err error) {
+	if r.pos >= len(r.data) {
+		return 0, io.EOF
+	}
+	n = copy(p, r.data[r.pos:])
+	r.pos += n
+	return n, nil
 }
 
 // Reset clears the user context.
 func (c *Client) Reset(ctx context.Context) error {
 	c.mu.Lock()
+	oldUser := c.user
 	c.user = nil
 	c.mu.Unlock()
+
+	// Clear user session on server
+	if oldUser != nil && oldUser.ID != "" {
+		_ = c.sendIdentify(ctx, &UserContext{ID: oldUser.ID}) // Send empty attributes
+	}
 
 	return c.Refresh(ctx)
 }
