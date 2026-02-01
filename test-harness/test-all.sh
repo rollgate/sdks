@@ -173,17 +173,30 @@ for port in 8001 8003 8004 8005; do
 done
 
 # ══════════════════════════════════════════════════════════════
-# FASE 4: Test Backend SDKs (paralleli)
+# FASE 4: Test Backend SDKs (sequenziali, schede separate)
 # ══════════════════════════════════════════════════════════════
-echo -e "\n${YELLOW}[FASE 4] Testing backend SDKs (in parallel)...${NC}"
+echo -e "\n${YELLOW}[FASE 4] Testing backend SDKs (sequential, separate tabs)...${NC}"
 
 cd "$DASHBOARD_DIR"
 
-# Test tutti i backend SDK insieme
-TEST_SERVICES="sdk-node=http://localhost:8001,sdk-go=http://localhost:8003,sdk-python=http://localhost:8004,sdk-java=http://localhost:8005" \
-    ./runner.exe all-backend ./internal/tests/... -count=1
+# Test backend SDK uno alla volta (così la dashboard mostra il progresso)
+echo -e "\n  ${BLUE}Testing sdk-node...${NC}"
+TEST_SERVICES="sdk-node=http://localhost:8001" ./runner.exe sdk-node ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-node complete${NC}"
 
-echo -e "\n${GREEN}✓ Backend SDK tests complete${NC}"
+echo -e "\n  ${BLUE}Testing sdk-go...${NC}"
+TEST_SERVICES="sdk-go=http://localhost:8003" ./runner.exe sdk-go ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-go complete${NC}"
+
+echo -e "\n  ${BLUE}Testing sdk-python...${NC}"
+TEST_SERVICES="sdk-python=http://localhost:8004" ./runner.exe sdk-python ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-python complete${NC}"
+
+echo -e "\n  ${BLUE}Testing sdk-java...${NC}"
+TEST_SERVICES="sdk-java=http://localhost:8005" ./runner.exe sdk-java ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-java complete${NC}"
+
+echo -e "\n${GREEN}✓ All backend SDK tests complete${NC}"
 
 # ══════════════════════════════════════════════════════════════
 # FASE 5: Test Frontend SDKs (sequenziali)
