@@ -20,7 +20,7 @@
     .pass { color: #3fb950; }
     .fail { color: #f85149; }
     .skip { color: #8b949e; }
-    .tests { margin-top: 12px; max-height: 200px; overflow-y: auto; font-size: 13px; }
+    .tests { margin-top: 12px; max-height: 400px; overflow-y: auto; font-size: 13px; }
     .test { padding: 4px 0; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
     .test:last-child { border-bottom: none; }
     .icon { width: 16px; text-align: center; }
@@ -96,7 +96,13 @@
       el.querySelector('.skip').textContent = `○ ${s.skipped}`;
 
       const testsEl = el.querySelector('.tests');
-      testsEl.innerHTML = Object.entries(s.tests).slice(-10).map(([t, st]) => {
+      // Show failed tests first, then all passed
+      const entries = Object.entries(s.tests);
+      const failed = entries.filter(([, st]) => st === 'fail');
+      const skipped = entries.filter(([, st]) => st === 'skip');
+      const passed = entries.filter(([, st]) => st === 'pass');
+      const toShow = [...failed, ...skipped, ...passed];
+      testsEl.innerHTML = toShow.map(([t, st]) => {
         const icon = st === 'pass' ? '✓' : st === 'fail' ? '✗' : '○';
         const cls = st === 'pass' ? 'pass' : st === 'fail' ? 'fail' : 'skip';
         return `<div class="test"><span class="icon ${cls}">${icon}</span>${t}</div>`;
