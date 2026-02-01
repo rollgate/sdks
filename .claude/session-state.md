@@ -4,6 +4,44 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Sessione 2026-02-01 #3 (Test SDK Python)
+
+### Obiettivo
+Eseguire i 84 contract test su sdk-python e fixare eventuali bug.
+
+### Lavoro Completato
+
+1. **Fix sdk-python test service** (`packages/sdk-python/test_service/main.py`)
+   - Fix `getState` command: `CacheStats` è un dataclass, non un dict - accedere con `.hits`/`.misses` invece di `.get()`
+   - Fix `circuit_state`: usare `.value` per ottenere il valore stringa dall'enum
+   - Ottimizzazione `notify_mock_identify`: usare un shared `httpx.AsyncClient` invece di crearne uno nuovo ad ogni chiamata (riduceva TestRapidIdentify da 5.5s a 0.6s)
+   - **Risultato: 84/84 test passano**
+
+### Stato SDK Attuale
+
+| SDK | Porta | Pass | Fail | Note |
+|-----|-------|------|------|------|
+| sdk-node | 8001 | 84 | 0 | ✅ Completo |
+| sdk-go | 8003 | 84 | 0 | ✅ Fixato sessione #2 |
+| sdk-java | 8005 | 84 | 0 | ✅ Fixato sessione #2 |
+| sdk-python | 8004 | 84 | 0 | ✅ Fixato questa sessione |
+| sdk-browser | 8000 | ? | ? | Richiede browser-adapter + Playwright |
+| sdk-react | 8010 | ? | ? | Wrappa sdk-browser |
+| sdk-vue | 8020 | ? | ? | Wrappa sdk-browser |
+| sdk-svelte | 8030 | ? | ? | Wrappa sdk-browser |
+| sdk-angular | 8040 | ? | ? | Wrappa sdk-browser |
+| sdk-react-native | - | - | - | Non testabile (mobile) |
+
+### Branch
+`feat/test-dashboard`
+
+### Prossimi Step
+- [ ] Commit fix sdk-python
+- [ ] Configurare browser-adapter + browser-entity per sdk-browser
+- [ ] Testare sdk-react, sdk-vue, sdk-svelte, sdk-angular
+
+---
+
 ## Sessione 2026-02-01 #2 (Fix SDK e estensione test)
 
 ### Obiettivo

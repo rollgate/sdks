@@ -119,3 +119,9 @@ cd test-harness/dashboard && go build -o runner.exe runner.go
 2. Lavorare sul task
 3. Aggiornare session-state.md con lavoro completato
 4. Commit e push
+
+---
+
+## Preferenze Utente
+
+- **Eseguire comandi bash senza concatenarli** (es. non usare `&&` o `;`) per evitare richieste di permessi multiple quando i singoli comandi matchano i permessi in `settings.local.json`
