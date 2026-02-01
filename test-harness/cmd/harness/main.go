@@ -100,15 +100,12 @@ func printConfig(h *harness.Harness) {
 	config := map[string]interface{}{
 		"mockUrl": h.GetMockURL(),
 		"apiKey":  h.GetAPIKey(),
-		"services": func() []map[string]string {
-			var svcs []map[string]string
+		"services": func() []string {
+			var names []string
 			for _, s := range h.GetServices() {
-				svcs = append(svcs, map[string]string{
-					"name": s.Name,
-					"url":  s.URL,
-				})
+				names = append(names, s.GetName())
 			}
-			return svcs
+			return names
 		}(),
 	}
 
