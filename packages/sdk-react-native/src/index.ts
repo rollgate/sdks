@@ -115,7 +115,7 @@ export function RollgateProvider({
   const [isError, setIsError] = useState(false);
   const [isStale, setIsStale] = useState(false);
   const [circuitState, setCircuitState] = useState<CircuitState>(
-    CircuitState.CLOSED
+    CircuitState.CLOSED,
   );
 
   const clientRef = useRef<RollgateReactNativeClient | null>(null);
@@ -183,7 +183,7 @@ export function RollgateProvider({
       }
       return defaultValue;
     },
-    []
+    [],
   );
 
   const identify = useCallback(async (newUser: UserContext): Promise<void> => {
@@ -259,11 +259,7 @@ export function RollgateProvider({
     client: clientRef.current,
   };
 
-  return React.createElement(
-    RollgateContext.Provider,
-    { value },
-    children
-  );
+  return React.createElement(RollgateContext.Provider, { value }, children);
 }
 
 /**
@@ -276,7 +272,7 @@ export function RollgateProvider({
  */
 export function useFlag(
   flagKey: string,
-  defaultValue: boolean = false
+  defaultValue: boolean = false,
 ): boolean {
   const context = useContext(RollgateContext);
 

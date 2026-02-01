@@ -116,7 +116,7 @@ export class RollgateReactNativeClient {
   constructor(
     apiKey: string,
     initialContext: UserContext | null,
-    options: RollgateOptions = {}
+    options: RollgateOptions = {},
   ) {
     this.apiKey = apiKey;
     this.userContext = initialContext;
@@ -182,7 +182,7 @@ export class RollgateReactNativeClient {
         this.emit("ready");
       } else {
         this.initRejecter?.(
-          error instanceof Error ? error : new Error(String(error))
+          error instanceof Error ? error : new Error(String(error)),
         );
       }
     }
@@ -365,7 +365,7 @@ export class RollgateReactNativeClient {
     }
     this.pollInterval = setInterval(
       () => this.fetchFlags(),
-      this.options.refreshInterval
+      this.options.refreshInterval,
     );
   }
 
@@ -391,7 +391,7 @@ export class RollgateReactNativeClient {
             const controller = new AbortController();
             const timeoutId = setTimeout(
               () => controller.abort(),
-              this.options.timeout
+              this.options.timeout,
             );
 
             try {
@@ -462,7 +462,7 @@ export class RollgateReactNativeClient {
 
         const oldFlags = new Map(this.flags);
         this.flags = new Map(
-          Object.entries((data as FlagsResponse).flags || {})
+          Object.entries((data as FlagsResponse).flags || {}),
         );
 
         // Save to cache
@@ -523,7 +523,7 @@ export class RollgateReactNativeClient {
 export function createClient(
   apiKey: string,
   initialContext: UserContext | null = null,
-  options: RollgateOptions = {}
+  options: RollgateOptions = {},
 ): RollgateReactNativeClient {
   return new RollgateReactNativeClient(apiKey, initialContext, options);
 }
