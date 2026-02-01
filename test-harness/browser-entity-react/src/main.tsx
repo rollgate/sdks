@@ -17,8 +17,9 @@ function App() {
 async function runContractTests() {
   log("Starting React contract test entity...");
 
-  // Connect to adapter WebSocket on port 8001
-  const ws = new TestHarnessWebSocket("ws://localhost:8001");
+  // Connect to adapter WebSocket (React uses port 8011)
+  const wsPort = import.meta.env.VITE_WS_PORT || "8011";
+  const ws = new TestHarnessWebSocket(`ws://localhost:${wsPort}`);
   ws.connect();
 }
 

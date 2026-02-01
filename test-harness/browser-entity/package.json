@@ -5,6 +5,7 @@
   "description": "Contract test service implementation for browser SDK",
   "type": "module",
   "scripts": {
+    "dev": "vite",
     "start": "tsc --noEmit && vite --open",
     "build": "tsc && vite build",
     "preview": "vite preview"

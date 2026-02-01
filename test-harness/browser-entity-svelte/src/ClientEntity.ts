@@ -178,6 +178,32 @@ export class ClientEntity {
 }
 
 /**
+ * Notify mock server about user context for remote evaluation.
+ * This must be called BEFORE SDK fetches flags so the mock server
+ * has user attributes available for rule evaluation.
+ */
+async function notifyMockIdentify(
+  baseUrl: string,
+  apiKey: string,
+  user: UserContext,
+): Promise<void> {
+  try {
+    await fetch(`${baseUrl}/api/v1/sdk/identify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ user }),
+    });
+    log(`[identify] Sent user context to mock server: ${user.id}`);
+  } catch (e) {
+    // Ignore errors - mock might not support identify
+    log(`[identify] Failed to notify mock (non-fatal): ${e}`);
+  }
+}
+
+/**
  * Create a new Svelte SDK client entity from test harness configuration
  */
 export async function newSdkClientEntity(
@@ -188,6 +214,11 @@ export async function newSdkClientEntity(
 
   const config = makeSdkConfig(options.configuration, tag);
   const initialUser = makeInitialContext(options.configuration);
+
+  // Notify mock server about user context BEFORE SDK init (for remote evaluation)
+  if (initialUser && config.baseUrl && config.apiKey) {
+    await notifyMockIdentify(config.baseUrl, config.apiKey, initialUser);
+  }
 
   const entity = new ClientEntity(tag);
 

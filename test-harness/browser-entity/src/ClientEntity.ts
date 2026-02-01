@@ -175,6 +175,32 @@ export class ClientEntity {
 }
 
 /**
+ * Notify mock server about user context for remote evaluation.
+ * This must be called BEFORE SDK fetches flags so the mock server
+ * has user attributes available for rule evaluation.
+ */
+async function notifyMockIdentify(
+  baseUrl: string,
+  apiKey: string,
+  user: UserContext,
+): Promise<void> {
+  try {
+    await fetch(`${baseUrl}/api/v1/sdk/identify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ user }),
+    });
+    log(`[identify] Sent user context to mock server: ${user.id}`);
+  } catch (e) {
+    // Ignore errors - mock might not support identify
+    log(`[identify] Failed to notify mock (non-fatal): ${e}`);
+  }
+}
+
+/**
  * Create a new SDK client entity from test harness configuration
  */
 export async function newSdkClientEntity(
@@ -186,12 +212,14 @@ export async function newSdkClientEntity(
   const timeout = options.configuration.startWaitTimeMs ?? 5000;
   const sdkConfig = makeSdkConfig(options.configuration, tag);
   const initialContext = makeInitialContext(options.configuration);
+  const apiKey = options.configuration.credential || "unknown-api-key";
 
-  const client = createClient(
-    options.configuration.credential || "unknown-api-key",
-    initialContext,
-    sdkConfig,
-  );
+  // Notify mock server about user context BEFORE SDK init (for remote evaluation)
+  if (initialContext && sdkConfig.baseUrl) {
+    await notifyMockIdentify(sdkConfig.baseUrl, apiKey, initialContext);
+  }
+
+  const client = createClient(apiKey, initialContext, sdkConfig);
 
   let failed = false;
   try {
