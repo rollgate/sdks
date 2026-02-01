@@ -89,7 +89,29 @@ export class ClientEntity {
   constructor(
     private readonly client: RollgateBrowserClient,
     private readonly tag: string,
+    private readonly baseUrl: string,
+    private readonly apiKey: string,
   ) {}
+
+  /**
+   * Notify mock server about user context for remote evaluation.
+   */
+  private async notifyMockIdentify(user: UserContext): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/api/v1/sdk/identify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({ user }),
+      });
+      log(`[identify] Sent user context to mock server: ${user.id}`);
+    } catch (e) {
+      // Ignore errors - mock might not support identify
+      log(`[identify] Failed to notify mock (non-fatal): ${e}`);
+    }
+  }
 
   close(): void {
     this.client.close();
@@ -145,15 +167,25 @@ export class ClientEntity {
         }
         const user = identifyParams.user || identifyParams.context;
         if (user) {
-          await this.client.identify({
+          const userContext: UserContext = {
             id: user.id || user.key || "unknown",
             email: user.email,
             attributes: user.attributes as
               | Record<string, string | number | boolean>
               | undefined,
-          });
+          };
+          // Notify mock server about user context BEFORE SDK identify
+          // so rules can be evaluated with user attributes
+          await this.notifyMockIdentify(userContext);
+          await this.client.identify(userContext);
         }
         log(`[${this.tag}] identify: ${JSON.stringify(user)}`);
+        return undefined;
+      }
+
+      case CommandType.Reset: {
+        await this.client.reset();
+        log(`[${this.tag}] reset`);
         return undefined;
       }
 
@@ -235,5 +267,5 @@ export async function newSdkClientEntity(
     throw new Error("client initialization failed");
   }
 
-  return new ClientEntity(client, tag);
+  return new ClientEntity(client, tag, sdkConfig.baseUrl || "", apiKey);
 }
