@@ -2,7 +2,18 @@
 
 **Riferimento principale**: Vedi `C:\Projects\rollgate\CLAUDE.md` per regole di lavoro, infrastruttura e convenzioni.
 
-Questo repo contiene solo gli SDK client. Le regole generali sono le stesse del progetto principale.
+Questo repo contiene gli SDK client per Rollgate. Le regole generali sono le stesse del progetto principale.
+
+---
+
+## File di Contesto
+
+| File | Scopo | Quando leggere |
+|------|-------|----------------|
+| `CLAUDE.md` | Contesto progetto SDK | Sempre (automatico) |
+| `.claude/session-state.md` | Storico sessioni e stato corrente | Inizio sessione |
+| `docs/SDK-ARCHITECTURE.md` | Architettura SDK | Prima di modificare SDK |
+| `test-harness/CONTRACT_TESTS.md` | Lista 84 contract tests | Per debug test |
 
 ---
 
@@ -10,35 +21,72 @@ Questo repo contiene solo gli SDK client. Le regole generali sono le stesse del 
 
 ```
 packages/
+  sdk-core/        → Logica condivisa (internal)
   sdk-node/        → @rollgate/sdk-node
-  sdk-react/       → @rollgate/sdk-react
-  sdk-vue/         → @rollgate/sdk-vue
-  sdk-svelte/      → @rollgate/sdk-svelte
-  sdk-angular/     → @rollgate/sdk-angular
+  sdk-browser/     → @rollgate/sdk-browser
+  sdk-react/       → @rollgate/sdk-react (wrappa sdk-browser)
+  sdk-vue/         → @rollgate/sdk-vue (wrappa sdk-browser)
+  sdk-svelte/      → @rollgate/sdk-svelte (wrappa sdk-browser)
+  sdk-angular/     → @rollgate/sdk-angular (wrappa sdk-browser)
   sdk-go/          → github.com/rollgate/sdk-go
   sdk-python/      → rollgate (PyPI)
   sdk-java/        → io.rollgate:sdk-java
+  sdk-react-native/ → @rollgate/sdk-react-native
 test-harness/      → Cross-SDK contract tests (Go)
+  dashboard/       → Real-time test monitoring
+  internal/        → Test suite (84 tests)
 ```
 
-## Architettura SDK
+---
 
-**LEGGERE SEMPRE**: `docs/SDK-ARCHITECTURE.md`
+## Contract Tests & Dashboard
 
-Contiene:
+### Avviare la Dashboard
 
-- Diagramma architettura target
-- Relazioni tra SDK (sdk-browser → sdk-react/vue/angular/svelte)
-- Stato implementazione
-- Principi architetturali
+```bash
+# Terminal 1: Dashboard (http://localhost:8080)
+cd test-harness/dashboard
+go run main.go
+
+# Terminal 2: Eseguire test con runner
+cd test-harness/dashboard
+./runner.exe sdk-node ./internal/tests/... -count=1
+```
+
+### Test Services (porte)
+
+| SDK | Porta | Comando |
+|-----|-------|---------|
+| sdk-node | 8001 | `cd packages/sdk-node/test-service && npm start` |
+| sdk-go | 8003 | `cd packages/sdk-go/test-service && go run .` |
+| sdk-python | 8004 | `cd packages/sdk-python/test-service && python main.py` |
+| sdk-java | 8005 | `cd packages/sdk-java/test-service && java -jar target/*.jar` |
+
+### Eseguire Contract Tests
+
+```bash
+# Singolo SDK
+TEST_SERVICES="sdk-node=http://localhost:8001" go test -v ./internal/tests/... -count=1
+
+# Multipli SDK
+TEST_SERVICES="sdk-node=http://localhost:8001,sdk-go=http://localhost:8003" go test -v ./internal/tests/...
+
+# Con dashboard (runner invia eventi real-time)
+cd test-harness/dashboard
+./runner.exe sdk-node ./internal/tests/... -count=1
+```
+
+---
 
 ## Regole Specifiche SDK
 
 - Mantieni API consistente tra tutti gli SDK
 - Ogni nuova feature va implementata in TUTTI gli SDK
-- Ogni SDK deve passare i contract test del test-harness
+- Ogni SDK deve passare i 84 contract tests
 - Test services in `packages/sdk-*/test-service/`
 - **sdk-react/vue/angular/svelte DEVONO wrappare sdk-browser** (non implementare logica HTTP/cache)
+
+---
 
 ## Comandi Utili
 
@@ -49,19 +97,18 @@ npm run build
 # Test singolo SDK
 npm test --workspace=packages/sdk-node
 
-# Contract tests (tutti gli SDK)
-cd test-harness/cmd && go run . -services all
-
 # Format (OBBLIGATORIO prima di commit)
 npm run format
+
+# Build runner dashboard
+cd test-harness/dashboard && go build -o runner.exe runner.go
 ```
 
-## Test Harness
+---
 
-```bash
-# Avvia test services
-cd test-harness/cmd && go run . -services node,go,react,vue,svelte,angular
+## Workflow Sessione
 
-# Esegui contract tests
-cd test-harness/cmd && go test -v ./...
-```
+1. Leggere `.claude/session-state.md` per contesto
+2. Lavorare sul task
+3. Aggiornare session-state.md con lavoro completato
+4. Commit e push
