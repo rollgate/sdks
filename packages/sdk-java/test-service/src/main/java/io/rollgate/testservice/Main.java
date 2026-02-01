@@ -16,6 +16,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
 /**
  * Test Service for rollgate Java SDK
@@ -62,9 +63,9 @@ public class Main {
     public static void main(String[] args) throws IOException {
         int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8008"));
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 100);
         server.createContext("/", new MainHandler());
-        server.setExecutor(null);
+        server.setExecutor(Executors.newFixedThreadPool(50));
 
         System.out.println("[sdk-java test-service] Listening on port " + port);
         server.start();
@@ -213,7 +214,22 @@ public class Main {
                     if (userObj.has("attributes") && !userObj.get("attributes").isJsonNull()) {
                         JsonObject attrs = userObj.getAsJsonObject("attributes");
                         for (String key : attrs.keySet()) {
-                            userBuilder.attribute(key, attrs.get(key).getAsString());
+                            var value = attrs.get(key);
+                            if (value != null && !value.isJsonNull()) {
+                                if (value.isJsonPrimitive()) {
+                                    var prim = value.getAsJsonPrimitive();
+                                    if (prim.isBoolean()) {
+                                        userBuilder.attribute(key, prim.getAsBoolean());
+                                    } else if (prim.isNumber()) {
+                                        userBuilder.attribute(key, prim.getAsNumber());
+                                    } else {
+                                        userBuilder.attribute(key, prim.getAsString());
+                                    }
+                                } else {
+                                    userBuilder.attribute(key, value.toString());
+                                }
+                            }
+                            // Skip null attributes
                         }
                     }
 
