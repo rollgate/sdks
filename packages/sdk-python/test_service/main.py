@@ -23,30 +23,33 @@ import uvicorn
 # Add parent directory to path to import rollgate
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import httpx
+
 from rollgate import RollgateClient, RollgateConfig, UserContext
 
 client: Optional[RollgateClient] = None
 current_base_url: Optional[str] = None
 current_api_key: Optional[str] = None
+shared_http_client: Optional[httpx.AsyncClient] = None
 
 
 async def notify_mock_identify(user: UserContext, api_key: str) -> None:
     """Notify mock server about user context for remote evaluation."""
+    global shared_http_client
     if not current_base_url:
         return
 
-    import httpx
     try:
-        async with httpx.AsyncClient() as http_client:
-            await http_client.post(
-                f"{current_base_url}/api/v1/sdk/identify",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                },
-                json={"user": {"id": user.id, "email": user.email, "attributes": user.attributes}},
-                timeout=5.0,
-            )
+        if shared_http_client is None:
+            shared_http_client = httpx.AsyncClient(timeout=5.0)
+        await shared_http_client.post(
+            f"{current_base_url}/api/v1/sdk/identify",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json={"user": {"id": user.id, "email": user.email, "attributes": user.attributes}},
+        )
     except Exception:
         # Ignore errors - mock might not support identify
         pass
@@ -55,10 +58,13 @@ async def notify_mock_identify(user: UserContext, api_key: str) -> None:
 async def lifespan(app: FastAPI):
     yield
     # Cleanup on shutdown
-    global client
+    global client, shared_http_client
     if client:
         await client.close()
         client = None
+    if shared_http_client:
+        await shared_http_client.aclose()
+        shared_http_client = None
 
 app = FastAPI(lifespan=lifespan)
 
@@ -243,10 +249,10 @@ async def handle_command(cmd: dict) -> dict:
         cache_stats = client.get_cache_stats()
         return make_response(
             is_ready=True,
-            circuit_state=str(client.circuit_state).lower(),
+            circuit_state=client.circuit_state.value,
             cache_stats={
-                "hits": cache_stats.get("hits", 0),
-                "misses": cache_stats.get("misses", 0),
+                "hits": cache_stats.hits,
+                "misses": cache_stats.misses,
             },
         )
 
