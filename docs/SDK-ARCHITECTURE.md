@@ -76,9 +76,9 @@ Non condividono codice con gli SDK TypeScript.
                                     │ HTTP Protocol
                                     ▼
 ┌─────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
-│ TestService │ TestService │ TestService │ BrowserSvc  │ TestService │
-│  sdk-node   │   sdk-go    │ sdk-python  │ sdk-browser │  sdk-java   │
-│  :8001      │   :8002     │   :8003     │   :8000     │   :8004     │
+│ TestService │ TestService │ TestService │ TestService │ BrowserSvc  │
+│  sdk-node   │   sdk-go    │ sdk-python  │  sdk-java   │ sdk-browser │
+│  :8001      │   :8003     │   :8004     │   :8005     │   :8010     │
 └─────────────┴─────────────┴─────────────┴──────┬──────┴─────────────┘
                                                  │
                     ┌────────────────────────────┼────────────────────────────┐
@@ -149,9 +149,9 @@ SDK core per browser - **TUTTE le implementazioni browser derivano da questo**:
 | sdk-vue     | ✅ Completo | Wrapper sdk-browser       |
 | sdk-angular | ✅ Completo | Wrapper sdk-browser       |
 | sdk-svelte  | ✅ Completo | Wrapper sdk-browser       |
-| sdk-go      | ✅ Completo | Implementazione nativa Go |
-| sdk-python  | 📋 Skeleton | Da implementare           |
-| sdk-java    | 📋 Skeleton | Da implementare           |
+| sdk-go      | ✅ Completo | Implementazione nativa Go     |
+| sdk-python  | ✅ Completo | Implementazione nativa Python |
+| sdk-java    | ✅ Completo | Implementazione nativa Java   |
 
 ## Principi Architetturali
 
