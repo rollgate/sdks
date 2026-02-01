@@ -4,6 +4,74 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Sessione 2026-02-01 #4 (Test SDK Browser)
+
+### Obiettivo
+Configurare browser-adapter e testare sdk-browser con i 84 contract test.
+
+### Lavoro Completato
+
+1. **Fix CORS mock server** (`test-harness/internal/mock/server.go`)
+   - Aggiunto header `Access-Control-Allow-Headers: *` per browser SDK
+
+2. **Fix BrowserTestService** (`test-harness/internal/harness/browser_service.go`)
+   - Return error in Response invece di Go error per init failure
+   - Gestione getState e close commands
+   - Gestione flag evaluation quando init fallisce (return default value)
+
+3. **Fix browser adapter** (`test-harness/browser-adapter/src/index.ts`)
+   - Rimosso `process.exit()` su DELETE / (era problema per test multipli)
+
+4. **Fix browser entity** (`test-harness/browser-entity/src/ClientEntity.ts`)
+   - Aggiunto supporto comando `reset`
+   - Aggiunto `notifyMockIdentify` in identify handler (per targeting rules)
+   - Passato baseUrl e apiKey al ClientEntity
+
+5. **Fix types** (`test-harness/browser-entity/src/types.ts`)
+   - Aggiunto `CommandType.Reset`
+
+6. **Risultato: 84/84 test passano**
+
+### Stato SDK Attuale
+
+| SDK | Porta | Pass | Fail | Note |
+|-----|-------|------|------|------|
+| sdk-node | 8001 | 84 | 0 | ✅ Completo |
+| sdk-go | 8003 | 84 | 0 | ✅ Fixato sessione #2 |
+| sdk-java | 8005 | 84 | 0 | ✅ Fixato sessione #2 |
+| sdk-python | 8004 | 84 | 0 | ✅ Fixato sessione #3 |
+| sdk-browser | 8000 | 84 | 0 | ✅ Fixato questa sessione |
+| sdk-react | 8010 | ? | ? | Wrappa sdk-browser |
+| sdk-vue | 8020 | ? | ? | Wrappa sdk-browser |
+| sdk-svelte | 8030 | ? | ? | Wrappa sdk-browser |
+| sdk-angular | 8040 | ? | ? | Wrappa sdk-browser |
+| sdk-react-native | - | - | - | Non testabile (mobile) |
+
+### Come Testare sdk-browser
+
+```bash
+# Terminal 1: Browser adapter (porta 8000)
+cd /c/Projects/rollgate-sdks/test-harness/browser-adapter
+npm run dev
+
+# Terminal 2: Browser entity (Vite + Playwright)
+cd /c/Projects/rollgate-sdks/test-harness/browser-entity
+node open-browser.mjs
+
+# Terminal 3: Run tests
+cd /c/Projects/rollgate-sdks/test-harness/dashboard
+TEST_SERVICES="sdk-browser=http://localhost:8000" ./runner.exe sdk-browser ./internal/tests/... -count=1
+```
+
+### Branch
+`feat/test-dashboard`
+
+### Prossimi Step
+- [ ] Commit fix sdk-browser
+- [ ] Testare sdk-react, sdk-vue, sdk-svelte, sdk-angular
+
+---
+
 ## Sessione 2026-02-01 #3 (Test SDK Python)
 
 ### Obiettivo
@@ -36,8 +104,8 @@ Eseguire i 84 contract test su sdk-python e fixare eventuali bug.
 `feat/test-dashboard`
 
 ### Prossimi Step
-- [ ] Commit fix sdk-python
-- [ ] Configurare browser-adapter + browser-entity per sdk-browser
+- [x] Commit fix sdk-python
+- [x] Configurare browser-adapter + browser-entity per sdk-browser (sessione #4)
 - [ ] Testare sdk-react, sdk-vue, sdk-svelte, sdk-angular
 
 ---
