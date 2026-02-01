@@ -172,11 +172,18 @@ func (s *Server) checkErrorSimulation(w http.ResponseWriter) bool {
 		errorType = "NotFoundError"
 	}
 
+	// Determine if error is retryable based on status code
+	retryable := statusCode >= 500 || statusCode == http.StatusTooManyRequests
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":   errorType,
-		"message": message,
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": map[string]interface{}{
+			"code":      errorType,
+			"category":  "internal",
+			"message":   message,
+			"retryable": retryable,
+		},
 	})
 
 	return true

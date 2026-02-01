@@ -7,8 +7,8 @@ import { log } from "./types";
 function runContractTests() {
   log("Starting Svelte contract test entity...");
 
-  // Connect to adapter WebSocket (Svelte uses port 8031)
-  const wsPort = import.meta.env.VITE_WS_PORT || "8031";
+  // Connect to adapter WebSocket (standard port 8011)
+  const wsPort = import.meta.env.VITE_WS_PORT || "8011";
   const ws = new TestHarnessWebSocket(`ws://localhost:${wsPort}`);
   ws.connect();
 }
