@@ -383,6 +383,10 @@ export class RollgateReactNativeClient {
       this.pollInterval = null;
     }
 
+    // Clean up all internal components to prevent memory leaks
+    this.circuitBreaker.removeAllListeners();
+    this.metrics.removeAllListeners();
+    this.dedup.clear();
     this.eventListeners.clear();
   }
 

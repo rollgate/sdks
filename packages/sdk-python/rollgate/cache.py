@@ -255,3 +255,6 @@ class FlagCache:
         """Cleanup resources and final persist."""
         if self._config.persist_path:
             self._persist()
+        # Clear all callbacks to prevent memory leaks
+        for event in self._callbacks:
+            self._callbacks[event].clear()

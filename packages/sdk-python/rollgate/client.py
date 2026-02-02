@@ -456,8 +456,13 @@ class RollgateClient:
         if self._http_client:
             await self._http_client.aclose()
 
-        # Close cache
+        # Close cache (also clears its callbacks)
         self._cache.close()
+
+        # Clear all callbacks to prevent memory leaks
+        self._circuit_breaker.clear_callbacks()
+        for event in self._callbacks:
+            self._callbacks[event].clear()
 
     async def __aenter__(self) -> "RollgateClient":
         """Async context manager entry."""
