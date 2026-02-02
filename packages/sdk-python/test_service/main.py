@@ -81,6 +81,8 @@ def make_response(
     success: Optional[bool] = None,
     error: Optional[str] = None,
     message: Optional[str] = None,
+    reason: Optional[dict] = None,
+    variation_id: Optional[str] = None,
 ) -> dict:
     resp = {}
     if value is not None:
@@ -105,6 +107,10 @@ def make_response(
         resp["error"] = error
     if message is not None:
         resp["message"] = message
+    if reason is not None:
+        resp["reason"] = reason
+    if variation_id is not None:
+        resp["variationId"] = variation_id
     return resp
 
 
@@ -166,6 +172,39 @@ async def handle_command(cmd: dict) -> dict:
         default_value = cmd.get("defaultValue", False)
         value = client.is_enabled(flag_key, default_value)
         return make_response(value=value)
+
+    elif command == "isEnabledDetail":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        flag_key = cmd.get("flagKey")
+        if not flag_key:
+            return make_response(error="ValidationError", message="flagKey is required")
+
+        default_value = cmd.get("defaultValue", False)
+        detail = client.is_enabled_detail(flag_key, default_value)
+        return make_response(
+            value=detail.value,
+            reason=detail.reason.to_dict(),
+            variation_id=detail.variation_id,
+        )
+
+    elif command == "getValueDetail":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        flag_key = cmd.get("flagKey")
+        if not flag_key:
+            return make_response(error="ValidationError", message="flagKey is required")
+
+        # For now, Python SDK only supports boolean flags with detail
+        default_value = cmd.get("defaultValue", False)
+        detail = client.is_enabled_detail(flag_key, default_value)
+        return make_response(
+            value=detail.value,
+            reason=detail.reason.to_dict(),
+            variation_id=detail.variation_id,
+        )
 
     elif command == "getString":
         if not client:

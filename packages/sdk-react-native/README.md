@@ -84,6 +84,16 @@ const flags = useFlags(["dark-mode", "new-sidebar"]);
 // { 'dark-mode': true, 'new-sidebar': false }
 ```
 
+### useFlagDetail
+
+Get flag value with evaluation reason:
+
+```tsx
+const { value, reason } = useFlagDetail("feature-key", false);
+console.log(value); // boolean
+console.log(reason.kind); // "FALLTHROUGH", "TARGET_MATCH", etc.
+```
+
 ### useRollgate
 
 Access the full context:

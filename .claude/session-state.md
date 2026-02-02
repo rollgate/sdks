@@ -4,6 +4,225 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Future Pipeline (Post-PR)
+
+| Feature            | Priorità | Effort     | Note                                                  |
+| ------------------ | -------- | ---------- | ----------------------------------------------------- |
+| Evaluation Reasons | P1       | 2-3 giorni | ✅ COMPLETED - Perché un flag ha un certo valore      |
+| Analytics Events   | P1       | 3-4 giorni | ✅ COMPLETED - Tracciamento evaluations per analytics |
+| Multi-Context      | P2       | 2-3 giorni | User + Organization + Device contexts                 |
+| Hooks              | P2       | 1-2 giorni | Before/after evaluation callbacks                     |
+| HTTP Proxy         | P3       | 1 giorno   | Supporto proxy enterprise                             |
+| Persistence Stores | P3       | 3-5 giorni | Redis, DynamoDB backends                              |
+| SDK Android        | P3       | 5 giorni   | SDK nativo Kotlin con contract tests                  |
+
+---
+
+## Sessione 2026-02-02 #11 (Evaluation Reasons + Analytics Events)
+
+### Obiettivo
+
+Implementare Evaluation Reasons e Analytics Events su tutti gli SDK + server rollgate.
+
+### Lavoro Completato (In Progress)
+
+**NOTE**: Questo lavoro modifica DUE repository:
+
+- `C:\Projects\rollgate-sdks` - SDK clients
+- `C:\Projects\rollgate` - Server API
+
+#### 1. SDK Core - Reason Types ✅
+
+- Creato `packages/sdk-core/src/reasons.ts` - Tipi per evaluation reasons
+- Creato `packages/sdk-core/src/events.ts` - Tipi per analytics events
+- Aggiornato `packages/sdk-core/src/index.ts` - Exports
+
+#### 2. SDK Node - Detail Methods ✅
+
+- Aggiornato `packages/sdk-node/src/evaluate.ts`:
+  - Aggiunta import reason types
+  - Aggiunto `evaluateFlagWithReason()` function
+  - Aggiornato `evaluateFlagValue()` per includere reasons
+- Aggiornato `packages/sdk-node/src/index.ts`:
+  - Aggiunto `isEnabledDetail()` method
+  - Aggiunto `getValueDetail()` method
+  - Aggiunta proprietà `flagReasons` alla classe
+  - Esportati reason types
+- Aggiornato `packages/sdk-node/test-service/src/index.ts`:
+  - Aggiunto supporto per `isEnabledDetail` command
+  - Aggiunto supporto per `getValueDetail` command
+
+#### 3. Mock Server - Reasons ✅
+
+- Aggiornato `test-harness/internal/mock/flags.go`:
+  - Aggiunto `EvaluationReason` struct
+  - Aggiunto `EvaluationResult` struct
+- Aggiornato `test-harness/internal/mock/server.go`:
+  - Aggiunto `evaluateFlagWithReason()` method
+  - Aggiornato `handleFlags()` per supportare `?withReasons=true` query param
+
+#### 4. Test Protocol ✅
+
+- Aggiornato `test-harness/internal/protocol/commands.go`:
+  - Aggiunto `CommandIsEnabledDetail`
+  - Aggiunto `CommandGetValueDetail`
+  - Aggiunte helper functions
+- Aggiornato `test-harness/internal/protocol/responses.go`:
+  - Aggiunto `EvaluationReason` struct
+  - Aggiunto `Reason` e `VariationID` fields a Response
+  - Aggiunte helper functions per detail responses
+
+#### 5. Rollgate Server (rollgate repo) ✅
+
+- Aggiornato `apps/api/internal/evaluation/evaluate.go`:
+  - Aggiunto `EvaluationReason` struct
+  - Modificato `EvaluationResult` per usare struct reason invece di stringa
+  - Aggiornato `EvaluateFlagValue()` per ritornare reasons strutturate
+- Aggiornato `apps/api/internal/handlers/sdk_types.go`:
+  - Aggiunto `SDKEvaluationReason` struct
+  - Aggiornato `SDKFlagsResponse` per includere reasons opzionali
+  - Aggiornato `SDKFlagValueV2` per includere reason e variationId
+- Aggiornato `apps/api/internal/handlers/sdk_v2.go`:
+  - Incluso reason nella risposta flags V2
+
+#### 6. Backend SDKs - Detail Methods ✅
+
+- **sdk-go**:
+  - Creato `packages/sdk-go/reasons.go` - EvaluationReason, EvaluationDetail tipi
+  - Aggiornato `packages/sdk-go/client.go` - IsEnabledDetail(), BoolVariationDetail()
+  - Aggiornato `packages/sdk-go/testservice/main.go` - isEnabledDetail, getValueDetail commands
+- **sdk-python**:
+  - Creato `packages/sdk-python/rollgate/reasons.py` - EvaluationReason, EvaluationDetail dataclasses
+  - Aggiornato `packages/sdk-python/rollgate/client.py` - is_enabled_detail(), bool_variation_detail()
+  - Aggiornato `packages/sdk-python/rollgate/__init__.py` - exports
+  - Aggiornato `packages/sdk-python/test_service/main.py` - isEnabledDetail, getValueDetail commands
+- **sdk-java**:
+  - Creato `packages/sdk-java/src/main/java/io/rollgate/EvaluationReason.java`
+  - Creato `packages/sdk-java/src/main/java/io/rollgate/EvaluationDetail.java`
+  - Aggiornato `packages/sdk-java/src/main/java/io/rollgate/RollgateClient.java` - isEnabledDetail(), boolVariationDetail()
+  - Aggiornato `packages/sdk-java/test-service/src/main/java/io/rollgate/testservice/Main.java` - isEnabledDetail, getValueDetail commands
+
+#### 7. Frontend/Mobile SDKs - Detail Methods ✅
+
+- **sdk-browser**:
+  - Aggiornato `packages/sdk-browser/src/index.ts` - imports, isEnabledDetail(), boolVariationDetail(), exports
+- **sdk-react**:
+  - Aggiornato `packages/sdk-react/src/index.tsx` - imports, useFlagDetail() hook, exports
+- **sdk-vue**:
+  - Aggiornato `packages/sdk-vue/src/index.ts` - imports, useFlagDetail() composable, exports
+- **sdk-svelte**:
+  - Aggiornato `packages/sdk-svelte/src/index.ts` - imports, exports
+- **sdk-angular**:
+  - Aggiornato `packages/sdk-angular/src/index.ts` - imports, exports
+- **sdk-react-native**:
+  - Aggiornato `packages/sdk-react-native/src/client.ts` - imports, isEnabledDetail()
+  - Aggiornato `packages/sdk-react-native/src/index.ts` - imports, useFlagDetail() hook, exports
+- **browser-entity** (test harness):
+  - Aggiornato `test-harness/browser-entity/src/ClientEntity.ts` - handle detail evaluations with reasons
+
+#### 8. Documentation Updates ✅
+
+- **SDK READMEs aggiornati**:
+  - `packages/sdk-node/README.md` - API table + Evaluation Reasons section
+  - `packages/sdk-react/README.md` - useFlagDetail hook
+  - `packages/sdk-go/README.md` - API table + Evaluation Reasons section
+  - `packages/sdk-python/README.md` - API table + Evaluation Reasons section
+  - `packages/sdk-java/README.md` - API table + Evaluation Reasons section
+  - `packages/sdk-react-native/README.md` - useFlagDetail hook
+
+- **Architecture documentation**:
+  - `docs/SDK-ARCHITECTURE.md` - Evaluation Reasons section già presente
+
+#### 9. Contract Tests per Evaluation Reasons ✅
+
+- **Creato `test-harness/internal/tests/reasons_test.go`** - 6 nuovi test:
+  - `TestReasonFallthrough` - verifica reason.kind = "FALLTHROUGH"
+  - `TestReasonUnknown` - verifica reason.kind = "UNKNOWN" per flag non esistenti
+  - `TestReasonOff` - verifica reason.kind = "OFF" per flag disabilitati
+  - `TestReasonTargetMatch` - verifica reason.kind = "TARGET_MATCH"
+  - `TestReasonValueConsistency` - verifica che isEnabledDetail ritorni sempre un reason
+  - `TestReasonHasKind` - verifica che reason abbia sempre kind
+
+- **Fix parsing enums**:
+  - `packages/sdk-python/rollgate/client.py` - Convertito stringhe in EvaluationReasonKind enum
+  - `packages/sdk-java/src/main/java/io/rollgate/EvaluationReason.java` - Aggiunto `fromStrings()` factory method
+  - `packages/sdk-java/src/main/java/io/rollgate/RollgateClient.java` - Usato `fromStrings()` per parsing JSON
+
+- **Fix sdk-react-native test service**:
+  - Aggiunto imports per `EvaluationReason`, `EvaluationDetail`, reason helpers
+  - Aggiunto `flagReasons` property e `reasons` a `FlagsResponse`
+  - Aggiunto `isEnabledDetail` method e command handler
+  - Aggiunto `withReasons=true` a URL e storage dei reasons
+
+- **Fix browser_service.go**:
+  - Aggiunto handling per `CommandIsEnabledDetail` in `convertToLDCommand()`
+  - Aggiunto parsing della response con reason in `convertFromLDResponse()`
+  - Aggiunto return di default value con ERROR reason quando client non inizializzato
+
+- **Risultati test reasons - TUTTI PASS ✓**:
+  - sdk-node: 6/6 PASS ✓
+  - sdk-go: 6/6 PASS ✓
+  - sdk-python: 6/6 PASS ✓ (dopo fix enum)
+  - sdk-java: 6/6 PASS ✓ (dopo fix fromStrings)
+  - sdk-react-native: 6/6 PASS ✓ (dopo fix test service)
+  - sdk-browser: 6/6 PASS ✓ (dopo fix browser_service.go)
+  - sdk-react: 6/6 PASS ✓
+  - sdk-vue: 6/6 PASS ✓
+  - sdk-svelte: 6/6 PASS ✓
+  - sdk-angular: 6/6 PASS ✓
+
+### Prossimi Step
+
+- [x] Implementare backend SDKs (Go, Python, Java)
+- [x] Implementare frontend SDKs (browser, react, vue, svelte, angular, react-native)
+- [x] Aggiornare documentazione
+- [x] Creare nuovi contract tests per reasons
+- [x] Testare tutti gli SDK con reason tests (10/10 PASS)
+
+### Branch
+
+`feat/test-dashboard` (rollgate-sdks)
+
+---
+
+## Sessione 2026-02-02 #10 (Memory Leak Fixes)
+
+### Obiettivo
+
+Verificare e fixare potenziali memory leak in tutti gli SDK.
+
+### Lavoro Completato
+
+1. **Audit completo memory leak** ✅
+   - Identificati 4 problemi critici + 4 moderati
+
+2. **Fix sdk-core** ✅
+   - `circuit-breaker.ts`: Aggiunto `off()` e `removeAllListeners()`
+   - `metrics.ts`: Aggiunto `removeAllListeners()`
+
+3. **Fix TypeScript SDKs** ✅
+   - `sdk-browser`, `sdk-node`, `sdk-react-native`: Cleanup di circuitBreaker, metrics, dedup in close()
+
+4. **Fix Java SDK** ✅
+   - `RollgateClient.java`: awaitTermination + shutdownNow fallback
+   - `SSEClient.java`: shutdownNow fallback dopo timeout
+
+5. **Fix Python SDK** ✅
+   - `cache.py`: Clear callbacks in close()
+   - `circuit_breaker.py`: Aggiunto clear_callbacks()
+   - `metrics.py`: Aggiunto clear_listeners()
+   - `client.py`: Cleanup completo in close()
+
+### Test Results
+
+**840/840 test passano** dopo i fix.
+
+### Commit
+
+`5d40df9` - fix: prevent memory leaks in SDK close() methods
+
+---
+
 ## Sessione 2026-02-02 #9 (Typed Flags React Native + Test Script Update)
 
 ### Obiettivo
@@ -84,18 +303,18 @@ Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract 
 
 ### Stato SDK Attuale - TUTTI COMPLETI
 
-| SDK              | Porta | Pass | Fail | Note                   |
-| ---------------- | ----- | ---- | ---- | ---------------------- |
-| sdk-node         | 8001  | 84   | 0    | ✅ Completo            |
-| sdk-go           | 8003  | 84   | 0    | ✅ Completo            |
-| sdk-java         | 8005  | 84   | 0    | ✅ Completo            |
-| sdk-python       | 8004  | 84   | 0    | ✅ Completo            |
-| sdk-browser      | 8010  | 84   | 0    | ✅ Completo            |
-| sdk-react        | 8010  | 84   | 0    | ✅ Completo            |
-| sdk-vue          | 8010  | 84   | 0    | ✅ Completo            |
-| sdk-svelte       | 8010  | 84   | 0    | ✅ Completo            |
-| sdk-angular      | 8010  | 84   | 0    | ✅ Completo            |
-| sdk-react-native | 8006  | 84   | 0    | ✅ Completo            |
+| SDK              | Porta | Pass | Fail | Note        |
+| ---------------- | ----- | ---- | ---- | ----------- |
+| sdk-node         | 8001  | 84   | 0    | ✅ Completo |
+| sdk-go           | 8003  | 84   | 0    | ✅ Completo |
+| sdk-java         | 8005  | 84   | 0    | ✅ Completo |
+| sdk-python       | 8004  | 84   | 0    | ✅ Completo |
+| sdk-browser      | 8010  | 84   | 0    | ✅ Completo |
+| sdk-react        | 8010  | 84   | 0    | ✅ Completo |
+| sdk-vue          | 8010  | 84   | 0    | ✅ Completo |
+| sdk-svelte       | 8010  | 84   | 0    | ✅ Completo |
+| sdk-angular      | 8010  | 84   | 0    | ✅ Completo |
+| sdk-react-native | 8006  | 84   | 0    | ✅ Completo |
 
 ### Prossimi Step
 

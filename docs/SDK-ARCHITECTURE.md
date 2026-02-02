@@ -154,6 +154,65 @@ SDK core per browser - **TUTTE le implementazioni browser derivano da questo**:
 | sdk-python       | ✅ Completo | Implementazione nativa Python |
 | sdk-java         | ✅ Completo | Implementazione nativa Java   |
 
+## Evaluation Reasons
+
+Tutti gli SDK supportano Evaluation Reasons - metadati che spiegano perché un flag ha un determinato valore.
+
+### Reason Kinds
+
+| Kind           | Descrizione                                    |
+| -------------- | ---------------------------------------------- |
+| `OFF`          | Flag disabilitato                              |
+| `TARGET_MATCH` | Utente nella lista target                      |
+| `RULE_MATCH`   | Utente ha matchato una regola di targeting     |
+| `FALLTHROUGH`  | Nessuna regola matchata, usato rollout globale |
+| `ERROR`        | Errore durante la valutazione                  |
+| `UNKNOWN`      | Flag non trovato                               |
+
+### API Pattern
+
+Tutti gli SDK seguono lo stesso pattern API:
+
+```typescript
+// TypeScript (Node, Browser, React, Vue, etc.)
+const detail = client.isEnabledDetail("flag-key", false);
+// detail.value: boolean
+// detail.reason: { kind: 'FALLTHROUGH', inRollout: true }
+
+// React hook
+const { value, reason } = useFlagDetail("flag-key", false);
+```
+
+```go
+// Go
+detail := client.IsEnabledDetail("flag-key", false)
+// detail.Value: bool
+// detail.Reason.Kind: "FALLTHROUGH"
+```
+
+```python
+# Python
+detail = client.is_enabled_detail("flag-key", False)
+# detail.value: bool
+# detail.reason.kind: "FALLTHROUGH"
+```
+
+```java
+// Java
+EvaluationDetail<Boolean> detail = client.isEnabledDetail("flag-key", false);
+// detail.getValue(): Boolean
+// detail.getReason().getKind(): Kind.FALLTHROUGH
+```
+
+### Tipi Condivisi
+
+I tipi per le reasons sono definiti in `sdk-core` e ri-esportati da tutti gli SDK:
+
+- `EvaluationReason` - Oggetto reason con `kind`, `ruleId`, `ruleIndex`, `inRollout`, `errorKind`
+- `EvaluationDetail<T>` - Risultato con `value`, `reason`, `variationId`
+- `EvaluationReasonKind` - Tipo union per i kind
+- `EvaluationErrorKind` - Tipo per errori (`FLAG_NOT_FOUND`, `CLIENT_NOT_READY`, etc.)
+
 ## Principi Architetturali
 
 ### 1. DRY (Don't Repeat Yourself)

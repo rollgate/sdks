@@ -31,6 +31,8 @@ import type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser for convenience
@@ -41,6 +43,8 @@ export type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -282,6 +286,34 @@ export function useFlag(
   }
 
   return context.isEnabled(flagKey, defaultValue);
+}
+
+/**
+ * Hook to check if a single flag is enabled with evaluation reason
+ *
+ * @example
+ * ```tsx
+ * const { value, reason } = useFlagDetail('new-feature', false);
+ * ```
+ */
+export function useFlagDetail(
+  flagKey: string,
+  defaultValue: boolean = false,
+): EvaluationDetail<boolean> {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useFlagDetail must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.isEnabledDetail(flagKey, defaultValue);
+  }
+
+  return {
+    value: defaultValue,
+    reason: { kind: "ERROR", errorKind: "CLIENT_NOT_READY" },
+  };
 }
 
 /**
