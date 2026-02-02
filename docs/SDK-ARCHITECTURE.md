@@ -21,12 +21,12 @@ Architettura target degli SDK Rollgate, basata esattamente sul pattern LaunchDar
            │                           │                           │
            ▼                           ▼                           ▼
 ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
-│    sdk-node         │    │    sdk-browser      │    │    sdk-server-*     │
-│  (Server-side JS)   │    │  (Browser JS)       │    │   (Future: Deno,    │
-│                     │    │                     │    │    Cloudflare, etc) │
-│ - RollgateClient    │    │ - createClient()    │    │                     │
-│ - Polling/SSE       │    │ - isEnabled()       │    │                     │
-│ - Server context    │    │ - identify()        │    │                     │
+│    sdk-node         │    │    sdk-browser      │    │  sdk-react-native   │
+│  (Server-side JS)   │    │  (Browser JS)       │    │  (Mobile)           │
+│                     │    │                     │    │                     │
+│ - RollgateClient    │    │ - createClient()    │    │ - Provider/hooks    │
+│ - Polling/SSE       │    │ - isEnabled()       │    │ - AsyncStorage      │
+│ - Server context    │    │ - identify()        │    │ - Polling only      │
 └─────────────────────┘    │ - Browser context   │    └─────────────────────┘
                            │ - LocalStorage      │
                            │ - Fetch API         │
@@ -140,18 +140,19 @@ SDK core per browser - **TUTTE le implementazioni browser derivano da questo**:
 
 ## Stato Implementazione
 
-| Componente  | Stato       | Note                      |
-| ----------- | ----------- | ------------------------- |
-| sdk-core    | ✅ Completo | Utilities condivise       |
-| sdk-node    | ✅ Completo | Server-side SDK           |
-| sdk-browser | ✅ Completo | Core browser SDK          |
-| sdk-react   | ✅ Completo | Wrapper sdk-browser       |
-| sdk-vue     | ✅ Completo | Wrapper sdk-browser       |
-| sdk-angular | ✅ Completo | Wrapper sdk-browser       |
-| sdk-svelte  | ✅ Completo | Wrapper sdk-browser       |
-| sdk-go      | ✅ Completo | Implementazione nativa Go     |
-| sdk-python  | ✅ Completo | Implementazione nativa Python |
-| sdk-java    | ✅ Completo | Implementazione nativa Java   |
+| Componente       | Stato       | Note                          |
+| ---------------- | ----------- | ----------------------------- |
+| sdk-core         | ✅ Completo | Utilities condivise           |
+| sdk-node         | ✅ Completo | Server-side SDK               |
+| sdk-browser      | ✅ Completo | Core browser SDK              |
+| sdk-react        | ✅ Completo | Wrapper sdk-browser           |
+| sdk-vue          | ✅ Completo | Wrapper sdk-browser           |
+| sdk-angular      | ✅ Completo | Wrapper sdk-browser           |
+| sdk-svelte       | ✅ Completo | Wrapper sdk-browser           |
+| sdk-react-native | ✅ Completo | Mobile SDK (AsyncStorage)     |
+| sdk-go           | ✅ Completo | Implementazione nativa Go     |
+| sdk-python       | ✅ Completo | Implementazione nativa Python |
+| sdk-java         | ✅ Completo | Implementazione nativa Java   |
 
 ## Principi Architetturali
 
