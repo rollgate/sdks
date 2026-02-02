@@ -160,8 +160,22 @@ func getHarness(t *testing.T) *harness.Harness {
 
 // SetupHarness initializes the test harness for all tests.
 // Call this from TestMain.
+//
+// Environment variables:
+//   - EXTERNAL_SERVER_URL: Use real Rollgate server instead of mock (e.g., "http://localhost:3000")
+//   - EXTERNAL_API_KEY: API key for external server (required if using EXTERNAL_SERVER_URL)
 func SetupHarness(services map[string]string) (*harness.Harness, error) {
 	cfg := harness.DefaultConfig()
+
+	// Check for external server
+	if externalURL := os.Getenv("EXTERNAL_SERVER_URL"); externalURL != "" {
+		cfg.ExternalServerURL = externalURL
+		if apiKey := os.Getenv("EXTERNAL_API_KEY"); apiKey != "" {
+			cfg.APIKey = apiKey
+		}
+		log.Printf("Using external server: %s", externalURL)
+	}
+
 	h := harness.New(cfg)
 
 	// Add services - browser-based SDKs use LaunchDarkly protocol
@@ -185,7 +199,7 @@ func SetupHarness(services map[string]string) (*harness.Harness, error) {
 		}
 	}
 
-	// Start mock server
+	// Start mock server (or verify external server)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -199,8 +213,10 @@ func SetupHarness(services map[string]string) (*harness.Harness, error) {
 		return nil, err
 	}
 
-	// Load default scenario
-	h.SetScenario("basic")
+	// Load default scenario (only for mock server)
+	if !h.IsUsingExternalServer() {
+		h.SetScenario("basic")
+	}
 
 	testHarness = h
 	return h, nil
