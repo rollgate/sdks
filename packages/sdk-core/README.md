@@ -35,15 +35,15 @@ sdk-core (this package)
 
 ## Exports
 
-| Module      | Description                          |
-| ----------- | ------------------------------------ |
-| `types`     | TypeScript interfaces and types      |
-| `errors`    | RollgateError and error categories   |
-| `http`      | HTTP client with retry/circuit       |
-| `cache`     | In-memory and persistent caching     |
-| `evaluate`  | Flag evaluation engine               |
-| `events`    | Type-safe event emitter              |
-| `retry`     | Retry logic with exponential backoff |
+| Module     | Description                          |
+| ---------- | ------------------------------------ |
+| `types`    | TypeScript interfaces and types      |
+| `errors`   | RollgateError and error categories   |
+| `http`     | HTTP client with retry/circuit       |
+| `cache`    | In-memory and persistent caching     |
+| `evaluate` | Flag evaluation engine               |
+| `events`   | Type-safe event emitter              |
+| `retry`    | Retry logic with exponential backoff |
 
 ## For SDK Developers
 
