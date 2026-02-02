@@ -4,6 +4,54 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Sessione 2026-02-02 #9 (Typed Flags React Native + Test Script Update)
+
+### Obiettivo
+
+Implementare typed flags per React Native SDK, aggiungere sdk-react-native a test-all.sh, e fixare sdk-browser issue nella dashboard.
+
+### Lavoro Completato
+
+1. **Typed flags per React Native SDK** ✅
+   - Aggiunto `getValue<T>`, `getString`, `getNumber`, `getJSON` a `packages/sdk-react-native/src/client.ts`
+   - Aggiunto `useStringFlag`, `useNumberFlag`, `useJSONFlag` hooks a `packages/sdk-react-native/src/index.ts`
+   - Aggiunto supporto typed flags al test service `packages/sdk-react-native/test-service/src/index.ts`
+   - **Risultato: 84/84 test passano (0 skipped)**
+
+2. **Fix test harness per sdk-react-native** ✅
+   - Problema: sdk-react-native era rilevato come browser SDK (perché inizia con "sdk-react")
+   - Fix in `test-harness/internal/tests/init_test.go`: escluso esplicitamente sdk-react-native dalla detection browser
+
+3. **Aggiunto sdk-react-native a test-all.sh** ✅
+   - Porta 8006 per test service
+   - Aggiunto alle fasi di avvio e test backend
+   - **Totale test: 10 SDK × 84 tests = 840**
+
+4. **Fix sdk-browser dashboard 0 tests issue** ✅
+   - Problema: browser-entity connetteva a WS porta 8001, ma adapter usava 8011
+   - Fix in `test-harness/browser-entity/src/main.ts`: cambiato default 8001 → 8011
+   - Fix in `test-harness/test-all.sh`: aggiunto `VITE_WS_PORT=8011` al comando npm run dev
+
+### File Modificati
+
+- `packages/sdk-react-native/src/client.ts` - Typed flag methods
+- `packages/sdk-react-native/src/index.ts` - Typed flag hooks
+- `packages/sdk-react-native/test-service/src/index.ts` - Typed flag commands
+- `test-harness/internal/tests/init_test.go` - Exclude RN from browser detection
+- `test-harness/test-all.sh` - Add sdk-react-native, fix WS port
+- `test-harness/browser-entity/src/main.ts` - Fix default WS port
+
+### Branch
+
+`feat/test-dashboard`
+
+### Prossimi Step
+
+- [ ] Verificare sdk-browser con test-all.sh
+- [ ] Creare PR
+
+---
+
 ## Sessione 2026-02-01 #5 (Test Framework SDK - COMPLETO)
 
 ### Obiettivo
@@ -36,20 +84,18 @@ Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract 
 
 ### Stato SDK Attuale - TUTTI COMPLETI
 
-| SDK              | Porta | Pass | Fail | Note                      |
-| ---------------- | ----- | ---- | ---- | ------------------------- |
-| sdk-node         | 8001  | 84   | 0    | ✅ Completo               |
-| sdk-go           | 8003  | 84   | 0    | ✅ Completo               |
-| sdk-java         | 8005  | 84   | 0    | ✅ Completo               |
-| sdk-python       | 8004  | 84   | 0    | ✅ Completo               |
-| sdk-browser      | 8010  | 84   | 0    | ✅ Completo               |
-| sdk-react        | 8010  | 84   | 0    | ✅ Completo               |
-| sdk-vue          | 8010  | 84   | 0    | ✅ Completo               |
-| sdk-svelte       | 8010  | 84   | 0    | ✅ Completo               |
-| sdk-angular      | 8010  | 84   | 0    | ✅ Completo               |
-| sdk-react-native | 8006  | 84   | 0    | ✅ Completo (7 skip\*)    |
-
-\*7 typed flag tests skipped (React Native SDK only supports boolean flags)
+| SDK              | Porta | Pass | Fail | Note                   |
+| ---------------- | ----- | ---- | ---- | ---------------------- |
+| sdk-node         | 8001  | 84   | 0    | ✅ Completo            |
+| sdk-go           | 8003  | 84   | 0    | ✅ Completo            |
+| sdk-java         | 8005  | 84   | 0    | ✅ Completo            |
+| sdk-python       | 8004  | 84   | 0    | ✅ Completo            |
+| sdk-browser      | 8010  | 84   | 0    | ✅ Completo            |
+| sdk-react        | 8010  | 84   | 0    | ✅ Completo            |
+| sdk-vue          | 8010  | 84   | 0    | ✅ Completo            |
+| sdk-svelte       | 8010  | 84   | 0    | ✅ Completo            |
+| sdk-angular      | 8010  | 84   | 0    | ✅ Completo            |
+| sdk-react-native | 8006  | 84   | 0    | ✅ Completo            |
 
 ### Prossimi Step
 
@@ -132,11 +178,11 @@ Usa in-memory storage per simulare AsyncStorage.
 
 | Risultato | Count |
 | --------- | ----- |
-| Pass      | 76    |
-| Skip      | 7     |
+| Pass      | 84    |
+| Skip      | 0     |
 | Total     | 84    |
 
-**Note**: 7 test skipped sono per typed flags (getString, getNumber, getJSON) che React Native SDK non implementa (solo boolean flags).
+Typed flags (getString, getNumber, getJSON) implementati nella sessione #9.
 
 ### Conclusione
 
