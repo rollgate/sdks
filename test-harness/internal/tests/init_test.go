@@ -165,13 +165,17 @@ func SetupHarness(services map[string]string) (*harness.Harness, error) {
 	h := harness.New(cfg)
 
 	// Add services - browser-based SDKs use LaunchDarkly protocol
+	// Note: sdk-react-native is NOT a browser SDK - it uses the standard protocol
 	browserSDKs := []string{"sdk-browser", "sdk-react", "sdk-vue", "sdk-svelte", "sdk-angular"}
 	for name, url := range services {
 		isBrowser := false
-		for _, prefix := range browserSDKs {
-			if strings.HasPrefix(name, prefix) {
-				isBrowser = true
-				break
+		// Exclude sdk-react-native from browser detection (it's a mobile SDK)
+		if name != "sdk-react-native" {
+			for _, prefix := range browserSDKs {
+				if strings.HasPrefix(name, prefix) {
+					isBrowser = true
+					break
+				}
 			}
 		}
 		if isBrowser {
