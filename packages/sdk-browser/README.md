@@ -99,8 +99,8 @@ client.on("error", (error) => {
 
 This SDK is the core browser implementation. Framework-specific SDKs wrap this package:
 
-| Framework | Package              | Features                    |
-| --------- | -------------------- | --------------------------- |
+| Framework | Package                 | Features                    |
+| --------- | ----------------------- | --------------------------- |
 | React     | `@rollgate/sdk-react`   | Hooks, Provider, Context    |
 | Vue       | `@rollgate/sdk-vue`     | Composables, Plugin         |
 | Angular   | `@rollgate/sdk-angular` | Service, Module, Directives |

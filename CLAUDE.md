@@ -15,12 +15,12 @@ Questo repo contiene gli SDK client per Rollgate. Le regole generali sono le ste
 
 ## File di Contesto
 
-| File | Scopo | Quando leggere |
-|------|-------|----------------|
-| `CLAUDE.md` | Contesto progetto SDK | Sempre (automatico) |
-| `.claude/session-state.md` | Storico sessioni e stato corrente | Inizio sessione |
-| `docs/SDK-ARCHITECTURE.md` | Architettura SDK | Prima di modificare SDK |
-| `test-harness/CONTRACT_TESTS.md` | Lista 84 contract tests | Per debug test |
+| File                             | Scopo                             | Quando leggere          |
+| -------------------------------- | --------------------------------- | ----------------------- |
+| `CLAUDE.md`                      | Contesto progetto SDK             | Sempre (automatico)     |
+| `.claude/session-state.md`       | Storico sessioni e stato corrente | Inizio sessione         |
+| `docs/SDK-ARCHITECTURE.md`       | Architettura SDK                  | Prima di modificare SDK |
+| `test-harness/CONTRACT_TESTS.md` | Lista 84 contract tests           | Per debug test          |
 
 ---
 
@@ -57,6 +57,7 @@ cd test-harness
 ```
 
 Questo script:
+
 1. Killa processi esistenti sulle porte usate
 2. Avvia la dashboard e apre il browser
 3. Avvia tutti i backend test services (node, go, python, java)
@@ -67,17 +68,17 @@ Dashboard: http://localhost:8080/static/
 
 ### Test Services (porte)
 
-| SDK | Porta | Tipo |
-|-----|-------|------|
-| sdk-node | 8001 | Backend |
-| sdk-go | 8003 | Backend |
-| sdk-python | 8004 | Backend |
-| sdk-java | 8005 | Backend |
-| sdk-browser | 8010 | Frontend (via browser-adapter) |
-| sdk-react | 8010 | Frontend (via browser-adapter) |
-| sdk-vue | 8010 | Frontend (via browser-adapter) |
-| sdk-svelte | 8010 | Frontend (via browser-adapter) |
-| sdk-angular | 8010 | Frontend (via browser-adapter) |
+| SDK         | Porta | Tipo                           |
+| ----------- | ----- | ------------------------------ |
+| sdk-node    | 8001  | Backend                        |
+| sdk-go      | 8003  | Backend                        |
+| sdk-python  | 8004  | Backend                        |
+| sdk-java    | 8005  | Backend                        |
+| sdk-browser | 8010  | Frontend (via browser-adapter) |
+| sdk-react   | 8010  | Frontend (via browser-adapter) |
+| sdk-vue     | 8010  | Frontend (via browser-adapter) |
+| sdk-svelte  | 8010  | Frontend (via browser-adapter) |
+| sdk-angular | 8010  | Frontend (via browser-adapter) |
 
 ### Eseguire Test Singolo SDK
 
