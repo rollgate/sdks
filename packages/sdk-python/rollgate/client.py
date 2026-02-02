@@ -31,6 +31,15 @@ from rollgate.errors import (
     RateLimitError,
     classify_error,
 )
+from rollgate.reasons import (
+    EvaluationReason,
+    EvaluationDetail,
+    EvaluationReasonKind,
+    EvaluationErrorKind,
+    fallthrough_reason,
+    error_reason,
+    unknown_reason,
+)
 
 logger = logging.getLogger("rollgate")
 
@@ -101,6 +110,7 @@ class RollgateClient:
         """
         self._config = config
         self._flags: Dict[str, bool] = {}
+        self._flag_reasons: Dict[str, EvaluationReason] = {}
         self._initialized = False
         self._user_context: Optional[UserContext] = None
         self._circuit_breaker = CircuitBreaker(config.circuit_breaker)
@@ -247,7 +257,7 @@ class RollgateClient:
     async def _fetch_flags(self) -> None:
         """Fetch all flags from the API."""
         url = f"{self._config.base_url}/api/v1/sdk/flags"
-        params = {}
+        params = {"withReasons": "true"}
         if self._user_context:
             params["user_id"] = self._user_context.id
 
@@ -340,6 +350,18 @@ class RollgateClient:
             self._last_etag = etag
 
         data = response.json()
+        # Store reasons if present
+        if "reasons" in data:
+            self._flag_reasons = {
+                k: EvaluationReason(
+                    kind=EvaluationReasonKind(v.get("kind", "UNKNOWN")),
+                    rule_id=v.get("ruleId"),
+                    rule_index=v.get("ruleIndex"),
+                    in_rollout=v.get("inRollout"),
+                    error_kind=EvaluationErrorKind(v["errorKind"]) if v.get("errorKind") else None,
+                )
+                for k, v in data["reasons"].items()
+            }
         return data.get("flags", {})
 
     def _update_flags(self, new_flags: Dict[str, bool]) -> None:
@@ -374,11 +396,56 @@ class RollgateClient:
         Returns:
             True if the flag is enabled
         """
+        return self.is_enabled_detail(flag_key, default_value).value
+
+    def is_enabled_detail(
+        self, flag_key: str, default_value: bool = False
+    ) -> EvaluationDetail[bool]:
+        """
+        Check if a flag is enabled with evaluation reason.
+
+        Args:
+            flag_key: The flag key to check
+            default_value: Default value if flag not found
+
+        Returns:
+            EvaluationDetail containing the value and reason
+        """
         if not self._initialized:
             logger.warning("Client not initialized. Call init() first.")
-            return default_value
+            return EvaluationDetail(
+                value=default_value,
+                reason=error_reason(EvaluationErrorKind.CLIENT_NOT_READY),
+            )
 
-        return self._flags.get(flag_key, default_value)
+        if flag_key not in self._flags:
+            return EvaluationDetail(
+                value=default_value,
+                reason=unknown_reason(),
+            )
+
+        value = self._flags[flag_key]
+        # Use stored reason from server, or FALLTHROUGH as default
+        stored_reason = self._flag_reasons.get(flag_key)
+        return EvaluationDetail(
+            value=value,
+            reason=stored_reason if stored_reason else fallthrough_reason(in_rollout=value),
+        )
+
+    def bool_variation_detail(
+        self, flag_key: str, default_value: bool = False
+    ) -> EvaluationDetail[bool]:
+        """
+        Alias for is_enabled_detail for LaunchDarkly compatibility.
+
+        Args:
+            flag_key: The flag key to check
+            default_value: Default value if flag not found
+
+        Returns:
+            EvaluationDetail containing the value and reason
+        """
+        return self.is_enabled_detail(flag_key, default_value)
 
     def get_all_flags(self) -> Dict[str, bool]:
         """

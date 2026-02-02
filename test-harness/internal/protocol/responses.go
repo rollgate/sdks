@@ -1,5 +1,14 @@
 package protocol
 
+// EvaluationReason explains why a flag evaluated to a particular value.
+type EvaluationReason struct {
+	Kind       string `json:"kind"`                 // OFF, TARGET_MATCH, RULE_MATCH, FALLTHROUGH, ERROR, UNKNOWN
+	RuleID     string `json:"ruleId,omitempty"`     // For RULE_MATCH
+	RuleIndex  *int   `json:"ruleIndex,omitempty"`  // For RULE_MATCH
+	InRollout  *bool  `json:"inRollout,omitempty"`  // Whether user was in rollout percentage
+	ErrorKind  string `json:"errorKind,omitempty"`  // For ERROR
+}
+
 // Response represents a response from a test service.
 type Response struct {
 	// For isEnabled
@@ -9,6 +18,10 @@ type Response struct {
 	StringValue *string     `json:"stringValue,omitempty"`
 	NumberValue *float64    `json:"numberValue,omitempty"`
 	JSONValue   interface{} `json:"jsonValue,omitempty"`
+
+	// For evaluation detail methods
+	Reason      *EvaluationReason `json:"reason,omitempty"`
+	VariationID string            `json:"variationId,omitempty"`
 
 	// For getAllFlags
 	Flags map[string]bool `json:"flags,omitempty"`
@@ -86,4 +99,24 @@ func (r Response) GetSuccess() bool {
 // GetIsReady returns the ready state or false if not present.
 func (r Response) GetIsReady() bool {
 	return r.IsReady != nil && *r.IsReady
+}
+
+// ValueDetailResponse creates a boolean value response with reason.
+func ValueDetailResponse(value bool, reason EvaluationReason) Response {
+	return Response{Value: &value, Reason: &reason}
+}
+
+// StringDetailResponse creates a string value response with reason.
+func StringDetailResponse(value string, reason EvaluationReason) Response {
+	return Response{StringValue: &value, Reason: &reason}
+}
+
+// NumberDetailResponse creates a number value response with reason.
+func NumberDetailResponse(value float64, reason EvaluationReason) Response {
+	return Response{NumberValue: &value, Reason: &reason}
+}
+
+// JSONDetailResponse creates a JSON value response with reason.
+func JSONDetailResponse(value interface{}, reason EvaluationReason) Response {
+	return Response{JSONValue: value, Reason: &reason}
 }

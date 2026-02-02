@@ -31,6 +31,8 @@ import type {
   UserContext,
   RollgateOptions,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser
@@ -38,6 +40,8 @@ export type {
   UserContext,
   RollgateOptions,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -157,6 +161,19 @@ export class RollgateService implements OnDestroy {
       return this.client.isEnabled(flagKey, defaultValue);
     }
     return defaultValue;
+  }
+
+  /**
+   * Check if a flag is enabled with evaluation reason
+   */
+  isEnabledDetail(flagKey: string, defaultValue: boolean = false): EvaluationDetail<boolean> {
+    if (this.client) {
+      return this.client.isEnabledDetail(flagKey, defaultValue);
+    }
+    return {
+      value: defaultValue,
+      reason: { kind: "ERROR", errorKind: "CLIENT_NOT_READY" },
+    };
   }
 
   /**

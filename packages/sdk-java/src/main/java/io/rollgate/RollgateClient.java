@@ -30,6 +30,7 @@ public class RollgateClient implements AutoCloseable {
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private Map<String, Boolean> flags = new HashMap<>();
+    private Map<String, EvaluationReason> flagReasons = new HashMap<>();
     private UserContext user;
     private String lastETag;
 
@@ -100,12 +101,51 @@ public class RollgateClient implements AutoCloseable {
      * Check if a flag is enabled.
      */
     public boolean isEnabled(String flagKey, boolean defaultValue) {
+        return isEnabledDetail(flagKey, defaultValue).getValue();
+    }
+
+    /**
+     * Check if a flag is enabled with evaluation reason.
+     *
+     * @param flagKey      The flag key to check
+     * @param defaultValue Default value if flag not found
+     * @return EvaluationDetail containing the value and reason
+     */
+    public EvaluationDetail<Boolean> isEnabledDetail(String flagKey, boolean defaultValue) {
+        // Check if client is ready
+        if (!ready.get()) {
+            return new EvaluationDetail<>(defaultValue,
+                EvaluationReason.error(EvaluationReason.ErrorKind.CLIENT_NOT_READY));
+        }
+
         lock.readLock().lock();
         try {
-            return flags.getOrDefault(flagKey, defaultValue);
+            // Check if flag exists
+            if (!flags.containsKey(flagKey)) {
+                return new EvaluationDetail<>(defaultValue, EvaluationReason.unknown());
+            }
+
+            boolean value = flags.get(flagKey);
+            // Use stored reason from server, or FALLTHROUGH as default
+            EvaluationReason reason = flagReasons.get(flagKey);
+            if (reason == null) {
+                reason = EvaluationReason.fallthrough(value);
+            }
+            return new EvaluationDetail<>(value, reason);
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    /**
+     * Alias for isEnabledDetail for LaunchDarkly compatibility.
+     *
+     * @param flagKey      The flag key to check
+     * @param defaultValue Default value if flag not found
+     * @return EvaluationDetail containing the value and reason
+     */
+    public EvaluationDetail<Boolean> boolVariationDetail(String flagKey, boolean defaultValue) {
+        return isEnabledDetail(flagKey, defaultValue);
     }
 
     /**
@@ -274,6 +314,8 @@ public class RollgateClient implements AutoCloseable {
         } finally {
             lock.readLock().unlock();
         }
+        // Request evaluation reasons from server
+        urlBuilder.addQueryParameter("withReasons", "true");
 
         Request.Builder requestBuilder = new Request.Builder()
             .url(urlBuilder.build())
@@ -313,9 +355,25 @@ public class RollgateClient implements AutoCloseable {
                         newFlags.put(entry.getKey(), entry.getValue().asBoolean());
                     });
 
+                    // Parse reasons if present
+                    Map<String, EvaluationReason> newReasons = new HashMap<>();
+                    JsonNode reasonsNode = json.get("reasons");
+                    if (reasonsNode != null && reasonsNode.isObject()) {
+                        reasonsNode.fields().forEachRemaining(entry -> {
+                            JsonNode r = entry.getValue();
+                            String kind = r.has("kind") ? r.get("kind").asText() : "UNKNOWN";
+                            String ruleId = r.has("ruleId") ? r.get("ruleId").asText() : null;
+                            Integer ruleIndex = r.has("ruleIndex") ? r.get("ruleIndex").asInt() : null;
+                            Boolean inRollout = r.has("inRollout") ? r.get("inRollout").asBoolean() : null;
+                            String errorKind = r.has("errorKind") ? r.get("errorKind").asText() : null;
+                            newReasons.put(entry.getKey(), EvaluationReason.fromStrings(kind, ruleId, ruleIndex, inRollout, errorKind));
+                        });
+                    }
+
                     lock.writeLock().lock();
                     try {
                         flags = newFlags;
+                        flagReasons = newReasons;
                     } finally {
                         lock.writeLock().unlock();
                     }

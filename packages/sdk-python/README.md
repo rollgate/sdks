@@ -197,15 +197,37 @@ except RollgateError as e:
 
 ### RollgateClient
 
-| Method                           | Description                        |
-| -------------------------------- | ---------------------------------- |
-| `init(user?)`                    | Initialize client and fetch flags  |
-| `is_enabled(flag_key, default?)` | Check if flag is enabled           |
-| `get_all_flags()`                | Get all flags as dictionary        |
-| `identify(user)`                 | Set user context and refresh flags |
-| `reset()`                        | Clear user context                 |
-| `refresh()`                      | Force refresh flags                |
-| `close()`                        | Cleanup resources                  |
+| Method                                  | Description                        |
+| --------------------------------------- | ---------------------------------- |
+| `init(user?)`                           | Initialize client and fetch flags  |
+| `is_enabled(flag_key, default?)`        | Check if flag is enabled           |
+| `is_enabled_detail(flag_key, default?)` | Check flag with evaluation reason  |
+| `get_all_flags()`                       | Get all flags as dictionary        |
+| `identify(user)`                        | Set user context and refresh flags |
+| `reset()`                               | Clear user context                 |
+| `refresh()`                             | Force refresh flags                |
+| `close()`                               | Cleanup resources                  |
+
+### Evaluation Reasons
+
+Get detailed information about why a flag evaluated to a particular value:
+
+```python
+detail = client.is_enabled_detail("my-flag", False)
+print(detail.value)        # bool
+print(detail.reason.kind)  # "OFF", "TARGET_MATCH", "RULE_MATCH", "FALLTHROUGH", "ERROR", "UNKNOWN"
+```
+
+Reason kinds:
+
+| Kind           | Description                        |
+| -------------- | ---------------------------------- |
+| `OFF`          | Flag is disabled                   |
+| `TARGET_MATCH` | User is in the flag's target list  |
+| `RULE_MATCH`   | User matched a targeting rule      |
+| `FALLTHROUGH`  | Default rollout (no rules matched) |
+| `ERROR`        | Error during evaluation            |
+| `UNKNOWN`      | Flag not found                     |
 
 ### UserContext
 
