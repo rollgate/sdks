@@ -107,7 +107,7 @@ class TestReactNativeClient {
   constructor(
     apiKey: string,
     initialContext: UserContext | null,
-    options: RollgateOptions = {}
+    options: RollgateOptions = {},
   ) {
     this.apiKey = apiKey;
     this.userContext = initialContext;
@@ -161,7 +161,7 @@ class TestReactNativeClient {
         this.emit("ready");
       } else {
         this.initRejecter?.(
-          error instanceof Error ? error : new Error(String(error))
+          error instanceof Error ? error : new Error(String(error)),
         );
         throw error;
       }
@@ -293,7 +293,7 @@ class TestReactNativeClient {
     }
     this.pollInterval = setInterval(
       () => this.fetchFlags(),
-      this.options.refreshInterval
+      this.options.refreshInterval,
     );
   }
 
@@ -319,7 +319,7 @@ class TestReactNativeClient {
             const controller = new AbortController();
             const timeoutId = setTimeout(
               () => controller.abort(),
-              this.options.timeout
+              this.options.timeout,
             );
 
             try {
@@ -390,7 +390,7 @@ class TestReactNativeClient {
 
         const oldFlags = new Map(this.flags);
         this.flags = new Map(
-          Object.entries((data as FlagsResponse).flags || {})
+          Object.entries((data as FlagsResponse).flags || {}),
         );
 
         await this.saveToCache();
@@ -437,7 +437,7 @@ let currentApiKey: string | null = null;
 
 async function notifyMockIdentify(
   user: UserContext,
-  apiKey: string
+  apiKey: string,
 ): Promise<void> {
   if (!currentBaseUrl) return;
 
@@ -509,12 +509,16 @@ async function handleCommand(cmd: Command): Promise<Response> {
         currentBaseUrl = cmd.config.baseUrl;
         currentApiKey = cmd.config.apiKey;
 
-        client = new TestReactNativeClient(cmd.config.apiKey, cmd.user || null, {
-          baseUrl: cmd.config.baseUrl,
-          refreshInterval: cmd.config.refreshInterval ?? 0,
-          timeout: cmd.config.timeout ?? 5000,
-          initCanFail: false,
-        });
+        client = new TestReactNativeClient(
+          cmd.config.apiKey,
+          cmd.user || null,
+          {
+            baseUrl: cmd.config.baseUrl,
+            refreshInterval: cmd.config.refreshInterval ?? 0,
+            timeout: cmd.config.timeout ?? 5000,
+            initCanFail: false,
+          },
+        );
 
         if (cmd.user) {
           await notifyMockIdentify(cmd.user, cmd.config.apiKey);
@@ -524,6 +528,7 @@ async function handleCommand(cmd: Command): Promise<Response> {
         return { success: true };
       } catch (err) {
         const error = err as Error;
+        client = null;
         return { error: error.name || "Error", message: error.message };
       }
     }
@@ -606,10 +611,9 @@ async function handleCommand(cmd: Command): Promise<Response> {
 
       const circuitState = client.getCircuitState();
       const cacheStats = client.getCacheStats();
-      const ready = client.isReady();
 
       return {
-        isReady: ready,
+        isReady: client.isReady(),
         circuitState: circuitState,
         cacheStats: {
           hits: Number(cacheStats.hits),
@@ -678,6 +682,19 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[sdk-react-native test-service] Listening on port ${PORT}`);
+});
+
+// Handle unhandled rejections to prevent crashes
+process.on("unhandledRejection", (reason, promise) => {
+  process.stderr.write(
+    `[TestService] Unhandled rejection: ${reason instanceof Error ? reason.message : reason}\n`,
+  );
+  // Don't crash - just log it
+});
+
+process.on("uncaughtException", (error) => {
+  process.stderr.write(`[TestService] Uncaught exception: ${error.message}\n`);
+  // Don't crash - just log it
 });
 
 process.on("SIGINT", () => {
