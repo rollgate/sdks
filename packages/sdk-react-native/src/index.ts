@@ -306,6 +306,69 @@ export function useFlags(flagKeys: string[]): Record<string, boolean> {
 }
 
 /**
+ * Hook to get a string flag value
+ *
+ * @example
+ * ```tsx
+ * const buttonColor = useStringFlag('button-color', 'blue');
+ * ```
+ */
+export function useStringFlag(flagKey: string, defaultValue: string): string {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useStringFlag must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.getString(flagKey, defaultValue);
+  }
+  return defaultValue;
+}
+
+/**
+ * Hook to get a number flag value
+ *
+ * @example
+ * ```tsx
+ * const maxItems = useNumberFlag('max-items', 10);
+ * ```
+ */
+export function useNumberFlag(flagKey: string, defaultValue: number): number {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useNumberFlag must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.getNumber(flagKey, defaultValue);
+  }
+  return defaultValue;
+}
+
+/**
+ * Hook to get a JSON flag value
+ *
+ * @example
+ * ```tsx
+ * const config = useJSONFlag('feature-config', { enabled: false });
+ * ```
+ */
+export function useJSONFlag<T>(flagKey: string, defaultValue: T): T {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useJSONFlag must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.getJSON<T>(flagKey, defaultValue);
+  }
+  return defaultValue;
+}
+
+/**
  * Hook to access the full Rollgate context
  *
  * @example

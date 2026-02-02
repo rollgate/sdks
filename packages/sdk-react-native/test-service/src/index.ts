@@ -61,10 +61,12 @@ interface RollgateOptions {
 
 interface FlagsResponse {
   flags: Record<string, boolean>;
+  flagValues?: Record<string, unknown>;
 }
 
 interface CachedData {
   flags: Record<string, boolean>;
+  flagValues?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -90,6 +92,7 @@ class TestReactNativeClient {
   };
 
   private flags: Map<string, boolean> = new Map();
+  private flagValues: Map<string, unknown> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
   private initResolver: (() => void) | null = null;
@@ -178,6 +181,9 @@ class TestReactNativeClient {
 
         if (age < this.options.cache.staleTtl) {
           this.flags = new Map(Object.entries(data.flags));
+          if (data.flagValues) {
+            this.flagValues = new Map(Object.entries(data.flagValues));
+          }
           this.cacheTimestamp = data.timestamp;
         }
       }
@@ -190,6 +196,7 @@ class TestReactNativeClient {
     try {
       const data: CachedData = {
         flags: Object.fromEntries(this.flags),
+        flagValues: Object.fromEntries(this.flagValues),
         timestamp: Date.now(),
       };
       memoryStorage.set(CACHE_KEY, JSON.stringify(data));
@@ -228,8 +235,34 @@ class TestReactNativeClient {
     return result;
   }
 
+  getValue<T>(flagKey: string, defaultValue: T): T {
+    const value = this.flagValues.get(flagKey);
+
+    if (value === undefined) {
+      return defaultValue;
+    }
+
+    return value as T;
+  }
+
+  getString(flagKey: string, defaultValue: string = ""): string {
+    return this.getValue<string>(flagKey, defaultValue);
+  }
+
+  getNumber(flagKey: string, defaultValue: number = 0): number {
+    return this.getValue<number>(flagKey, defaultValue);
+  }
+
+  getJSON<T>(flagKey: string, defaultValue: T): T {
+    return this.getValue<T>(flagKey, defaultValue);
+  }
+
   allFlags(): Record<string, boolean> {
     return Object.fromEntries(this.flags);
+  }
+
+  allFlagValues(): Record<string, unknown> {
+    return Object.fromEntries(this.flagValues);
   }
 
   async identify(user: UserContext): Promise<void> {
@@ -393,6 +426,13 @@ class TestReactNativeClient {
           Object.entries((data as FlagsResponse).flags || {}),
         );
 
+        // Update typed flag values
+        if ((data as FlagsResponse).flagValues) {
+          this.flagValues = new Map(
+            Object.entries((data as FlagsResponse).flagValues || {}),
+          );
+        }
+
         await this.saveToCache();
 
         for (const [key, value] of this.flags) {
@@ -468,10 +508,16 @@ interface Command {
   user?: UserContext;
   flagKey?: string;
   defaultValue?: boolean;
+  defaultStringValue?: string;
+  defaultNumberValue?: number;
+  defaultJsonValue?: unknown;
 }
 
 interface Response {
   value?: boolean;
+  stringValue?: string;
+  numberValue?: number;
+  jsonValue?: unknown;
   flags?: Record<string, boolean>;
   isReady?: boolean;
   circuitState?: string;
@@ -547,6 +593,54 @@ async function handleCommand(cmd: Command): Promise<Response> {
       const defaultValue = cmd.defaultValue ?? false;
       const value = client.isEnabled(cmd.flagKey, defaultValue);
       return { value };
+    }
+
+    case "getString": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey) {
+        return { error: "ValidationError", message: "flagKey is required" };
+      }
+
+      const defaultValue = cmd.defaultStringValue ?? "";
+      const stringValue = client.getString(cmd.flagKey, defaultValue);
+      return { stringValue };
+    }
+
+    case "getNumber": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey) {
+        return { error: "ValidationError", message: "flagKey is required" };
+      }
+
+      const defaultValue = cmd.defaultNumberValue ?? 0;
+      const numberValue = client.getNumber(cmd.flagKey, defaultValue);
+      return { numberValue };
+    }
+
+    case "getJson": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey) {
+        return { error: "ValidationError", message: "flagKey is required" };
+      }
+
+      const defaultValue = cmd.defaultJsonValue ?? null;
+      const jsonValue = client.getJSON(cmd.flagKey, defaultValue);
+      return { jsonValue };
     }
 
     case "identify": {
