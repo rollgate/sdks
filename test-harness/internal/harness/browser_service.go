@@ -152,6 +152,10 @@ func (bs *BrowserTestService) SendCommand(ctx context.Context, cmd protocol.Comm
 		case protocol.CommandIsEnabled:
 			// Return the default value when SDK is not initialized
 			return protocol.Response{Value: cmd.DefaultValue}, nil
+		case protocol.CommandIsEnabledDetail:
+			// Return the default value with ERROR reason when SDK is not initialized
+			reason := protocol.EvaluationReason{Kind: "ERROR", ErrorKind: "CLIENT_NOT_READY"}
+			return protocol.Response{Value: cmd.DefaultValue, Reason: &reason}, nil
 		case protocol.CommandGetString:
 			return protocol.Response{StringValue: &cmd.DefaultStringValue}, nil
 		case protocol.CommandGetNumber:
@@ -254,6 +258,17 @@ func (bs *BrowserTestService) convertToLDCommand(cmd protocol.Command) map[strin
 			},
 		}
 
+	case protocol.CommandIsEnabledDetail:
+		return map[string]interface{}{
+			"command": "evaluate",
+			"evaluate": map[string]interface{}{
+				"flagKey":      cmd.FlagKey,
+				"valueType":    "bool",
+				"defaultValue": cmd.DefaultValue,
+				"detail":       true,
+			},
+		}
+
 	case protocol.CommandGetString:
 		return map[string]interface{}{
 			"command": "evaluate",
@@ -330,6 +345,37 @@ func (bs *BrowserTestService) convertFromLDResponse(cmdType string, body []byte)
 			if boolVal, ok := val.(bool); ok {
 				response.Value = &boolVal
 			}
+		}
+
+	case protocol.CommandIsEnabledDetail:
+		if val, ok := rawResp["value"]; ok {
+			if boolVal, ok := val.(bool); ok {
+				response.Value = &boolVal
+			}
+		}
+		if reason, ok := rawResp["reason"]; ok {
+			if reasonMap, ok := reason.(map[string]interface{}); ok {
+				response.Reason = &protocol.EvaluationReason{}
+				if kind, ok := reasonMap["kind"].(string); ok {
+					response.Reason.Kind = kind
+				}
+				if ruleId, ok := reasonMap["ruleId"].(string); ok {
+					response.Reason.RuleID = ruleId
+				}
+				if ruleIndex, ok := reasonMap["ruleIndex"].(float64); ok {
+					idx := int(ruleIndex)
+					response.Reason.RuleIndex = &idx
+				}
+				if inRollout, ok := reasonMap["inRollout"].(bool); ok {
+					response.Reason.InRollout = &inRollout
+				}
+				if errorKind, ok := reasonMap["errorKind"].(string); ok {
+					response.Reason.ErrorKind = errorKind
+				}
+			}
+		}
+		if variationId, ok := rawResp["variationId"].(string); ok {
+			response.VariationID = variationId
 		}
 
 	case protocol.CommandGetString:

@@ -10,6 +10,8 @@ import io.rollgate.RollgateClient;
 import io.rollgate.Config;
 import io.rollgate.FlagCache;
 import io.rollgate.UserContext;
+import io.rollgate.EvaluationDetail;
+import io.rollgate.EvaluationReason;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -140,12 +142,16 @@ public class Main {
                     return handleInit(cmd);
                 case "isEnabled":
                     return handleIsEnabled(cmd);
+                case "isEnabledDetail":
+                    return handleIsEnabledDetail(cmd);
                 case "getString":
                     return handleGetString(cmd);
                 case "getNumber":
                     return handleGetNumber(cmd);
                 case "getJson":
                     return handleGetJson(cmd);
+                case "getValueDetail":
+                    return handleGetValueDetail(cmd);
                 case "identify":
                     return handleIdentify(cmd);
                 case "reset":
@@ -268,6 +274,55 @@ public class Main {
 
             response.addProperty("value", value);
             return response;
+        }
+
+        private JsonObject handleIsEnabledDetail(JsonObject cmd) {
+            JsonObject response = new JsonObject();
+
+            if (client == null) {
+                response.addProperty("error", "NotInitializedError");
+                response.addProperty("message", "Client not initialized");
+                return response;
+            }
+
+            if (!cmd.has("flagKey") || cmd.get("flagKey").isJsonNull()) {
+                response.addProperty("error", "ValidationError");
+                response.addProperty("message", "flagKey is required");
+                return response;
+            }
+
+            String flagKey = cmd.get("flagKey").getAsString();
+            boolean defaultValue = cmd.has("defaultValue") && cmd.get("defaultValue").getAsBoolean();
+            EvaluationDetail<Boolean> detail = client.isEnabledDetail(flagKey, defaultValue);
+
+            response.addProperty("value", detail.getValue());
+
+            JsonObject reason = new JsonObject();
+            reason.addProperty("kind", detail.getReason().getKind().name());
+            if (detail.getReason().getRuleId() != null) {
+                reason.addProperty("ruleId", detail.getReason().getRuleId());
+            }
+            if (detail.getReason().getRuleIndex() != null) {
+                reason.addProperty("ruleIndex", detail.getReason().getRuleIndex());
+            }
+            if (detail.getReason().isInRollout() != null) {
+                reason.addProperty("inRollout", detail.getReason().isInRollout());
+            }
+            if (detail.getReason().getErrorKind() != null) {
+                reason.addProperty("errorKind", detail.getReason().getErrorKind().name());
+            }
+            response.add("reason", reason);
+
+            if (detail.getVariationId() != null) {
+                response.addProperty("variationId", detail.getVariationId());
+            }
+
+            return response;
+        }
+
+        private JsonObject handleGetValueDetail(JsonObject cmd) {
+            // For now, Java SDK only supports boolean flags with detail
+            return handleIsEnabledDetail(cmd);
         }
 
         private JsonObject handleGetString(JsonObject cmd) {

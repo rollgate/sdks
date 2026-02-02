@@ -29,6 +29,8 @@ import type {
   UserContext,
   RollgateOptions,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser
@@ -36,6 +38,8 @@ export type {
   UserContext,
   RollgateOptions,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -297,6 +301,36 @@ export function useFlag(
 ): ComputedRef<boolean> {
   const context = injectRollgate();
   return computed(() => context.isEnabled(flagKey, defaultValue));
+}
+
+/**
+ * Composable to check if a flag is enabled with evaluation reason
+ *
+ * @example
+ * ```vue
+ * <script setup>
+ * import { useFlagDetail } from '@rollgate/sdk-vue';
+ * const { value, reason } = useFlagDetail('new-feature', false);
+ * </script>
+ * ```
+ */
+export function useFlagDetail(
+  flagKey: string,
+  defaultValue: boolean = false,
+): ComputedRef<EvaluationDetail<boolean>> {
+  const context = injectRollgate();
+  return computed(() => {
+    if (context.client) {
+      return context.client.isEnabledDetail(flagKey, defaultValue);
+    }
+    return {
+      value: defaultValue,
+      reason: {
+        kind: "ERROR" as const,
+        errorKind: "CLIENT_NOT_READY" as const,
+      },
+    };
+  });
 }
 
 /**

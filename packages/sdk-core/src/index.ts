@@ -100,3 +100,37 @@ export type {
   FlagsChangedEvent,
   ErrorEvent,
 } from "./types";
+
+// Evaluation Reasons
+export {
+  offReason,
+  targetMatchReason,
+  ruleMatchReason,
+  fallthroughReason,
+  errorReason,
+  unknownReason,
+} from "./reasons";
+export type {
+  EvaluationReasonKind,
+  EvaluationReason,
+  EvaluationErrorKind,
+  EvaluationDetail,
+} from "./reasons";
+
+// Analytics Events
+export {
+  createFeatureEvent,
+  createIdentifyEvent,
+  createCustomEvent,
+} from "./events";
+export type {
+  AnalyticsEventKind,
+  BaseAnalyticsEvent,
+  FeatureEvent,
+  IdentifyEvent,
+  CustomEvent,
+  AnalyticsEvent,
+  AnalyticsPayload,
+  EvaluationStats,
+  EventBuffer,
+} from "./events";

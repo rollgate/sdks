@@ -2,6 +2,21 @@ package mock
 
 import "sync"
 
+// EvaluationReason explains why a flag evaluated to a particular value.
+type EvaluationReason struct {
+	Kind       string `json:"kind"`                 // OFF, TARGET_MATCH, RULE_MATCH, FALLTHROUGH, ERROR, UNKNOWN
+	RuleID     string `json:"ruleId,omitempty"`     // For RULE_MATCH
+	RuleIndex  int    `json:"ruleIndex,omitempty"`  // For RULE_MATCH
+	InRollout  bool   `json:"inRollout,omitempty"`  // Whether user was in rollout percentage
+	ErrorKind  string `json:"errorKind,omitempty"`  // For ERROR
+}
+
+// EvaluationResult contains the value and reason for an evaluation.
+type EvaluationResult struct {
+	Value  bool             `json:"value"`
+	Reason EvaluationReason `json:"reason"`
+}
+
 // FlagState represents a flag's configuration.
 type FlagState struct {
 	Key               string            `json:"key"`

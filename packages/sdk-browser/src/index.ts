@@ -28,6 +28,9 @@ import {
   createMetrics,
   createTraceContext,
   getTraceHeaders,
+  fallthroughReason,
+  errorReason,
+  unknownReason,
 } from "@rollgate/sdk-core";
 import type {
   RetryConfig,
@@ -35,10 +38,19 @@ import type {
   CacheConfig,
   SDKMetrics,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-core";
 
 // Re-export types from core
-export type { RetryConfig, CircuitBreakerConfig, CacheConfig, MetricsSnapshot };
+export type {
+  RetryConfig,
+  CircuitBreakerConfig,
+  CacheConfig,
+  MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
+};
 export { CircuitState, CircuitOpenError, RollgateError, ErrorCategory };
 
 /**
@@ -78,6 +90,7 @@ export interface RollgateOptions {
 
 interface FlagsResponse {
   flags: Record<string, boolean>;
+  reasons?: Record<string, EvaluationReason>;
 }
 
 type EventCallback = (...args: unknown[]) => void;
@@ -99,6 +112,7 @@ export class RollgateBrowserClient {
   };
 
   private flags: Map<string, boolean> = new Map();
+  private flagReasons: Map<string, EvaluationReason> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
   private initResolver: (() => void) | null = null;
@@ -229,11 +243,44 @@ export class RollgateBrowserClient {
    * Check if a boolean flag is enabled
    */
   isEnabled(flagKey: string, defaultValue: boolean = false): boolean {
+    return this.isEnabledDetail(flagKey, defaultValue).value;
+  }
+
+  /**
+   * Check if a boolean flag is enabled with evaluation reason
+   */
+  isEnabledDetail(
+    flagKey: string,
+    defaultValue: boolean = false,
+  ): EvaluationDetail<boolean> {
     const startTime = performance.now();
-    const result = this.flags.get(flagKey) ?? defaultValue;
+
+    // Check if client is ready
+    if (!this.initialized) {
+      return {
+        value: defaultValue,
+        reason: errorReason("CLIENT_NOT_READY"),
+      };
+    }
+
+    // Check if flag exists
+    if (!this.flags.has(flagKey)) {
+      return {
+        value: defaultValue,
+        reason: unknownReason(),
+      };
+    }
+
+    const result = this.flags.get(flagKey)!;
     const evaluationTime = performance.now() - startTime;
     this.metrics.recordEvaluation(flagKey, result, evaluationTime);
-    return result;
+
+    // Use stored reason from server, or FALLTHROUGH as default
+    const storedReason = this.flagReasons.get(flagKey);
+    return {
+      value: result,
+      reason: storedReason ?? fallthroughReason(result),
+    };
   }
 
   /**
@@ -241,6 +288,16 @@ export class RollgateBrowserClient {
    */
   boolVariation(flagKey: string, defaultValue: boolean = false): boolean {
     return this.isEnabled(flagKey, defaultValue);
+  }
+
+  /**
+   * Alias for isEnabledDetail (LaunchDarkly compatibility)
+   */
+  boolVariationDetail(
+    flagKey: string,
+    defaultValue: boolean = false,
+  ): EvaluationDetail<boolean> {
+    return this.isEnabledDetail(flagKey, defaultValue);
   }
 
   /**
@@ -394,6 +451,8 @@ export class RollgateBrowserClient {
       if (this.userContext?.id) {
         url.searchParams.set("user_id", this.userContext.id);
       }
+      // Request evaluation reasons from server
+      url.searchParams.set("withReasons", "true");
 
       if (!this.circuitBreaker.isAllowingRequests()) {
         this.useCachedFallback();
@@ -483,6 +542,13 @@ export class RollgateBrowserClient {
         this.flags = new Map(
           Object.entries((data as FlagsResponse).flags || {}),
         );
+
+        // Store reasons from server response
+        if ((data as FlagsResponse).reasons) {
+          this.flagReasons = new Map(
+            Object.entries((data as FlagsResponse).reasons || {}),
+          );
+        }
 
         for (const [key, value] of this.flags) {
           if (oldFlags.get(key) !== value) {

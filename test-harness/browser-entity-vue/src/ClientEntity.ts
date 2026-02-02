@@ -123,28 +123,57 @@ export class ClientEntity {
         }
 
         let value: unknown;
+        let reason: unknown;
+        let variationId: string | undefined;
 
         switch (evalParams.valueType) {
           case ValueType.Bool:
-            value = globalContext.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail && globalContext.client) {
+              const detail = globalContext.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = globalContext.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
             break;
           case ValueType.Int:
           case ValueType.Double:
           case ValueType.String:
             // SDK doesn't support these types yet
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           default:
-            value = globalContext.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail && globalContext.client) {
+              const detail = globalContext.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = globalContext.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
         }
 
-        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}`);
+        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`);
+
+        if (evalParams.detail) {
+          return { value, reason, variationId };
+        }
         return { value };
       }
 

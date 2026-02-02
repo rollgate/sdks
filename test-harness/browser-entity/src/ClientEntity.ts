@@ -10,6 +10,7 @@ import {
   RollgateBrowserClient,
   type RollgateOptions,
   type UserContext,
+  type EvaluationDetail,
 } from "@rollgate/sdk-browser";
 
 import {
@@ -129,31 +130,65 @@ export class ClientEntity {
         }
 
         let value: unknown;
+        let reason: unknown;
+        let variationId: string | undefined;
 
         switch (evalParams.valueType) {
           case ValueType.Bool:
-            value = this.client.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail) {
+              const detail = this.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = this.client.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
             break;
           case ValueType.Int:
           case ValueType.Double:
             // SDK doesn't support number flags yet, return default
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           case ValueType.String:
             // SDK doesn't support string flags yet, return default
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           default:
-            value = this.client.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail) {
+              const detail = this.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = this.client.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
         }
 
-        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}`);
+        log(
+          `[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`,
+        );
+
+        if (evalParams.detail) {
+          return { value, reason, variationId };
+        }
         return { value };
       }
 

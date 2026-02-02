@@ -56,6 +56,18 @@ from rollgate.evaluate import (
     evaluate_flag,
     evaluate_all_flags,
 )
+from rollgate.reasons import (
+    EvaluationReason,
+    EvaluationDetail,
+    EvaluationReasonKind,
+    EvaluationErrorKind,
+    off_reason,
+    target_match_reason,
+    rule_match_reason,
+    fallthrough_reason,
+    error_reason,
+    unknown_reason,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -109,4 +121,15 @@ __all__ = [
     "LocalEvaluator",
     "evaluate_flag",
     "evaluate_all_flags",
+    # Reasons
+    "EvaluationReason",
+    "EvaluationDetail",
+    "EvaluationReasonKind",
+    "EvaluationErrorKind",
+    "off_reason",
+    "target_match_reason",
+    "rule_match_reason",
+    "fallthrough_reason",
+    "error_reason",
+    "unknown_reason",
 ]

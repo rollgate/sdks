@@ -32,16 +32,18 @@ type UserContext struct {
 
 // Supported command types.
 const (
-	CommandInit        = "init"
-	CommandIsEnabled   = "isEnabled"
-	CommandIdentify    = "identify"
-	CommandReset       = "reset"
-	CommandGetAllFlags = "getAllFlags"
-	CommandGetState    = "getState"
-	CommandClose       = "close"
-	CommandGetString   = "getString"
-	CommandGetNumber   = "getNumber"
-	CommandGetJSON     = "getJson"
+	CommandInit              = "init"
+	CommandIsEnabled         = "isEnabled"
+	CommandIsEnabledDetail   = "isEnabledDetail"
+	CommandIdentify          = "identify"
+	CommandReset             = "reset"
+	CommandGetAllFlags       = "getAllFlags"
+	CommandGetState          = "getState"
+	CommandClose             = "close"
+	CommandGetString         = "getString"
+	CommandGetNumber         = "getNumber"
+	CommandGetJSON           = "getJson"
+	CommandGetValueDetail    = "getValueDetail"
 )
 
 // NewInitCommand creates an init command.
@@ -112,6 +114,24 @@ func NewGetNumberCommand(flagKey string, defaultValue float64) Command {
 func NewGetJSONCommand(flagKey string, defaultValue interface{}) Command {
 	return Command{
 		Command:          CommandGetJSON,
+		FlagKey:          flagKey,
+		DefaultJSONValue: defaultValue,
+	}
+}
+
+// NewIsEnabledDetailCommand creates an isEnabledDetail command.
+func NewIsEnabledDetailCommand(flagKey string, defaultValue bool) Command {
+	return Command{
+		Command:      CommandIsEnabledDetail,
+		FlagKey:      flagKey,
+		DefaultValue: &defaultValue,
+	}
+}
+
+// NewGetValueDetailCommand creates a getValueDetail command.
+func NewGetValueDetailCommand(flagKey string, defaultValue interface{}) Command {
+	return Command{
+		Command:          CommandGetValueDetail,
 		FlagKey:          flagKey,
 		DefaultJSONValue: defaultValue,
 	}
