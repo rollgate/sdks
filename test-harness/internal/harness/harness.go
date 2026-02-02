@@ -103,18 +103,20 @@ func (ts *TestService) Cleanup(ctx context.Context) error {
 
 // Harness is the main test orchestrator.
 type Harness struct {
-	mockServer *mock.Server
-	httpServer *http.Server
-	mockURL    string
-	apiKey     string
-	services   []SDKService
+	mockServer        *mock.Server
+	httpServer        *http.Server
+	mockURL           string
+	apiKey            string
+	services          []SDKService
+	externalServerURL string // If set, use external server instead of mock
 }
 
 // Config contains harness configuration.
 type Config struct {
-	MockPort int      // Port for mock server (default: 9000)
-	APIKey   string   // API key for mock server (default: "test-api-key")
-	Services []string // Service URLs (e.g., ["http://localhost:8001", "http://localhost:8002"])
+	MockPort          int      // Port for mock server (default: 9000)
+	APIKey            string   // API key for mock server (default: "test-api-key")
+	Services          []string // Service URLs (e.g., ["http://localhost:8001", "http://localhost:8002"])
+	ExternalServerURL string   // If set, use external server instead of mock (e.g., "http://localhost:3000")
 }
 
 // DefaultConfig returns the default configuration.
@@ -135,12 +137,19 @@ func New(cfg Config) *Harness {
 		cfg.APIKey = "test-api-key"
 	}
 
-	return &Harness{
-		mockServer: mock.NewServer(cfg.APIKey),
-		mockURL:    fmt.Sprintf("http://localhost:%d", cfg.MockPort),
-		apiKey:     cfg.APIKey,
-		services:   make([]SDKService, 0),
+	h := &Harness{
+		mockURL:           fmt.Sprintf("http://localhost:%d", cfg.MockPort),
+		apiKey:            cfg.APIKey,
+		services:          make([]SDKService, 0),
+		externalServerURL: cfg.ExternalServerURL,
 	}
+
+	// Only create mock server if not using external server
+	if cfg.ExternalServerURL == "" {
+		h.mockServer = mock.NewServer(cfg.APIKey)
+	}
+
+	return h
 }
 
 // AddService adds a test service.
@@ -173,8 +182,23 @@ func (h *Harness) GetAPIKey() string {
 	return h.apiKey
 }
 
-// Start starts the mock server.
+// Start starts the mock server (or verifies external server is available).
 func (h *Harness) Start(ctx context.Context) error {
+	// If using external server, just verify it's reachable
+	if h.externalServerURL != "" {
+		fmt.Printf("Using external server: %s\n", h.externalServerURL)
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get(h.externalServerURL + "/health")
+		if err != nil {
+			return fmt.Errorf("external server not reachable: %w", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("external server health check failed: %d", resp.StatusCode)
+		}
+		return nil
+	}
+
 	listener, err := net.Listen("tcp", h.mockURL[7:]) // Remove "http://"
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -248,9 +272,13 @@ func (h *Harness) WaitForServices(ctx context.Context, timeout time.Duration) er
 
 // InitSDKConfig creates a config for SDK initialization.
 func (h *Harness) InitSDKConfig() protocol.Config {
+	baseURL := h.mockURL
+	if h.externalServerURL != "" {
+		baseURL = h.externalServerURL
+	}
 	return protocol.Config{
 		APIKey:          h.apiKey,
-		BaseURL:         h.mockURL,
+		BaseURL:         baseURL,
 		RefreshInterval: 0, // Disable polling for tests
 		EnableStreaming: false,
 		Timeout:         5000,
@@ -323,11 +351,28 @@ func (h *Harness) BroadcastFlagChange(flagKey string, enabled bool) {
 
 // InitSDKConfigWithStreaming creates a config for SDK initialization with streaming enabled.
 func (h *Harness) InitSDKConfigWithStreaming() protocol.Config {
+	baseURL := h.mockURL
+	if h.externalServerURL != "" {
+		baseURL = h.externalServerURL
+	}
 	return protocol.Config{
 		APIKey:          h.apiKey,
-		BaseURL:         h.mockURL,
+		BaseURL:         baseURL,
 		RefreshInterval: 0, // Disable polling
 		EnableStreaming: true,
 		Timeout:         5000,
 	}
+}
+
+// IsUsingExternalServer returns true if using an external server instead of mock.
+func (h *Harness) IsUsingExternalServer() bool {
+	return h.externalServerURL != ""
+}
+
+// GetServerURL returns the server URL (either mock or external).
+func (h *Harness) GetServerURL() string {
+	if h.externalServerURL != "" {
+		return h.externalServerURL
+	}
+	return h.mockURL
 }
