@@ -344,5 +344,30 @@ export function useMetrics(): { metrics: MetricsSnapshot } {
   };
 }
 
+/**
+ * Component that renders children only if flag is enabled
+ *
+ * @example
+ * ```tsx
+ * <Feature flag="new-dashboard" fallback={<OldDashboard />}>
+ *   <NewDashboard />
+ * </Feature>
+ * ```
+ */
+interface FeatureProps {
+  flag: string;
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+export function Feature({
+  flag,
+  children,
+  fallback = null,
+}: FeatureProps): React.ReactElement {
+  const enabled = useFlag(flag);
+  return React.createElement(React.Fragment, null, enabled ? children : fallback);
+}
+
 // Re-export types for backwards compatibility
-export type { RollgateContextValue, RollgateProviderProps };
+export type { RollgateContextValue, RollgateProviderProps, FeatureProps };

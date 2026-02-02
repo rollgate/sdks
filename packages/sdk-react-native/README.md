@@ -50,8 +50,8 @@ function MyComponent() {
   config={{
     apiKey: "sb_client_your_api_key", // Required
     baseUrl: "https://api.rollgate.io", // Optional
-    refreshInterval: 60000, // Polling interval in ms (default: 60000)
-    enableStreaming: false, // Enable SSE for real-time (default: false)
+    refreshInterval: 30000, // Polling interval in ms (default: 30000)
+    timeout: 10000, // Request timeout in ms (default: 10000)
   }}
   user={{
     // Optional: Initial user context
@@ -93,6 +93,41 @@ const { isEnabled, isLoading, isError, identify, reset, refresh, flags } =
   useRollgate();
 ```
 
+### useMetrics
+
+Access SDK metrics:
+
+```tsx
+const { metrics } = useMetrics();
+console.log(metrics.totalRequests, metrics.cacheHitRate);
+```
+
+## Feature Component
+
+Declarative feature flag rendering:
+
+```tsx
+import { Feature } from "@rollgate/sdk-react-native";
+
+function ProductPage() {
+  return (
+    <View>
+      <Text>Product</Text>
+
+      {/* Show children only if flag is enabled */}
+      <Feature flag="new-reviews">
+        <ReviewsSection />
+      </Feature>
+
+      {/* With fallback content */}
+      <Feature flag="ai-recommendations" fallback={<ClassicRecommendations />}>
+        <AIRecommendations />
+      </Feature>
+    </View>
+  );
+}
+```
+
 ## User Identification
 
 ```tsx
@@ -120,12 +155,13 @@ The SDK automatically caches flags in AsyncStorage for offline use:
 
 ## Platform Differences
 
-| Feature          | iOS | Android |
-| ---------------- | --- | ------- |
-| Polling          | Yes | Yes     |
-| SSE Streaming    | Yes | Yes     |
-| AsyncStorage     | Yes | Yes     |
-| Background Fetch | No  | No      |
+| Feature          | iOS | Android | Notes                          |
+| ---------------- | --- | ------- | ------------------------------ |
+| Polling          | Yes | Yes     | Default update method          |
+| AsyncStorage     | Yes | Yes     | Automatic offline cache        |
+| Circuit Breaker  | Yes | Yes     | Fault tolerance built-in       |
+| SSE Streaming    | No  | No      | Use polling instead            |
+| Background Fetch | No  | No      | App must be in foreground      |
 
 ## Documentation
 
