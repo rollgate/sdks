@@ -155,13 +155,13 @@ The SDK automatically caches flags in AsyncStorage for offline use:
 
 ## Platform Differences
 
-| Feature          | iOS | Android | Notes                          |
-| ---------------- | --- | ------- | ------------------------------ |
-| Polling          | Yes | Yes     | Default update method          |
-| AsyncStorage     | Yes | Yes     | Automatic offline cache        |
-| Circuit Breaker  | Yes | Yes     | Fault tolerance built-in       |
-| SSE Streaming    | No  | No      | Use polling instead            |
-| Background Fetch | No  | No      | App must be in foreground      |
+| Feature          | iOS | Android | Notes                     |
+| ---------------- | --- | ------- | ------------------------- |
+| Polling          | Yes | Yes     | Default update method     |
+| AsyncStorage     | Yes | Yes     | Automatic offline cache   |
+| Circuit Breaker  | Yes | Yes     | Fault tolerance built-in  |
+| SSE Streaming    | No  | No      | Use polling instead       |
+| Background Fetch | No  | No      | App must be in foreground |
 
 ## Documentation
 

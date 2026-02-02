@@ -166,7 +166,11 @@ function RollgateCommandHandler({
             };
             // Notify mock server about user context BEFORE SDK identify
             if (globalBaseUrl && globalApiKey) {
-              await notifyMockIdentify(globalBaseUrl, globalApiKey, userContext);
+              await notifyMockIdentify(
+                globalBaseUrl,
+                globalApiKey,
+                userContext,
+              );
             }
             await rollgate.identify(userContext);
           }

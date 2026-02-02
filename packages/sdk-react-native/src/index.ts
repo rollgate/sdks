@@ -366,7 +366,11 @@ export function Feature({
   fallback = null,
 }: FeatureProps): React.ReactElement {
   const enabled = useFlag(flag);
-  return React.createElement(React.Fragment, null, enabled ? children : fallback);
+  return React.createElement(
+    React.Fragment,
+    null,
+    enabled ? children : fallback,
+  );
 }
 
 // Re-export types for backwards compatibility
