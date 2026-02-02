@@ -120,11 +120,24 @@ Verificare allineamento mock server con API reale, completare sdk-react-native, 
 | Circuit breaker | ✅ |
 | Retry logic | ✅ |
 
+### SDK React Native - Contract Test Service (WIP)
+
+Test service creato in `packages/sdk-react-native/test-service/`.
+Usa in-memory storage per simulare AsyncStorage.
+
+| Risultato | Count |
+|-----------|-------|
+| Pass | 24 |
+| Fail | 60 |
+
+**Problema principale**: `isReady` ritorna false dopo init riuscito.
+Richiede debug del flow di inizializzazione.
+
 ### Conclusione
 
-> **Tutti gli 11 SDK sono ora completi:**
+> **Stato attuale:**
 > - 9 SDK testati con 84 contract test ciascuno (756/756 pass)
-> - sdk-react-native completo (non testabile - mobile)
+> - sdk-react-native: SDK completo, test service WIP (24/84 pass)
 > - sdk-core è libreria interna
 
 ---
