@@ -1,0 +1,19 @@
+{
+  "name": "@rollgate/sdk-react-native-test-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Test service for sdk-react-native contract tests",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@rollgate/sdk-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}
