@@ -209,8 +209,30 @@ public class RollgateClient implements AutoCloseable {
         if (pollingTask != null) {
             pollingTask.cancel(true);
         }
+
+        // Shutdown scheduler
         scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        // Shutdown HTTP client dispatcher
         httpClient.dispatcher().executorService().shutdown();
+        try {
+            if (!httpClient.dispatcher().executorService().awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                httpClient.dispatcher().executorService().shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            httpClient.dispatcher().executorService().shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        // Evict all connections
         httpClient.connectionPool().evictAll();
     }
 

@@ -96,6 +96,11 @@ class CircuitBreaker:
         if event in self._callbacks and callback in self._callbacks[event]:
             self._callbacks[event].remove(callback)
 
+    def clear_callbacks(self) -> None:
+        """Clear all callbacks (for cleanup)."""
+        for event in self._callbacks:
+            self._callbacks[event].clear()
+
     def _emit(self, event: str, *args) -> None:
         """Emit an event to all registered callbacks."""
         for callback in self._callbacks.get(event, []):

@@ -310,7 +310,11 @@ export class RollgateBrowserClient {
       this.eventSource = null;
     }
 
+    // Clean up all internal components to prevent memory leaks
     this.cache.close();
+    this.circuitBreaker.removeAllListeners();
+    this.metrics.removeAllListeners();
+    this.dedup.clear();
     this.eventListeners.clear();
   }
 

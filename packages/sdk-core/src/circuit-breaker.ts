@@ -82,6 +82,26 @@ export class CircuitBreaker {
   }
 
   /**
+   * Remove event listener
+   */
+  off(event: string, handler: CircuitEventHandler): void {
+    const handlers = this.eventHandlers.get(event);
+    if (handlers) {
+      const index = handlers.indexOf(handler);
+      if (index !== -1) {
+        handlers.splice(index, 1);
+      }
+    }
+  }
+
+  /**
+   * Remove all event listeners (for cleanup)
+   */
+  removeAllListeners(): void {
+    this.eventHandlers.clear();
+  }
+
+  /**
    * Emit event
    */
   private emit(event: string, data?: CircuitEventData): void {

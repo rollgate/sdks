@@ -944,6 +944,11 @@ export class RollgateClient extends EventEmitter {
     // Close cache (persists if configured)
     this.cache.close();
 
+    // Clean up all internal components to prevent memory leaks
+    this.circuitBreaker.removeAllListeners();
+    this.metrics.removeAllListeners();
+    this.dedup.clear();
+
     this.removeAllListeners();
   }
 
