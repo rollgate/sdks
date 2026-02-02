@@ -68,10 +68,12 @@ export interface RollgateOptions {
 
 interface FlagsResponse {
   flags: Record<string, boolean>;
+  flagValues?: Record<string, unknown>;
 }
 
 interface CachedData {
   flags: Record<string, boolean>;
+  flagValues?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -99,6 +101,7 @@ export class RollgateReactNativeClient {
   };
 
   private flags: Map<string, boolean> = new Map();
+  private flagValues: Map<string, unknown> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
   private initResolver: (() => void) | null = null;
@@ -202,6 +205,9 @@ export class RollgateReactNativeClient {
         // Check if cache is still valid
         if (age < this.options.cache.staleTtl) {
           this.flags = new Map(Object.entries(data.flags));
+          if (data.flagValues) {
+            this.flagValues = new Map(Object.entries(data.flagValues));
+          }
           this.cacheTimestamp = data.timestamp;
         }
       }
@@ -218,6 +224,7 @@ export class RollgateReactNativeClient {
     try {
       const data: CachedData = {
         flags: Object.fromEntries(this.flags),
+        flagValues: Object.fromEntries(this.flagValues),
         timestamp: Date.now(),
       };
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -274,10 +281,51 @@ export class RollgateReactNativeClient {
   }
 
   /**
+   * Get a typed flag value
+   */
+  getValue<T>(flagKey: string, defaultValue: T): T {
+    const value = this.flagValues.get(flagKey);
+
+    if (value === undefined) {
+      return defaultValue;
+    }
+
+    return value as T;
+  }
+
+  /**
+   * Get a string flag value
+   */
+  getString(flagKey: string, defaultValue: string = ""): string {
+    return this.getValue<string>(flagKey, defaultValue);
+  }
+
+  /**
+   * Get a number flag value
+   */
+  getNumber(flagKey: string, defaultValue: number = 0): number {
+    return this.getValue<number>(flagKey, defaultValue);
+  }
+
+  /**
+   * Get a JSON flag value
+   */
+  getJSON<T>(flagKey: string, defaultValue: T): T {
+    return this.getValue<T>(flagKey, defaultValue);
+  }
+
+  /**
    * Get all flags as an object
    */
   allFlags(): Record<string, boolean> {
     return Object.fromEntries(this.flags);
+  }
+
+  /**
+   * Get all typed flag values as an object
+   */
+  allFlagValues(): Record<string, unknown> {
+    return Object.fromEntries(this.flagValues);
   }
 
   /**
@@ -464,6 +512,13 @@ export class RollgateReactNativeClient {
         this.flags = new Map(
           Object.entries((data as FlagsResponse).flags || {}),
         );
+
+        // Update typed flag values
+        if ((data as FlagsResponse).flagValues) {
+          this.flagValues = new Map(
+            Object.entries((data as FlagsResponse).flagValues || {}),
+          );
+        }
 
         // Save to cache
         await this.saveToCache();
