@@ -1,11 +1,10 @@
 #!/bin/bash
 # Test All SDKs - Esegue i 84 contract test su tutti gli SDK
 #
-# Backend SDKs: sdk-node, sdk-go, sdk-python, sdk-java (4 SDK)
+# Backend SDKs: sdk-node, sdk-go, sdk-python, sdk-java, sdk-react-native (5 SDK)
 # Frontend SDKs: sdk-browser, sdk-react, sdk-vue, sdk-svelte, sdk-angular (5 SDK)
-# Non testabile: sdk-react-native (mobile)
 #
-# Totale: 9 SDK x 84 test = 756 test
+# Totale: 10 SDK x 84 test = 840 test
 
 set -e
 
@@ -22,7 +21,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║       Rollgate SDK Contract Test Suite - All SDKs          ║${NC}"
-echo -e "${BLUE}║                    9 SDK × 84 tests = 756                   ║${NC}"
+echo -e "${BLUE}║                   10 SDK × 84 tests = 840                   ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -66,8 +65,8 @@ kill_and_wait() {
 # Funzione per killare tutti i processi sulle porte usate
 kill_all_ports() {
     echo -e "${YELLOW}Killing processes on required ports...${NC}"
-    # Backend ports
-    for port in 8001 8003 8004 8005; do
+    # Backend ports (node, go, python, java, react-native)
+    for port in 8001 8003 8004 8005 8006; do
         kill_and_wait $port
     done
     # Frontend/browser adapter port
@@ -158,13 +157,18 @@ echo -e "  Starting sdk-java on port 8005..."
 cd "$ROOT_DIR/packages/sdk-java/test-service"
 PORT=8005 java -jar target/rollgate-sdk-test-service-0.1.0-shaded.jar > /tmp/sdk-java.log 2>&1 &
 
+# sdk-react-native (porta 8006)
+echo -e "  Starting sdk-react-native on port 8006..."
+cd "$ROOT_DIR/packages/sdk-react-native/test-service"
+PORT=8006 node dist/index.js > /tmp/sdk-react-native.log 2>&1 &
+
 # Attendi avvio
 echo -e "  Waiting for services to start..."
 sleep 5
 
 # Verifica servizi
 echo -e "  Verifying services..."
-for port in 8001 8003 8004 8005; do
+for port in 8001 8003 8004 8005 8006; do
     if curl -s "http://localhost:$port" > /dev/null 2>&1; then
         echo -e "    ${GREEN}✓ Port $port OK${NC}"
     else
@@ -195,6 +199,10 @@ echo -e "  ${GREEN}✓ sdk-python complete${NC}"
 echo -e "\n  ${BLUE}Testing sdk-java...${NC}"
 TEST_SERVICES="sdk-java=http://localhost:8005" ./runner.exe sdk-java ./internal/tests/... -count=1
 echo -e "  ${GREEN}✓ sdk-java complete${NC}"
+
+echo -e "\n  ${BLUE}Testing sdk-react-native...${NC}"
+TEST_SERVICES="sdk-react-native=http://localhost:8006" ./runner.exe sdk-react-native ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-react-native complete${NC}"
 
 echo -e "\n${GREEN}✓ All backend SDK tests complete${NC}"
 
@@ -227,9 +235,9 @@ for i in "${!FRONTEND_SDKS[@]}"; do
     PORT=8010 WS_PORT=8011 node dist/index.js > /tmp/browser-adapter.log 2>&1 &
     sleep 2
 
-    # Start browser entity
+    # Start browser entity with WebSocket port
     cd "$ENTITY_DIR"
-    npm run dev -- --port $VITE_PORT > /tmp/browser-entity-$SDK.log 2>&1 &
+    VITE_WS_PORT=8011 npm run dev -- --port $VITE_PORT > /tmp/browser-entity-$SDK.log 2>&1 &
     sleep 3
 
     # Open browser
