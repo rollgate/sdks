@@ -31,6 +31,8 @@ client: Optional[RollgateClient] = None
 current_base_url: Optional[str] = None
 current_api_key: Optional[str] = None
 shared_http_client: Optional[httpx.AsyncClient] = None
+# Shared httpx client for SDK instances - avoids TCP connection overhead per test
+shared_sdk_http_client: Optional[httpx.AsyncClient] = None
 
 
 async def notify_mock_identify(user: UserContext, api_key: str) -> None:
@@ -56,6 +58,16 @@ async def notify_mock_identify(user: UserContext, api_key: str) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create shared SDK HTTP client at startup for connection reuse across tests
+    global shared_sdk_http_client
+    shared_sdk_http_client = httpx.AsyncClient(
+        timeout=10.0,
+        limits=httpx.Limits(
+            max_connections=10,
+            max_keepalive_connections=5,
+            keepalive_expiry=30,
+        ),
+    )
     yield
     # Cleanup on shutdown
     global client, shared_http_client
@@ -65,6 +77,9 @@ async def lifespan(app: FastAPI):
     if shared_http_client:
         await shared_http_client.aclose()
         shared_http_client = None
+    if shared_sdk_http_client:
+        await shared_sdk_http_client.aclose()
+        shared_sdk_http_client = None
 
 app = FastAPI(lifespan=lifespan)
 
@@ -154,7 +169,7 @@ async def handle_command(cmd: dict) -> dict:
                 # Notify mock about user context before init (for remote evaluation)
                 await notify_mock_identify(user, current_api_key)
 
-            client = RollgateClient(config)
+            client = RollgateClient(config, http_client=shared_sdk_http_client)
             await client.init(user)
 
             return make_response(success=True)

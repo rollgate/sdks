@@ -4,7 +4,6 @@
  * Uses createRollgate stores to execute commands from test harness.
  * Svelte stores work without needing actual Svelte components mounted.
  */
-import { get } from "svelte/store";
 import {
   createRollgate,
   type RollgateConfig,
@@ -88,18 +87,29 @@ let globalApiKey: string | undefined;
  */
 export class ClientEntity {
   private stores: RollgateStores | null = null;
+  private cachedFlags: Record<string, boolean> = {};
+  private unsubFlags: (() => void) | null = null;
 
   constructor(private readonly tag: string) {}
 
   setStores(stores: RollgateStores): void {
     this.stores = stores;
+    // Persistent subscription avoids get() subscribe/unsubscribe overhead per call
+    this.unsubFlags = stores.flags.subscribe((flags) => {
+      this.cachedFlags = flags;
+    });
   }
 
   close(): void {
+    if (this.unsubFlags) {
+      this.unsubFlags();
+      this.unsubFlags = null;
+    }
     if (this.stores) {
       this.stores.close();
       this.stores = null;
     }
+    this.cachedFlags = {};
     log(`[${this.tag}] Client closed`);
   }
 
@@ -173,8 +183,7 @@ export class ClientEntity {
       }
 
       case CommandType.EvaluateAllFlags: {
-        const flags = get(this.stores.flags);
-        return { state: flags };
+        return { state: this.cachedFlags };
       }
 
       case CommandType.IdentifyEvent: {

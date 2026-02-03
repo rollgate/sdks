@@ -13,6 +13,14 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 DASHBOARD_DIR="$SCRIPT_DIR/dashboard"
 
+# Add Dart SDK to PATH if not already available
+if ! command -v dart &> /dev/null; then
+    DART_SDK_DIR="$HOME/AppData/Local/Microsoft/WinGet/Packages/Google.DartSDK_Microsoft.Winget.Source_8wekyb3d8bbwe/dart-sdk"
+    if [ -d "$DART_SDK_DIR" ]; then
+        export PATH="$DART_SDK_DIR/bin:$PATH"
+    fi
+fi
+
 # Colori
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -95,6 +103,9 @@ cleanup() {
     pkill -f "dotnet run" 2>/dev/null || true
     # Kill dart processes (for sdk-flutter)
     pkill -f "dart run" 2>/dev/null || true
+    # Kill Playwright browser processes
+    pkill -f "open-browser" 2>/dev/null || true
+    pkill -f "chromium" 2>/dev/null || true
     # Free all ports
     kill_all_ports
 }
@@ -168,13 +179,15 @@ cd "$ROOT_DIR/packages/sdk-react-native/test-service"
 PORT=8006 node dist/index.js > /tmp/sdk-react-native.log 2>&1 &
 
 # sdk-dotnet (porta 8007)
-echo -e "  Starting sdk-dotnet on port 8007..."
+echo -e "  Building and starting sdk-dotnet on port 8007..."
 cd "$ROOT_DIR/packages/sdk-dotnet/test-service"
+dotnet build -c Debug -q > /dev/null 2>&1
 PORT=8007 dotnet run --no-build > /tmp/sdk-dotnet.log 2>&1 &
 
 # sdk-flutter (porta 8008)
 echo -e "  Starting sdk-flutter on port 8008..."
 cd "$ROOT_DIR/packages/sdk-flutter/test-service"
+dart pub get --no-precompile > /dev/null 2>&1
 PORT=8008 dart run bin/server.dart > /tmp/sdk-flutter.log 2>&1 &
 
 # Attendi avvio
@@ -247,6 +260,11 @@ for i in "${!FRONTEND_SDKS[@]}"; do
     fi
 
     echo -e "\n  ${BLUE}Testing sdk-$SDK...${NC}"
+
+    # Kill previous Playwright browser processes to prevent resource accumulation
+    pkill -f "open-browser" 2>/dev/null || true
+    pkill -f "chromium" 2>/dev/null || true
+    sleep 1
 
     # Kill processes on browser/adapter ports and wait for them to be free
     kill_and_wait 8010
