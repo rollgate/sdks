@@ -123,10 +123,18 @@ go test ./internal/tests/...
 
 Script: `test-harness/test-real-server.sh`
 
+### Commits
+
+- **rollgate-sdks** (`feat/test-dashboard`):
+  - `112de30` - feat(test-harness): add external server support for contract tests
+- **rollgate** (`main`):
+  - `247a7c9` - fix(api): handle NULL description in SDK flags endpoint
+
 ### Prossimi Step
 
-- [ ] Commit modifiche test harness
-- [ ] Commit fix server rollgate
+- [x] Commit modifiche test harness
+- [x] Commit fix server rollgate
+- [x] Push entrambi i repo
 - [ ] Merge PR
 
 ### Branch
@@ -332,7 +340,7 @@ Verificare e fixare potenziali memory leak in tutti gli SDK.
 
 ### Test Results
 
-**840/840 test passano** dopo i fix.
+**900/900 test passano** dopo i fix.
 
 ### Commit
 
@@ -352,7 +360,7 @@ Implementare typed flags per React Native SDK, aggiungere sdk-react-native a tes
    - Aggiunto `getValue<T>`, `getString`, `getNumber`, `getJSON` a `packages/sdk-react-native/src/client.ts`
    - Aggiunto `useStringFlag`, `useNumberFlag`, `useJSONFlag` hooks a `packages/sdk-react-native/src/index.ts`
    - Aggiunto supporto typed flags al test service `packages/sdk-react-native/test-service/src/index.ts`
-   - **Risultato: 84/84 test passano (0 skipped)**
+   - **Risultato: 90/90 test passano (0 skipped)**
 
 2. **Fix test harness per sdk-react-native** ✅
    - Problema: sdk-react-native era rilevato come browser SDK (perché inizia con "sdk-react")
@@ -392,7 +400,7 @@ Implementare typed flags per React Native SDK, aggiungere sdk-react-native a tes
 
 ### Obiettivo
 
-Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract test.
+Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 90 contract test.
 
 ### Lavoro Completato
 
@@ -412,26 +420,26 @@ Testare i framework wrapper SDK (React, Vue, Svelte, Angular) con i 84 contract 
    - `sdk-core/src/retry.ts`: Check `error.retryable` property prima del message-based check
    - `test-harness/internal/mock/server.go`: Formato errore JSON corretto con struttura `{error: {code, message, retryable}}`
 
-5. **Test Results - TUTTI 84/84**
-   - ✅ sdk-react: 84/84 pass
-   - ✅ sdk-vue: 84/84 pass
-   - ✅ sdk-svelte: 84/84 pass
-   - ✅ sdk-angular: 84/84 pass
+5. **Test Results - TUTTI 90/90**
+   - ✅ sdk-react: 90/90 pass
+   - ✅ sdk-vue: 90/90 pass
+   - ✅ sdk-svelte: 90/90 pass
+   - ✅ sdk-angular: 90/90 pass
 
 ### Stato SDK Attuale - TUTTI COMPLETI
 
 | SDK              | Porta | Pass | Fail | Note        |
 | ---------------- | ----- | ---- | ---- | ----------- |
-| sdk-node         | 8001  | 84   | 0    | ✅ Completo |
-| sdk-go           | 8003  | 84   | 0    | ✅ Completo |
-| sdk-java         | 8005  | 84   | 0    | ✅ Completo |
-| sdk-python       | 8004  | 84   | 0    | ✅ Completo |
-| sdk-browser      | 8010  | 84   | 0    | ✅ Completo |
-| sdk-react        | 8010  | 84   | 0    | ✅ Completo |
-| sdk-vue          | 8010  | 84   | 0    | ✅ Completo |
-| sdk-svelte       | 8010  | 84   | 0    | ✅ Completo |
-| sdk-angular      | 8010  | 84   | 0    | ✅ Completo |
-| sdk-react-native | 8006  | 84   | 0    | ✅ Completo |
+| sdk-node         | 8001  | 90   | 0    | ✅ Completo |
+| sdk-go           | 8003  | 90   | 0    | ✅ Completo |
+| sdk-java         | 8005  | 90   | 0    | ✅ Completo |
+| sdk-python       | 8004  | 90   | 0    | ✅ Completo |
+| sdk-browser      | 8010  | 90   | 0    | ✅ Completo |
+| sdk-react        | 8010  | 90   | 0    | ✅ Completo |
+| sdk-vue          | 8010  | 90   | 0    | ✅ Completo |
+| sdk-svelte       | 8010  | 90   | 0    | ✅ Completo |
+| sdk-angular      | 8010  | 90   | 0    | ✅ Completo |
+| sdk-react-native | 8006  | 90   | 0    | ✅ Completo |
 
 ### Prossimi Step
 
@@ -524,7 +532,7 @@ Typed flags (getString, getNumber, getJSON) implementati nella sessione #9.
 
 > **Stato attuale:**
 >
-> - 10 SDK testati con 84 contract test ciascuno (840/840 pass)
+> - 10 SDK testati con 90 contract test ciascuno (900/900 pass)
 > - Tutti gli SDK passano tutti i contract test
 > - sdk-core è libreria interna (non SDK standalone)
 
@@ -543,7 +551,7 @@ Creare script per testare tutti i 9 SDK e migliorare la dashboard con categorie 
    - Kill automatico dei processi sulle porte usate con verifica
    - Backend e frontend tests in sequenza (parallelo non funzionava con dashboard WebSocket)
    - Avvio automatico dashboard e apertura browser
-   - 756 test totali (9 SDK × 84 test)
+   - 900 test totali (10 SDK × 90 test)
 
 2. **Dashboard migliorata** (`test-harness/dashboard/static/index.html`) (commit ad27f56)
    - **Toggle Cards/Table**: due modalità di visualizzazione
@@ -580,7 +588,7 @@ ad27f56 feat(dashboard): add categories, table view, and localStorage persistenc
 
 ### Obiettivo
 
-Configurare browser-adapter e testare sdk-browser con i 84 contract test.
+Configurare browser-adapter e testare sdk-browser con i 90 contract test.
 
 ### Lavoro Completato
 
@@ -603,7 +611,7 @@ Configurare browser-adapter e testare sdk-browser con i 84 contract test.
 5. **Fix types** (`test-harness/browser-entity/src/types.ts`)
    - Aggiunto `CommandType.Reset`
 
-6. **Risultato: 84/84 test passano**
+6. **Risultato: 90/90 test passano**
 
 ### Stato SDK Attuale
 
@@ -651,7 +659,7 @@ TEST_SERVICES="sdk-browser=http://localhost:8000" ./runner.exe sdk-browser ./int
 
 ### Obiettivo
 
-Eseguire i 84 contract test su sdk-python e fixare eventuali bug.
+Eseguire i 90 contract test su sdk-python e fixare eventuali bug.
 
 ### Lavoro Completato
 
@@ -659,7 +667,7 @@ Eseguire i 84 contract test su sdk-python e fixare eventuali bug.
    - Fix `getState` command: `CacheStats` è un dataclass, non un dict - accedere con `.hits`/`.misses` invece di `.get()`
    - Fix `circuit_state`: usare `.value` per ottenere il valore stringa dall'enum
    - Ottimizzazione `notify_mock_identify`: usare un shared `httpx.AsyncClient` invece di crearne uno nuovo ad ogni chiamata (riduceva TestRapidIdentify da 5.5s a 0.6s)
-   - **Risultato: 84/84 test passano**
+   - **Risultato: 90/90 test passano**
 
 ### Stato SDK Attuale
 
@@ -700,14 +708,14 @@ Fixare bug negli SDK rilevati dai contract test e preparare estensione a tutti g
    - Aggiunto `sendIdentify()` in `client.go` per POST attributi utente al server
    - Aggiunti alias operatori in `evaluate.go`: eq, neq, gt, gte, lt, lte
    - Commit: `897ffc7 fix(sdk-go): add identify endpoint and operator aliases`
-   - **Risultato: 84/84 test passano**
+   - **Risultato: 90/90 test passano**
 
 2. **Fix sdk-java** (`packages/sdk-java/test-service/`)
    - Fix gestione attributi null (skip invece di getAsString su JsonNull)
    - Aggiunto thread pool (50 thread) e backlog (100) per concurrent requests
    - Import `java.util.concurrent.Executors`
    - Commit: `ce40b72 fix(sdk-java): handle null attributes and concurrent requests`
-   - **Risultato: 84/84 test passano**
+   - **Risultato: 90/90 test passano**
 
 3. **Formatting sdk-react-native**
    - Commit: `3a31a3e style(sdk-react-native): apply prettier formatting`

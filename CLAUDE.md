@@ -20,7 +20,7 @@ Questo repo contiene gli SDK client per Rollgate. Le regole generali sono le ste
 | `CLAUDE.md`                      | Contesto progetto SDK             | Sempre (automatico)     |
 | `.claude/session-state.md`       | Storico sessioni e stato corrente | Inizio sessione         |
 | `docs/SDK-ARCHITECTURE.md`       | Architettura SDK                  | Prima di modificare SDK |
-| `test-harness/CONTRACT_TESTS.md` | Lista 84 contract tests           | Per debug test          |
+| `test-harness/CONTRACT_TESTS.md` | Lista 90 contract tests           | Per debug test          |
 
 ---
 
@@ -41,7 +41,7 @@ packages/
   sdk-react-native/ → @rollgate/sdk-react-native
 test-harness/      → Cross-SDK contract tests (Go)
   dashboard/       → Real-time test monitoring
-  internal/        → Test suite (84 tests)
+  internal/        → Test suite (90 tests)
 ```
 
 ---
@@ -110,7 +110,7 @@ go run main.go
 
 - Mantieni API consistente tra tutti gli SDK
 - Ogni nuova feature va implementata in TUTTI gli SDK
-- Ogni SDK deve passare i 84 contract tests
+- Ogni SDK deve passare i 90 contract tests
 - Test services in `packages/sdk-*/test-service/`
 - **sdk-react/vue/angular/svelte DEVONO wrappare sdk-browser** (non implementare logica HTTP/cache)
 

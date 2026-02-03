@@ -77,6 +77,22 @@
     .matrix tfoot .summary-fail { color: #f85149; }
 
     .hidden { display: none; }
+
+    /* SDK type sections */
+    .sdk-section { margin-bottom: 24px; }
+    .sdk-section-header { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; padding: 8px 0; margin-bottom: 12px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 8px; }
+    .sdk-section-header .section-icon { font-size: 16px; }
+    .sdk-section .grid { margin-bottom: 0; }
+
+    /* SDK type badge */
+    .sdk-badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .badge-backend { background: rgba(56, 139, 253, 0.2); color: #58a6ff; }
+    .badge-frontend { background: rgba(163, 113, 247, 0.2); color: #bc8cff; }
+    .badge-mobile { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+
+    /* Table SDK type header */
+    .matrix .sdk-type-header th { background: #1c2128; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; padding: 4px 8px; border-bottom: 2px solid #30363d; position: sticky; top: 0; z-index: 11; }
+    .matrix thead tr:nth-child(2) th { top: 29px; }
   </style>
 </head>
 <body>
@@ -91,12 +107,12 @@
   </div>
 
   <!-- Cards View -->
-  <div class="grid" id="cards-view"></div>
+  <div id="cards-view"></div>
 
   <!-- Table View -->
   <div class="table-container hidden" id="table-view">
     <table class="matrix" id="matrix">
-      <thead><tr><th class="test-name">Test</th></tr></thead>
+      <thead><tr class="sdk-type-header"><th class="test-name"></th></tr><tr><th class="test-name">Test</th></tr></thead>
       <tbody></tbody>
       <tfoot><tr><td class="test-name"><strong>Total</strong></td></tr></tfoot>
     </table>
@@ -115,8 +131,30 @@
       'Operators': ['OperatorEq', 'OperatorNeq', 'OperatorContains', 'OperatorStartsWith', 'OperatorEndsWith', 'OperatorGt', 'OperatorLte', 'OperatorIn', 'OperatorNotIn', 'OperatorRegex', 'OperatorSemverGt', 'OperatorSemverEq', 'CombinedOperators', 'MissingAttribute'],
       'Resilience': ['CircuitBreakerOpens', 'CircuitBreakerFallback', 'CacheFallback', 'RetryOnTransientFailure', 'ServerRecovery', 'DefaultValueOnError', 'GetStateReportsCircuitInfo', 'CacheStatsTracking'],
       'SSE Streaming': ['SSEConnectionEstablished', 'SSEInitialFlags', 'SSEFlagUpdate', 'SSEFallbackToPolling', 'SSEDisconnectRecovery', 'SSEWithPollingDisabled', 'MultipleSSEClients'],
+      'Evaluation Reasons': ['ReasonFallthrough', 'ReasonUnknown', 'ReasonOff', 'ReasonTargetMatch', 'ReasonValueConsistency', 'ReasonHasKind'],
       'Typed Flags': ['GetStringFlag', 'GetStringFlagDefault', 'GetNumberFlag', 'GetNumberFlagDefault', 'GetJSONFlag', 'GetJSONFlagDefault', 'TypeMismatch', 'AllTypedFlagsNotSupported']
     };
+
+    // SDK type categories
+    const SDK_TYPES = {
+      'Backend':  { icon: '⚙️', sdks: ['sdk-node', 'sdk-go', 'sdk-python', 'sdk-java'], badge: 'badge-backend' },
+      'Frontend': { icon: '🌐', sdks: ['sdk-browser', 'sdk-react', 'sdk-vue', 'sdk-svelte', 'sdk-angular'], badge: 'badge-frontend' },
+      'Mobile':   { icon: '📱', sdks: ['sdk-react-native'], badge: 'badge-mobile' },
+    };
+
+    function getSDKType(sdkName) {
+      for (const [type, info] of Object.entries(SDK_TYPES)) {
+        if (info.sdks.includes(sdkName)) return type;
+      }
+      return 'Other';
+    }
+
+    function getSDKBadgeClass(sdkName) {
+      for (const info of Object.values(SDK_TYPES)) {
+        if (info.sdks.includes(sdkName)) return info.badge;
+      }
+      return 'badge-backend';
+    }
 
     // Reverse lookup: test name -> category
     const testToCategory = {};
@@ -174,6 +212,8 @@
       sdkOrder.length = 0;
       allTests.clear();
       cardsContainer.innerHTML = '';
+      const thead = document.querySelector('#matrix thead');
+      thead.innerHTML = '<tr class="sdk-type-header"><th class="test-name"></th></tr><tr><th class="test-name">Test</th></tr>';
       renderTable();
     }
 
@@ -212,7 +252,7 @@
       const s = sdks[sdk];
 
       if (type === 'start') {
-        s.total = total || 84;
+        s.total = total || 90;
         s.passed = s.failed = s.skipped = 0;
         s.tests = {};
       } else if (type === 'test') {
@@ -231,17 +271,53 @@
     }
 
     // === Cards View ===
+    function ensureSDKSection(sdkType) {
+      let section = document.getElementById(`section-${sdkType}`);
+      if (!section) {
+        const info = SDK_TYPES[sdkType] || { icon: '📦' };
+        section = document.createElement('div');
+        section.className = 'sdk-section';
+        section.id = `section-${sdkType}`;
+        section.innerHTML = `
+          <div class="sdk-section-header">
+            <span class="section-icon">${info.icon}</span>
+            <span>${sdkType}</span>
+          </div>
+          <div class="grid" id="grid-${sdkType}"></div>
+        `;
+        // Insert sections in order: Backend, Frontend, Mobile
+        const typeOrder = Object.keys(SDK_TYPES);
+        const targetIndex = typeOrder.indexOf(sdkType);
+        const existingSections = cardsContainer.querySelectorAll('.sdk-section');
+        let inserted = false;
+        for (const existing of existingSections) {
+          const existingType = existing.id.replace('section-', '');
+          if (typeOrder.indexOf(existingType) > targetIndex) {
+            cardsContainer.insertBefore(section, existing);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) cardsContainer.appendChild(section);
+      }
+      return section.querySelector('.grid');
+    }
+
     function renderSDKCard(name) {
+      const sdkType = getSDKType(name);
+      const badgeClass = getSDKBadgeClass(name);
+      const grid = ensureSDKSection(sdkType);
+
       const div = document.createElement('div');
       div.className = 'sdk';
       div.id = `sdk-${name}`;
       div.innerHTML = `
-        <h2><span class="icon">📦</span>${name}</h2>
+        <h2><span class="sdk-badge ${badgeClass}">${sdkType}</span>${name.replace('sdk-', '')}</h2>
         <div class="progress"><div class="progress-bar" style="width:0%;background:#238636"></div></div>
         <div class="stats"><span class="pass">✓ 0</span><span class="fail">✗ 0</span><span class="skip">○ 0</span></div>
         <div class="tests"></div>
       `;
-      cardsContainer.appendChild(div);
+      grid.appendChild(div);
     }
 
     function updateSDKCard(name) {
@@ -315,13 +391,36 @@
     // === Table View ===
     function renderTable() {
       const table = document.getElementById('matrix');
-      const thead = table.querySelector('thead tr');
+      const thead = table.querySelector('thead');
       const tbody = table.querySelector('tbody');
       const tfoot = table.querySelector('tfoot tr');
 
+      // Sort SDK columns by type: Backend, Frontend, Mobile
+      const typeOrder = Object.keys(SDK_TYPES);
+      const sortedSDKs = [...sdkOrder].sort((a, b) => {
+        const aType = typeOrder.indexOf(getSDKType(a));
+        const bType = typeOrder.indexOf(getSDKType(b));
+        if (aType !== bType) return aType - bType;
+        return sdkOrder.indexOf(a) - sdkOrder.indexOf(b);
+      });
+
+      // Build type sub-header row
+      let typeHeaderHTML = '<th class="test-name"></th>';
+      let lastType = '';
+      sortedSDKs.forEach(sdk => {
+        const type = getSDKType(sdk);
+        const info = SDK_TYPES[type] || {};
+        if (type !== lastType) {
+          const count = sortedSDKs.filter(s => getSDKType(s) === type).length;
+          typeHeaderHTML += `<th colspan="${count}">${info.icon || ''} ${type}</th>`;
+          lastType = type;
+        }
+      });
+
       // Build header with SDK names
-      thead.innerHTML = '<th class="test-name">Test</th>' +
-        sdkOrder.map(sdk => `<th>${sdk.replace('sdk-', '')}</th>`).join('');
+      thead.innerHTML = `<tr class="sdk-type-header">${typeHeaderHTML}</tr>` +
+        '<tr><th class="test-name">Test</th>' +
+        sortedSDKs.map(sdk => `<th>${sdk.replace('sdk-', '')}</th>`).join('') + '</tr>';
 
       // Group tests by category
       const testsByCategory = {};
@@ -336,9 +435,9 @@
       const sortedCategories = categoryOrder.filter(cat => testsByCategory[cat]);
       sortedCategories.sort((a, b) => {
         const aHasFail = testsByCategory[a]?.some(test =>
-          sdkOrder.some(sdk => sdks[sdk].tests[test] === 'fail'));
+          sortedSDKs.some(sdk => sdks[sdk].tests[test] === 'fail'));
         const bHasFail = testsByCategory[b]?.some(test =>
-          sdkOrder.some(sdk => sdks[sdk].tests[test] === 'fail'));
+          sortedSDKs.some(sdk => sdks[sdk].tests[test] === 'fail'));
         if (aHasFail && !bHasFail) return -1;
         if (!aHasFail && bHasFail) return 1;
         return 0;
@@ -350,19 +449,19 @@
         const tests = testsByCategory[cat];
         // Sort tests within category: failed first
         tests.sort((a, b) => {
-          const aFailed = sdkOrder.some(sdk => sdks[sdk].tests[a] === 'fail');
-          const bFailed = sdkOrder.some(sdk => sdks[sdk].tests[b] === 'fail');
+          const aFailed = sortedSDKs.some(sdk => sdks[sdk].tests[a] === 'fail');
+          const bFailed = sortedSDKs.some(sdk => sdks[sdk].tests[b] === 'fail');
           if (aFailed && !bFailed) return -1;
           if (!aFailed && bFailed) return 1;
           return a.localeCompare(b);
         });
 
         // Category header row
-        html += `<tr class="category-row"><td class="test-name" colspan="${sdkOrder.length + 1}">${cat}</td></tr>`;
+        html += `<tr class="category-row"><td class="test-name" colspan="${sortedSDKs.length + 1}">${cat}</td></tr>`;
 
         // Test rows
         tests.forEach(test => {
-          const cells = sdkOrder.map(sdk => {
+          const cells = sortedSDKs.map(sdk => {
             const status = sdks[sdk].tests[test];
             if (status === 'pass') return '<td class="result result-pass">✓</td>';
             if (status === 'fail') return '<td class="result result-fail">✗</td>';
@@ -377,7 +476,7 @@
 
       // Build footer with totals
       tfoot.innerHTML = '<td class="test-name"><strong>Total</strong></td>' +
-        sdkOrder.map(sdk => {
+        sortedSDKs.map(sdk => {
           const s = sdks[sdk];
           const total = s.passed + s.failed + s.skipped;
           const cls = s.failed > 0 ? 'summary-fail' : 'summary-pass';
