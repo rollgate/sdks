@@ -59,6 +59,14 @@ Architettura target degli SDK Rollgate, basata esattamente sul pattern LaunchDar
     │ Go native     │    │ Python native │    │ Java native   │
     │ Full impl     │    │ Full impl     │    │ Full impl     │
     └───────────────┘    └───────────────┘    └───────────────┘
+
+    ┌───────────────┐    ┌───────────────┐
+    │  sdk-dotnet   │    │ sdk-flutter   │
+    │               │    │               │
+    │ C#/.NET 8     │    │ Dart native   │
+    │ Full impl     │    │ Polling only  │
+    │ SSE support   │    │ (no SSE)      │
+    └───────────────┘    └───────────────┘
 ```
 
 Questi SDK sono implementazioni complete e indipendenti nelle rispettive lingue.
@@ -75,11 +83,11 @@ Non condividono codice con gli SDK TypeScript.
 └───────────────────────────────────────────────────────────────────────────────────┘
                                     │ HTTP Protocol
                                     ▼
-┌─────────────┬─────────────┬─────────────┬─────────────┬─────────────┐
-│ TestService │ TestService │ TestService │ TestService │ BrowserSvc  │
-│  sdk-node   │   sdk-go    │ sdk-python  │  sdk-java   │ sdk-browser │
-│  :8001      │   :8003     │   :8004     │   :8005     │   :8010     │
-└─────────────┴─────────────┴─────────────┴──────┬──────┴─────────────┘
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│TestSvc   │TestSvc   │TestSvc   │TestSvc   │TestSvc   │TestSvc   │TestSvc   │BrowserSvc│
+│sdk-node  │ sdk-go   │sdk-python│ sdk-java │sdk-dotnet│sdk-flutter│sdk-rn   │sdk-browser│
+│ :8001    │  :8003   │  :8004   │  :8005   │  :8007   │  :8008   │ :8006   │  :8010   │
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴────┬─────┴──────────┘
                                                  │
                     ┌────────────────────────────┼────────────────────────────┐
                     │                            │                            │
@@ -153,6 +161,8 @@ SDK core per browser - **TUTTE le implementazioni browser derivano da questo**:
 | sdk-go           | ✅ Completo | Implementazione nativa Go     |
 | sdk-python       | ✅ Completo | Implementazione nativa Python |
 | sdk-java         | ✅ Completo | Implementazione nativa Java   |
+| sdk-dotnet       | ✅ Completo | Implementazione nativa C#/.NET 8 |
+| sdk-flutter      | ✅ Completo | Implementazione nativa Dart (polling only) |
 
 ## Evaluation Reasons
 
@@ -202,6 +212,20 @@ detail = client.is_enabled_detail("flag-key", False)
 EvaluationDetail<Boolean> detail = client.isEnabledDetail("flag-key", false);
 // detail.getValue(): Boolean
 // detail.getReason().getKind(): Kind.FALLTHROUGH
+```
+
+```csharp
+// C# (.NET)
+var detail = client.IsEnabledDetail("flag-key", false);
+// detail.Value: bool
+// detail.Reason.Kind: EvaluationReasonKind.FALLTHROUGH
+```
+
+```dart
+// Dart (Flutter)
+final detail = client.isEnabledDetail("flag-key", false);
+// detail.value: bool
+// detail.reason.kind: EvaluationReasonKind.FALLTHROUGH
 ```
 
 ### Tipi Condivisi

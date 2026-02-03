@@ -27,7 +27,8 @@
     .sdk h2 { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .progress { background: #21262d; border-radius: 4px; height: 8px; margin: 12px 0; }
     .progress-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
-    .stats { display: flex; gap: 16px; font-size: 14px; }
+    .stats { display: flex; gap: 16px; font-size: 14px; align-items: center; }
+    .time { color: #8b949e; font-size: 12px; margin-left: auto; }
     .pass { color: #3fb950; }
     .fail { color: #f85149; }
     .skip { color: #8b949e; }
@@ -99,6 +100,7 @@
   <div class="header">
     <h1>Contract Tests</h1>
     <span id="status" class="status disconnected">Disconnected</span>
+    <span id="global-stats" style="font-size:14px;color:#8b949e"></span>
     <div class="view-toggle">
       <button class="view-btn active" data-view="cards">Cards</button>
       <button class="view-btn" data-view="table">Table</button>
@@ -137,9 +139,9 @@
 
     // SDK type categories
     const SDK_TYPES = {
-      'Backend':  { icon: '⚙️', sdks: ['sdk-node', 'sdk-go', 'sdk-python', 'sdk-java'], badge: 'badge-backend' },
+      'Backend':  { icon: '⚙️', sdks: ['sdk-node', 'sdk-go', 'sdk-python', 'sdk-java', 'sdk-dotnet'], badge: 'badge-backend' },
       'Frontend': { icon: '🌐', sdks: ['sdk-browser', 'sdk-react', 'sdk-vue', 'sdk-svelte', 'sdk-angular'], badge: 'badge-frontend' },
-      'Mobile':   { icon: '📱', sdks: ['sdk-react-native'], badge: 'badge-mobile' },
+      'Mobile':   { icon: '📱', sdks: ['sdk-react-native', 'sdk-flutter'], badge: 'badge-mobile' },
     };
 
     function getSDKType(sdkName) {
@@ -166,6 +168,15 @@
       // Remove "Test" prefix
       const name = testName.replace(/^Test/, '');
       return testToCategory[name] || 'Other';
+    }
+
+    function formatDuration(seconds) {
+      if (seconds == null) return '';
+      if (seconds < 1) return `${(seconds * 1000).toFixed(0)}ms`;
+      if (seconds < 60) return `${seconds.toFixed(1)}s`;
+      const m = Math.floor(seconds / 60);
+      const s = (seconds % 60).toFixed(0);
+      return `${m}m${s}s`;
     }
 
     const sdks = {};
@@ -241,10 +252,10 @@
     }
 
     function handleEvent(event) {
-      const { type, sdk, test, status, total, passed, failed, skipped } = event;
+      const { type, sdk, test, status, total, passed, failed, skipped, elapsed, totalElapsed } = event;
 
       if (!sdks[sdk]) {
-        sdks[sdk] = { total: 0, passed: 0, failed: 0, skipped: 0, tests: {} };
+        sdks[sdk] = { total: 0, passed: 0, failed: 0, skipped: 0, tests: {}, testElapsed: {}, totalElapsed: null, startTime: null };
         sdkOrder.push(sdk);
         renderSDKCard(sdk);
       }
@@ -255,17 +266,23 @@
         s.total = total || 90;
         s.passed = s.failed = s.skipped = 0;
         s.tests = {};
+        s.testElapsed = {};
+        s.totalElapsed = null;
+        s.startTime = Date.now();
       } else if (type === 'test') {
         s.tests[test] = status;
+        if (elapsed != null) s.testElapsed[test] = elapsed;
         allTests.add(test);
         if (status === 'pass') s.passed++;
         else if (status === 'fail') s.failed++;
         else if (status === 'skip') s.skipped++;
       } else if (type === 'done') {
         s.passed = passed; s.failed = failed; s.skipped = skipped;
+        s.totalElapsed = totalElapsed || null;
       }
 
       updateSDKCard(sdk);
+      updateGlobalStats();
       if (currentView === 'table') renderTable();
       saveState();
     }
@@ -314,7 +331,7 @@
       div.innerHTML = `
         <h2><span class="sdk-badge ${badgeClass}">${sdkType}</span>${name.replace('sdk-', '')}</h2>
         <div class="progress"><div class="progress-bar" style="width:0%;background:#238636"></div></div>
-        <div class="stats"><span class="pass">✓ 0</span><span class="fail">✗ 0</span><span class="skip">○ 0</span></div>
+        <div class="stats"><span class="pass">✓ 0</span><span class="fail">✗ 0</span><span class="skip">○ 0</span><span class="time"></span></div>
         <div class="tests"></div>
       `;
       grid.appendChild(div);
@@ -333,6 +350,14 @@
       el.querySelector('.pass').textContent = `✓ ${s.passed}`;
       el.querySelector('.fail').textContent = `✗ ${s.failed}`;
       el.querySelector('.skip').textContent = `○ ${s.skipped}`;
+
+      // Show timing
+      const timeEl = el.querySelector('.time');
+      if (s.totalElapsed != null) {
+        timeEl.textContent = formatDuration(s.totalElapsed);
+      } else if (s.startTime) {
+        timeEl.textContent = formatDuration((Date.now() - s.startTime) / 1000) + '...';
+      }
 
       // Group tests by category
       const byCategory = {};
@@ -380,7 +405,9 @@
               ${tests.map(({ test, status }) => {
                 const icon = status === 'pass' ? '✓' : status === 'fail' ? '✗' : '○';
                 const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'skip';
-                return `<div class="test"><span class="icon ${cls}">${icon}</span>${test}</div>`;
+                const elapsed = s.testElapsed[test];
+                const timeStr = elapsed != null ? `<span class="time">${formatDuration(elapsed)}</span>` : '';
+                return `<div class="test"><span class="icon ${cls}">${icon}</span><span style="flex:1">${test}</span>${timeStr}</div>`;
               }).join('')}
             </div>
           </div>
@@ -474,18 +501,42 @@
 
       tbody.innerHTML = html;
 
-      // Build footer with totals
+      // Build footer with totals and timing
       tfoot.innerHTML = '<td class="test-name"><strong>Total</strong></td>' +
         sortedSDKs.map(sdk => {
           const s = sdks[sdk];
           const total = s.passed + s.failed + s.skipped;
           const cls = s.failed > 0 ? 'summary-fail' : 'summary-pass';
-          return `<td class="${cls}">${s.passed}/${total}</td>`;
+          const timeStr = s.totalElapsed != null ? `<br><span style="font-size:11px;color:#8b949e">${formatDuration(s.totalElapsed)}</span>` : '';
+          return `<td class="${cls}">${s.passed}/${total}${timeStr}</td>`;
         }).join('');
+    }
+
+    function updateGlobalStats() {
+      let totalPassed = 0, totalFailed = 0, totalSkipped = 0, totalTime = 0;
+      let sdkCount = 0, completedCount = 0;
+      for (const sdk of sdkOrder) {
+        const s = sdks[sdk];
+        totalPassed += s.passed;
+        totalFailed += s.failed;
+        totalSkipped += s.skipped;
+        sdkCount++;
+        if (s.totalElapsed != null) {
+          totalTime += s.totalElapsed;
+          completedCount++;
+        }
+      }
+      const total = totalPassed + totalFailed + totalSkipped;
+      const statsEl = document.getElementById('global-stats');
+      let text = `${sdkCount} SDKs | ${totalPassed}/${total} tests`;
+      if (totalFailed > 0) text += ` | ${totalFailed} failed`;
+      if (completedCount > 0) text += ` | ${formatDuration(totalTime)} total`;
+      statsEl.textContent = text;
     }
 
     // Init
     loadState();
+    updateGlobalStats();
     connect();
   </script>
 </body>

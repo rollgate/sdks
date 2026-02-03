@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // TestEvent from `go test -json`
@@ -33,6 +34,7 @@ func main() {
 	}
 
 	// Send start event
+	startTime := time.Now()
 	send(dashboardURL, map[string]any{"type": "start", "sdk": sdk, "total": 84})
 
 	// Run go test -json
@@ -80,19 +82,21 @@ func main() {
 				skipped++
 			}
 			fmt.Printf("[%s] %s: %s\n", sdk, e.Test, status)
-			send(dashboardURL, map[string]any{"type": "test", "sdk": sdk, "test": e.Test, "status": status})
+			send(dashboardURL, map[string]any{"type": "test", "sdk": sdk, "test": e.Test, "status": status, "elapsed": e.Elapsed})
 		}
 	}
 
 	cmd.Wait()
 
 	// Send done event
+	totalElapsed := time.Since(startTime).Seconds()
 	send(dashboardURL, map[string]any{
-		"type":    "done",
-		"sdk":     sdk,
-		"passed":  passed,
-		"failed":  failed,
-		"skipped": skipped,
+		"type":         "done",
+		"sdk":          sdk,
+		"passed":       passed,
+		"failed":       failed,
+		"skipped":      skipped,
+		"totalElapsed": totalElapsed,
 	})
 
 	if failed > 0 {
