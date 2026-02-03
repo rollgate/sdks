@@ -59,19 +59,30 @@ type Command struct {
 	DefaultJSONValue   interface{}  `json:"defaultJsonValue,omitempty"`
 }
 
+// EvaluationReason represents the reason for a flag evaluation.
+type EvaluationReason struct {
+	Kind      string `json:"kind"`
+	RuleID    string `json:"ruleId,omitempty"`
+	RuleIndex int    `json:"ruleIndex,omitempty"`
+	InRollout bool   `json:"inRollout,omitempty"`
+	ErrorKind string `json:"errorKind,omitempty"`
+}
+
 // Response represents a response from the test service.
 type Response struct {
-	Value        *bool           `json:"value,omitempty"`
-	StringValue  *string         `json:"stringValue,omitempty"`
-	NumberValue  *float64        `json:"numberValue,omitempty"`
-	JSONValue    interface{}     `json:"jsonValue,omitempty"`
-	Flags        map[string]bool `json:"flags,omitempty"`
-	IsReady      *bool           `json:"isReady,omitempty"`
-	CircuitState string          `json:"circuitState,omitempty"`
-	CacheStats   *CacheStats     `json:"cacheStats,omitempty"`
-	Success      *bool           `json:"success,omitempty"`
-	Error        string          `json:"error,omitempty"`
-	Message      string          `json:"message,omitempty"`
+	Value        *bool             `json:"value,omitempty"`
+	StringValue  *string           `json:"stringValue,omitempty"`
+	NumberValue  *float64          `json:"numberValue,omitempty"`
+	JSONValue    interface{}       `json:"jsonValue,omitempty"`
+	Flags        map[string]bool   `json:"flags,omitempty"`
+	IsReady      *bool             `json:"isReady,omitempty"`
+	CircuitState string            `json:"circuitState,omitempty"`
+	CacheStats   *CacheStats       `json:"cacheStats,omitempty"`
+	Success      *bool             `json:"success,omitempty"`
+	Error        string            `json:"error,omitempty"`
+	Message      string            `json:"message,omitempty"`
+	Reason       *EvaluationReason `json:"reason,omitempty"`
+	VariationID  string            `json:"variationId,omitempty"`
 }
 
 // CacheStats represents cache statistics.
@@ -170,12 +181,16 @@ func handleCommand(cmd Command) Response {
 		return handleInit(cmd)
 	case "isEnabled":
 		return handleIsEnabled(cmd)
+	case "isEnabledDetail":
+		return handleIsEnabledDetail(cmd)
 	case "getString":
 		return handleGetString(cmd)
 	case "getNumber":
 		return handleGetNumber(cmd)
 	case "getJson":
 		return handleGetJSON(cmd)
+	case "getValueDetail":
+		return handleGetValueDetail(cmd)
 	case "identify":
 		return handleIdentify(cmd)
 	case "reset":
@@ -288,6 +303,38 @@ func handleIsEnabled(cmd Command) Response {
 	return Response{Value: boolPtr(value)}
 }
 
+func handleIsEnabledDetail(cmd Command) Response {
+	clientMu.Lock()
+	c := client
+	clientMu.Unlock()
+
+	if c == nil {
+		return Response{Error: "NotInitializedError", Message: "Client not initialized"}
+	}
+
+	if cmd.FlagKey == "" {
+		return Response{Error: "ValidationError", Message: "flagKey is required"}
+	}
+
+	defaultValue := false
+	if cmd.DefaultValue != nil {
+		defaultValue = *cmd.DefaultValue
+	}
+
+	detail := c.IsEnabledDetail(cmd.FlagKey, defaultValue)
+	return Response{
+		Value: boolPtr(detail.Value),
+		Reason: &EvaluationReason{
+			Kind:      string(detail.Reason.Kind),
+			RuleID:    detail.Reason.RuleID,
+			RuleIndex: detail.Reason.RuleIndex,
+			InRollout: detail.Reason.InRollout,
+			ErrorKind: string(detail.Reason.ErrorKind),
+		},
+		VariationID: detail.VariationID,
+	}
+}
+
 func handleGetString(cmd Command) Response {
 	clientMu.Lock()
 	c := client
@@ -342,6 +389,40 @@ func handleGetJSON(cmd Command) Response {
 
 	value := c.GetJSON(cmd.FlagKey, cmd.DefaultJSONValue)
 	return Response{JSONValue: value}
+}
+
+func handleGetValueDetail(cmd Command) Response {
+	clientMu.Lock()
+	c := client
+	clientMu.Unlock()
+
+	if c == nil {
+		return Response{Error: "NotInitializedError", Message: "Client not initialized"}
+	}
+
+	if cmd.FlagKey == "" {
+		return Response{Error: "ValidationError", Message: "flagKey is required"}
+	}
+
+	// For now, Go SDK only supports boolean flags with detail
+	// Return boolean detail
+	defaultValue := false
+	if cmd.DefaultValue != nil {
+		defaultValue = *cmd.DefaultValue
+	}
+
+	detail := c.IsEnabledDetail(cmd.FlagKey, defaultValue)
+	return Response{
+		Value: boolPtr(detail.Value),
+		Reason: &EvaluationReason{
+			Kind:      string(detail.Reason.Kind),
+			RuleID:    detail.Reason.RuleID,
+			RuleIndex: detail.Reason.RuleIndex,
+			InRollout: detail.Reason.InRollout,
+			ErrorKind: string(detail.Reason.ErrorKind),
+		},
+		VariationID: detail.VariationID,
+	}
 }
 
 func handleIdentify(cmd Command) Response {

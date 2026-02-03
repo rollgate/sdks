@@ -1041,12 +1041,21 @@ describe("evaluateAllFlagsV2", () => {
 
     const result = evaluateAllFlagsV2(rules, { id: "user-1" });
 
-    expect(result["bool-flag"]).toEqual({ enabled: true, value: true });
+    expect(result["bool-flag"]).toEqual({
+      enabled: true,
+      value: true,
+      reason: { kind: "FALLTHROUGH", inRollout: true },
+    });
     expect(result["string-flag"]).toEqual({
       enabled: true,
       value: "enabled-text",
+      reason: { kind: "FALLTHROUGH", inRollout: true },
     });
-    expect(result["disabled-flag"]).toEqual({ enabled: false, value: 42 });
+    expect(result["disabled-flag"]).toEqual({
+      enabled: false,
+      value: 42,
+      reason: { kind: "OFF" },
+    });
   });
 
   it("should return empty object for empty rules", () => {

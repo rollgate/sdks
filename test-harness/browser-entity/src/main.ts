@@ -11,8 +11,8 @@ import { log } from "./types";
 async function runContractTests() {
   log("Starting browser contract test service...");
 
-  // Connect to adapter WebSocket (Browser SDK uses port 8001)
-  const wsPort = import.meta.env.VITE_WS_PORT || "8001";
+  // Connect to adapter WebSocket (default port 8011, same as other entities)
+  const wsPort = import.meta.env.VITE_WS_PORT || "8011";
   const ws = new TestHarnessWebSocket(`ws://localhost:${wsPort}`);
   ws.connect();
 }

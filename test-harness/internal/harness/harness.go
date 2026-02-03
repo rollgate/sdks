@@ -103,18 +103,20 @@ func (ts *TestService) Cleanup(ctx context.Context) error {
 
 // Harness is the main test orchestrator.
 type Harness struct {
-	mockServer *mock.Server
-	httpServer *http.Server
-	mockURL    string
-	apiKey     string
-	services   []SDKService
+	mockServer        *mock.Server
+	httpServer        *http.Server
+	mockURL           string
+	apiKey            string
+	services          []SDKService
+	externalServerURL string // If set, use external server instead of mock
 }
 
 // Config contains harness configuration.
 type Config struct {
-	MockPort int      // Port for mock server (default: 9000)
-	APIKey   string   // API key for mock server (default: "test-api-key")
-	Services []string // Service URLs (e.g., ["http://localhost:8001", "http://localhost:8002"])
+	MockPort          int      // Port for mock server (default: 9000)
+	APIKey            string   // API key for mock server (default: "test-api-key")
+	Services          []string // Service URLs (e.g., ["http://localhost:8001", "http://localhost:8002"])
+	ExternalServerURL string   // If set, use external server instead of mock (e.g., "http://localhost:3000")
 }
 
 // DefaultConfig returns the default configuration.
@@ -135,12 +137,19 @@ func New(cfg Config) *Harness {
 		cfg.APIKey = "test-api-key"
 	}
 
-	return &Harness{
-		mockServer: mock.NewServer(cfg.APIKey),
-		mockURL:    fmt.Sprintf("http://localhost:%d", cfg.MockPort),
-		apiKey:     cfg.APIKey,
-		services:   make([]SDKService, 0),
+	h := &Harness{
+		mockURL:           fmt.Sprintf("http://localhost:%d", cfg.MockPort),
+		apiKey:            cfg.APIKey,
+		services:          make([]SDKService, 0),
+		externalServerURL: cfg.ExternalServerURL,
 	}
+
+	// Only create mock server if not using external server
+	if cfg.ExternalServerURL == "" {
+		h.mockServer = mock.NewServer(cfg.APIKey)
+	}
+
+	return h
 }
 
 // AddService adds a test service.
@@ -173,8 +182,23 @@ func (h *Harness) GetAPIKey() string {
 	return h.apiKey
 }
 
-// Start starts the mock server.
+// Start starts the mock server (or verifies external server is available).
 func (h *Harness) Start(ctx context.Context) error {
+	// If using external server, just verify it's reachable
+	if h.externalServerURL != "" {
+		fmt.Printf("Using external server: %s\n", h.externalServerURL)
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get(h.externalServerURL + "/health")
+		if err != nil {
+			return fmt.Errorf("external server not reachable: %w", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("external server health check failed: %d", resp.StatusCode)
+		}
+		return nil
+	}
+
 	listener, err := net.Listen("tcp", h.mockURL[7:]) // Remove "http://"
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -213,11 +237,17 @@ func (h *Harness) Stop(ctx context.Context) error {
 
 // SetScenario sets a test scenario on the mock server.
 func (h *Harness) SetScenario(scenario string) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetScenario(scenario)
 }
 
 // SetFlag sets a single flag on the mock server.
 func (h *Harness) SetFlag(flag *mock.FlagState) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetFlag(flag)
 }
 
@@ -248,9 +278,13 @@ func (h *Harness) WaitForServices(ctx context.Context, timeout time.Duration) er
 
 // InitSDKConfig creates a config for SDK initialization.
 func (h *Harness) InitSDKConfig() protocol.Config {
+	baseURL := h.mockURL
+	if h.externalServerURL != "" {
+		baseURL = h.externalServerURL
+	}
 	return protocol.Config{
 		APIKey:          h.apiKey,
-		BaseURL:         h.mockURL,
+		BaseURL:         baseURL,
 		RefreshInterval: 0, // Disable polling for tests
 		EnableStreaming: false,
 		Timeout:         5000,
@@ -269,6 +303,9 @@ func (h *Harness) ForEachService(ctx context.Context, fn func(svc SDKService) er
 
 // SetError configures error simulation on the mock server.
 func (h *Harness) SetError(statusCode int, count int, retryAfter int, message string) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetError(&mock.ErrorSimulation{
 		StatusCode: statusCode,
 		Count:      count,
@@ -279,6 +316,9 @@ func (h *Harness) SetError(statusCode int, count int, retryAfter int, message st
 
 // SetErrorWithDelay configures error simulation with delay.
 func (h *Harness) SetErrorWithDelay(statusCode int, count int, delay time.Duration) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetError(&mock.ErrorSimulation{
 		StatusCode: statusCode,
 		Count:      count,
@@ -288,46 +328,84 @@ func (h *Harness) SetErrorWithDelay(statusCode int, count int, delay time.Durati
 
 // ClearError removes error simulation.
 func (h *Harness) ClearError() {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.ClearError()
 }
 
 // GetErrorCount returns how many errors have been simulated.
 func (h *Harness) GetErrorCount() int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.GetErrorCount()
 }
 
 // ClearUserSessions clears all user sessions from mock server.
 func (h *Harness) ClearUserSessions() {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.ClearUserSessions()
 }
 
 // GetSSEClientCount returns the count of connected SSE clients.
 func (h *Harness) GetSSEClientCount() int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.GetSSEClientCount()
 }
 
 // SendSSEEvent sends a custom event to all SSE clients.
 func (h *Harness) SendSSEEvent(data map[string]interface{}) int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.SendSSEEvent(data)
 }
 
 // DisconnectSSEClients disconnects all SSE clients.
 func (h *Harness) DisconnectSSEClients() int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.DisconnectSSEClients()
 }
 
 // BroadcastFlagChange broadcasts a flag change to all SSE clients.
 func (h *Harness) BroadcastFlagChange(flagKey string, enabled bool) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.BroadcastFlagChange(flagKey, enabled)
 }
 
 // InitSDKConfigWithStreaming creates a config for SDK initialization with streaming enabled.
 func (h *Harness) InitSDKConfigWithStreaming() protocol.Config {
+	baseURL := h.mockURL
+	if h.externalServerURL != "" {
+		baseURL = h.externalServerURL
+	}
 	return protocol.Config{
 		APIKey:          h.apiKey,
-		BaseURL:         h.mockURL,
+		BaseURL:         baseURL,
 		RefreshInterval: 0, // Disable polling
 		EnableStreaming: true,
 		Timeout:         5000,
 	}
+}
+
+// IsUsingExternalServer returns true if using an external server instead of mock.
+func (h *Harness) IsUsingExternalServer() bool {
+	return h.externalServerURL != ""
+}
+
+// GetServerURL returns the server URL (either mock or external).
+func (h *Harness) GetServerURL() string {
+	if h.externalServerURL != "" {
+		return h.externalServerURL
+	}
+	return h.mockURL
 }

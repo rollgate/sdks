@@ -20,6 +20,9 @@ import {
   createMetrics,
   createTraceContext,
   getTraceHeaders,
+  fallthroughReason,
+  errorReason,
+  unknownReason,
 } from "@rollgate/sdk-core";
 import type {
   RetryConfig,
@@ -27,10 +30,19 @@ import type {
   CacheConfig,
   SDKMetrics,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-core";
 
 // Re-export types from core
-export type { RetryConfig, CircuitBreakerConfig, CacheConfig, MetricsSnapshot };
+export type {
+  RetryConfig,
+  CircuitBreakerConfig,
+  CacheConfig,
+  MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
+};
 export { CircuitState, CircuitOpenError, RollgateError, ErrorCategory };
 
 const CACHE_KEY = "@rollgate/flags";
@@ -68,10 +80,13 @@ export interface RollgateOptions {
 
 interface FlagsResponse {
   flags: Record<string, boolean>;
+  flagValues?: Record<string, unknown>;
+  reasons?: Record<string, EvaluationReason>;
 }
 
 interface CachedData {
   flags: Record<string, boolean>;
+  flagValues?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -99,6 +114,8 @@ export class RollgateReactNativeClient {
   };
 
   private flags: Map<string, boolean> = new Map();
+  private flagValues: Map<string, unknown> = new Map();
+  private flagReasons: Map<string, EvaluationReason> = new Map();
   private initialized: boolean = false;
   private initPromise: Promise<void> | null = null;
   private initResolver: (() => void) | null = null;
@@ -116,7 +133,7 @@ export class RollgateReactNativeClient {
   constructor(
     apiKey: string,
     initialContext: UserContext | null,
-    options: RollgateOptions = {}
+    options: RollgateOptions = {},
   ) {
     this.apiKey = apiKey;
     this.userContext = initialContext;
@@ -182,7 +199,7 @@ export class RollgateReactNativeClient {
         this.emit("ready");
       } else {
         this.initRejecter?.(
-          error instanceof Error ? error : new Error(String(error))
+          error instanceof Error ? error : new Error(String(error)),
         );
       }
     }
@@ -202,6 +219,9 @@ export class RollgateReactNativeClient {
         // Check if cache is still valid
         if (age < this.options.cache.staleTtl) {
           this.flags = new Map(Object.entries(data.flags));
+          if (data.flagValues) {
+            this.flagValues = new Map(Object.entries(data.flagValues));
+          }
           this.cacheTimestamp = data.timestamp;
         }
       }
@@ -218,6 +238,7 @@ export class RollgateReactNativeClient {
     try {
       const data: CachedData = {
         flags: Object.fromEntries(this.flags),
+        flagValues: Object.fromEntries(this.flagValues),
         timestamp: Date.now(),
       };
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -259,11 +280,44 @@ export class RollgateReactNativeClient {
    * Check if a boolean flag is enabled
    */
   isEnabled(flagKey: string, defaultValue: boolean = false): boolean {
+    return this.isEnabledDetail(flagKey, defaultValue).value;
+  }
+
+  /**
+   * Check if a boolean flag is enabled with evaluation reason
+   */
+  isEnabledDetail(
+    flagKey: string,
+    defaultValue: boolean = false,
+  ): EvaluationDetail<boolean> {
     const startTime = Date.now();
-    const result = this.flags.get(flagKey) ?? defaultValue;
+
+    // Check if client is ready
+    if (!this.initialized) {
+      return {
+        value: defaultValue,
+        reason: errorReason("CLIENT_NOT_READY"),
+      };
+    }
+
+    // Check if flag exists
+    if (!this.flags.has(flagKey)) {
+      return {
+        value: defaultValue,
+        reason: unknownReason(),
+      };
+    }
+
+    const result = this.flags.get(flagKey)!;
     const evaluationTime = Date.now() - startTime;
     this.metrics.recordEvaluation(flagKey, result, evaluationTime);
-    return result;
+
+    // Use stored reason from server, or FALLTHROUGH as default
+    const storedReason = this.flagReasons.get(flagKey);
+    return {
+      value: result,
+      reason: storedReason ?? fallthroughReason(result),
+    };
   }
 
   /**
@@ -274,10 +328,51 @@ export class RollgateReactNativeClient {
   }
 
   /**
+   * Get a typed flag value
+   */
+  getValue<T>(flagKey: string, defaultValue: T): T {
+    const value = this.flagValues.get(flagKey);
+
+    if (value === undefined) {
+      return defaultValue;
+    }
+
+    return value as T;
+  }
+
+  /**
+   * Get a string flag value
+   */
+  getString(flagKey: string, defaultValue: string = ""): string {
+    return this.getValue<string>(flagKey, defaultValue);
+  }
+
+  /**
+   * Get a number flag value
+   */
+  getNumber(flagKey: string, defaultValue: number = 0): number {
+    return this.getValue<number>(flagKey, defaultValue);
+  }
+
+  /**
+   * Get a JSON flag value
+   */
+  getJSON<T>(flagKey: string, defaultValue: T): T {
+    return this.getValue<T>(flagKey, defaultValue);
+  }
+
+  /**
    * Get all flags as an object
    */
   allFlags(): Record<string, boolean> {
     return Object.fromEntries(this.flags);
+  }
+
+  /**
+   * Get all typed flag values as an object
+   */
+  allFlagValues(): Record<string, unknown> {
+    return Object.fromEntries(this.flagValues);
   }
 
   /**
@@ -335,6 +430,10 @@ export class RollgateReactNativeClient {
       this.pollInterval = null;
     }
 
+    // Clean up all internal components to prevent memory leaks
+    this.circuitBreaker.removeAllListeners();
+    this.metrics.removeAllListeners();
+    this.dedup.clear();
     this.eventListeners.clear();
   }
 
@@ -365,7 +464,7 @@ export class RollgateReactNativeClient {
     }
     this.pollInterval = setInterval(
       () => this.fetchFlags(),
-      this.options.refreshInterval
+      this.options.refreshInterval,
     );
   }
 
@@ -377,6 +476,8 @@ export class RollgateReactNativeClient {
       if (this.userContext?.id) {
         url.searchParams.set("user_id", this.userContext.id);
       }
+      // Request evaluation reasons from server
+      url.searchParams.set("withReasons", "true");
 
       if (!this.circuitBreaker.isAllowingRequests()) {
         this.useCachedFallback();
@@ -391,7 +492,7 @@ export class RollgateReactNativeClient {
             const controller = new AbortController();
             const timeoutId = setTimeout(
               () => controller.abort(),
-              this.options.timeout
+              this.options.timeout,
             );
 
             try {
@@ -462,8 +563,22 @@ export class RollgateReactNativeClient {
 
         const oldFlags = new Map(this.flags);
         this.flags = new Map(
-          Object.entries((data as FlagsResponse).flags || {})
+          Object.entries((data as FlagsResponse).flags || {}),
         );
+
+        // Update typed flag values
+        if ((data as FlagsResponse).flagValues) {
+          this.flagValues = new Map(
+            Object.entries((data as FlagsResponse).flagValues || {}),
+          );
+        }
+
+        // Store reasons from server response
+        if ((data as FlagsResponse).reasons) {
+          this.flagReasons = new Map(
+            Object.entries((data as FlagsResponse).reasons || {}),
+          );
+        }
 
         // Save to cache
         await this.saveToCache();
@@ -523,7 +638,7 @@ export class RollgateReactNativeClient {
 export function createClient(
   apiKey: string,
   initialContext: UserContext | null = null,
-  options: RollgateOptions = {}
+  options: RollgateOptions = {},
 ): RollgateReactNativeClient {
   return new RollgateReactNativeClient(apiKey, initialContext, options);
 }

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contract Tests Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 20px; }
+    h1 { margin-bottom: 20px; display: inline-block; }
+    .header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 14px; }
+    .connected { background: #238636; }
+    .disconnected { background: #da3633; }
+
+    /* View toggle */
+    .view-toggle { display: flex; gap: 8px; margin-left: auto; }
+    .view-btn { padding: 8px 16px; border: 1px solid #30363d; background: #21262d; color: #8b949e; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .view-btn.active { background: #238636; color: #fff; border-color: #238636; }
+    .view-btn:hover:not(.active) { background: #30363d; }
+    .clear-btn { padding: 8px 16px; border: 1px solid #da3633; background: transparent; color: #da3633; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .clear-btn:hover { background: rgba(218, 54, 51, 0.2); }
+
+    /* Cards view */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .sdk { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .sdk h2 { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .progress { background: #21262d; border-radius: 4px; height: 8px; margin: 12px 0; }
+    .progress-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .stats { display: flex; gap: 16px; font-size: 14px; align-items: center; }
+    .time { color: #8b949e; font-size: 12px; margin-left: auto; }
+    .pass { color: #3fb950; }
+    .fail { color: #f85149; }
+    .skip { color: #8b949e; }
+    .tests { margin-top: 12px; max-height: 500px; overflow-y: auto; font-size: 13px; }
+    .test { padding: 4px 0; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 8px; }
+    .test:last-child { border-bottom: none; }
+    .icon { width: 16px; text-align: center; }
+    .running { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Category groups */
+    .category { margin-top: 12px; }
+    .category-header { font-size: 11px; text-transform: uppercase; color: #8b949e; padding: 8px 0 4px; border-bottom: 1px solid #30363d; margin-bottom: 4px; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .category-header:hover { color: #e6edf3; }
+    .category-header .toggle { font-size: 10px; }
+    .category-tests { }
+    .category-tests.collapsed { display: none; }
+    .category-stats { font-size: 11px; }
+    .category-stats .pass { color: #3fb950; }
+    .category-stats .fail { color: #f85149; }
+
+    /* Table view */
+    .table-container { overflow-x: auto; max-height: calc(100vh - 150px); }
+    .matrix { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .matrix th, .matrix td { border: 1px solid #30363d; padding: 6px 8px; text-align: center; }
+    .matrix th { background: #161b22; position: sticky; top: 0; z-index: 10; }
+    .matrix th.test-name { text-align: left; position: sticky; left: 0; background: #161b22; z-index: 20; min-width: 280px; }
+    .matrix td.test-name { text-align: left; position: sticky; left: 0; background: #0d1117; font-family: monospace; font-size: 12px; }
+    .matrix td.result { width: 70px; min-width: 70px; }
+    .matrix .result-pass { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+    .matrix .result-fail { background: rgba(248, 81, 73, 0.3); color: #f85149; font-weight: bold; }
+    .matrix .result-skip { background: rgba(139, 148, 158, 0.1); color: #8b949e; }
+    .matrix .result-pending { color: #30363d; }
+    .matrix tr:hover td { background: #21262d; }
+    .matrix tr:hover td.test-name { background: #21262d; }
+    .matrix tr:hover td.result-pass { background: rgba(63, 185, 80, 0.3); }
+    .matrix tr:hover td.result-fail { background: rgba(248, 81, 73, 0.4); }
+    .matrix tr:hover td.result-skip { background: rgba(139, 148, 158, 0.2); }
+
+    /* Category rows in table */
+    .matrix .category-row td { background: #21262d; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b949e; }
+    .matrix .category-row td.test-name { background: #21262d; }
+
+    /* Summary row */
+    .matrix tfoot td { background: #161b22; font-weight: bold; position: sticky; bottom: 0; }
+    .matrix tfoot .summary-pass { color: #3fb950; }
+    .matrix tfoot .summary-fail { color: #f85149; }
+
+    .hidden { display: none; }
+
+    /* SDK type sections */
+    .sdk-section { margin-bottom: 24px; }
+    .sdk-section-header { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; padding: 8px 0; margin-bottom: 12px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 8px; }
+    .sdk-section-header .section-icon { font-size: 16px; }
+    .sdk-section .grid { margin-bottom: 0; }
+
+    /* SDK type badge */
+    .sdk-badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .badge-backend { background: rgba(56, 139, 253, 0.2); color: #58a6ff; }
+    .badge-frontend { background: rgba(163, 113, 247, 0.2); color: #bc8cff; }
+    .badge-mobile { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+
+    /* Table SDK type header */
+    .matrix .sdk-type-header th { background: #1c2128; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; padding: 4px 8px; border-bottom: 2px solid #30363d; position: sticky; top: 0; z-index: 11; }
+    .matrix thead tr:nth-child(2) th { top: 29px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Contract Tests</h1>
+    <span id="status" class="status disconnected">Disconnected</span>
+    <span id="global-stats" style="font-size:14px;color:#8b949e"></span>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="cards">Cards</button>
+      <button class="view-btn" data-view="table">Table</button>
+      <button class="clear-btn" id="clear-btn">Clear</button>
+    </div>
+  </div>
+
+  <!-- Cards View -->
+  <div id="cards-view"></div>
+
+  <!-- Table View -->
+  <div class="table-container hidden" id="table-view">
+    <table class="matrix" id="matrix">
+      <thead><tr class="sdk-type-header"><th class="test-name"></th></tr><tr><th class="test-name">Test</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><td class="test-name"><strong>Total</strong></td></tr></tfoot>
+    </table>
+  </div>
+
+  <script>
+    // Test categories
+    const TEST_CATEGORIES = {
+      'Input Validation': ['UserIdSpecialChars', 'UserIdUnicode', 'UserIdVeryLong', 'FlagKeySpecialChars', 'FlagKeyVeryLong', 'AttributeNull', 'AttributeEmpty', 'AttributeBoolean', 'AttributeNumber'],
+      'Scale & Performance': ['ManyFlags', 'ManyAttributes', 'ConcurrentEvaluations', 'RapidIdentify'],
+      'Error Handling': ['EmptyFlagKey', 'NonExistentFlag', 'AuthError', 'ForbiddenError', 'RateLimitError', 'ServerError500', 'ServerError502', 'ServerError503', 'TransientErrorRecovery', 'ErrorThenSuccess', 'BadRequestError', 'NetworkTimeout'],
+      'Caching & ETag': ['ETagFirstRequest', 'ETagCacheEfficiency', 'FlagChangeInvalidatesCache', 'NoUnnecessaryRefreshes', 'CacheConsistency', 'ETagWithUserContext', 'PollingWithETag'],
+      'Flag Evaluation': ['FlagEvaluation', 'GetAllFlags', 'Rollout', 'ConsistentHashing', 'FlagTypes', 'EmptyFlags'],
+      'Identity & Targeting': ['Identify', 'Reset', 'TargetUsers', 'AttributeTargeting', 'MultipleConditions'],
+      'Initialization': ['Init', 'InitTimeout', 'DoubleInit', 'CloseBeforeInit'],
+      'Operators': ['OperatorEq', 'OperatorNeq', 'OperatorContains', 'OperatorStartsWith', 'OperatorEndsWith', 'OperatorGt', 'OperatorLte', 'OperatorIn', 'OperatorNotIn', 'OperatorRegex', 'OperatorSemverGt', 'OperatorSemverEq', 'CombinedOperators', 'MissingAttribute'],
+      'Resilience': ['CircuitBreakerOpens', 'CircuitBreakerFallback', 'CacheFallback', 'RetryOnTransientFailure', 'ServerRecovery', 'DefaultValueOnError', 'GetStateReportsCircuitInfo', 'CacheStatsTracking'],
+      'SSE Streaming': ['SSEConnectionEstablished', 'SSEInitialFlags', 'SSEFlagUpdate', 'SSEFallbackToPolling', 'SSEDisconnectRecovery', 'SSEWithPollingDisabled', 'MultipleSSEClients'],
+      'Evaluation Reasons': ['ReasonFallthrough', 'ReasonUnknown', 'ReasonOff', 'ReasonTargetMatch', 'ReasonValueConsistency', 'ReasonHasKind'],
+      'Typed Flags': ['GetStringFlag', 'GetStringFlagDefault', 'GetNumberFlag', 'GetNumberFlagDefault', 'GetJSONFlag', 'GetJSONFlagDefault', 'TypeMismatch', 'AllTypedFlagsNotSupported']
+    };
+
+    // SDK type categories
+    const SDK_TYPES = {
+      'Backend':  { icon: '⚙️', sdks: ['sdk-node', 'sdk-go', 'sdk-python', 'sdk-java', 'sdk-dotnet'], badge: 'badge-backend' },
+      'Frontend': { icon: '🌐', sdks: ['sdk-browser', 'sdk-react', 'sdk-vue', 'sdk-svelte', 'sdk-angular'], badge: 'badge-frontend' },
+      'Mobile':   { icon: '📱', sdks: ['sdk-react-native', 'sdk-flutter'], badge: 'badge-mobile' },
+    };
+
+    function getSDKType(sdkName) {
+      for (const [type, info] of Object.entries(SDK_TYPES)) {
+        if (info.sdks.includes(sdkName)) return type;
+      }
+      return 'Other';
+    }
+
+    function getSDKBadgeClass(sdkName) {
+      for (const info of Object.values(SDK_TYPES)) {
+        if (info.sdks.includes(sdkName)) return info.badge;
+      }
+      return 'badge-backend';
+    }
+
+    // Reverse lookup: test name -> category
+    const testToCategory = {};
+    Object.entries(TEST_CATEGORIES).forEach(([cat, tests]) => {
+      tests.forEach(t => testToCategory[t] = cat);
+    });
+
+    function getCategory(testName) {
+      // Remove "Test" prefix
+      const name = testName.replace(/^Test/, '');
+      return testToCategory[name] || 'Other';
+    }
+
+    function formatDuration(seconds) {
+      if (seconds == null) return '';
+      if (seconds < 1) return `${(seconds * 1000).toFixed(0)}ms`;
+      if (seconds < 60) return `${seconds.toFixed(1)}s`;
+      const m = Math.floor(seconds / 60);
+      const s = (seconds % 60).toFixed(0);
+      return `${m}m${s}s`;
+    }
+
+    const sdks = {};
+    const allTests = new Set();
+    const sdkOrder = [];
+    const cardsContainer = document.getElementById('cards-view');
+    const tableContainer = document.getElementById('table-view');
+    const statusEl = document.getElementById('status');
+    let currentView = 'cards';
+
+    // Persistence
+    const STORAGE_KEY = 'rollgate-test-results';
+
+    function saveState() {
+      const state = { sdks, sdkOrder: sdkOrder, allTests: Array.from(allTests), timestamp: Date.now() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const state = JSON.parse(saved);
+          // Only restore if less than 1 hour old
+          if (Date.now() - state.timestamp < 3600000) {
+            Object.assign(sdks, state.sdks);
+            sdkOrder.push(...state.sdkOrder);
+            state.allTests.forEach(t => allTests.add(t));
+            // Render restored state
+            sdkOrder.forEach(sdk => {
+              renderSDKCard(sdk);
+              updateSDKCard(sdk);
+            });
+            return true;
+          }
+        }
+      } catch (e) { console.error('Failed to load state:', e); }
+      return false;
+    }
+
+    function clearState() {
+      localStorage.removeItem(STORAGE_KEY);
+      Object.keys(sdks).forEach(k => delete sdks[k]);
+      sdkOrder.length = 0;
+      allTests.clear();
+      cardsContainer.innerHTML = '';
+      const thead = document.querySelector('#matrix thead');
+      thead.innerHTML = '<tr class="sdk-type-header"><th class="test-name"></th></tr><tr><th class="test-name">Test</th></tr>';
+      renderTable();
+    }
+
+    // View toggle
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        cardsContainer.classList.toggle('hidden', currentView !== 'cards');
+        tableContainer.classList.toggle('hidden', currentView !== 'table');
+        if (currentView === 'table') renderTable();
+      });
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      if (confirm('Clear all test results?')) clearState();
+    });
+
+    function connect() {
+      const ws = new WebSocket(`ws://${location.host}/ws`);
+      ws.onopen = () => { statusEl.textContent = 'Connected'; statusEl.className = 'status connected'; };
+      ws.onclose = () => { statusEl.textContent = 'Disconnected'; statusEl.className = 'status disconnected'; setTimeout(connect, 2000); };
+      ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
+    }
+
+    function handleEvent(event) {
+      const { type, sdk, test, status, total, passed, failed, skipped, elapsed, totalElapsed } = event;
+
+      if (!sdks[sdk]) {
+        sdks[sdk] = { total: 0, passed: 0, failed: 0, skipped: 0, tests: {}, testElapsed: {}, totalElapsed: null, startTime: null };
+        sdkOrder.push(sdk);
+        renderSDKCard(sdk);
+      }
+
+      const s = sdks[sdk];
+
+      if (type === 'start') {
+        s.total = total || 90;
+        s.passed = s.failed = s.skipped = 0;
+        s.tests = {};
+        s.testElapsed = {};
+        s.totalElapsed = null;
+        s.startTime = Date.now();
+      } else if (type === 'test') {
+        s.tests[test] = status;
+        if (elapsed != null) s.testElapsed[test] = elapsed;
+        allTests.add(test);
+        if (status === 'pass') s.passed++;
+        else if (status === 'fail') s.failed++;
+        else if (status === 'skip') s.skipped++;
+      } else if (type === 'done') {
+        s.passed = passed; s.failed = failed; s.skipped = skipped;
+        s.totalElapsed = totalElapsed || null;
+      }
+
+      updateSDKCard(sdk);
+      updateGlobalStats();
+      if (currentView === 'table') renderTable();
+      saveState();
+    }
+
+    // === Cards View ===
+    function ensureSDKSection(sdkType) {
+      let section = document.getElementById(`section-${sdkType}`);
+      if (!section) {
+        const info = SDK_TYPES[sdkType] || { icon: '📦' };
+        section = document.createElement('div');
+        section.className = 'sdk-section';
+        section.id = `section-${sdkType}`;
+        section.innerHTML = `
+          <div class="sdk-section-header">
+            <span class="section-icon">${info.icon}</span>
+            <span>${sdkType}</span>
+          </div>
+          <div class="grid" id="grid-${sdkType}"></div>
+        `;
+        // Insert sections in order: Backend, Frontend, Mobile
+        const typeOrder = Object.keys(SDK_TYPES);
+        const targetIndex = typeOrder.indexOf(sdkType);
+        const existingSections = cardsContainer.querySelectorAll('.sdk-section');
+        let inserted = false;
+        for (const existing of existingSections) {
+          const existingType = existing.id.replace('section-', '');
+          if (typeOrder.indexOf(existingType) > targetIndex) {
+            cardsContainer.insertBefore(section, existing);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) cardsContainer.appendChild(section);
+      }
+      return section.querySelector('.grid');
+    }
+
+    function renderSDKCard(name) {
+      const sdkType = getSDKType(name);
+      const badgeClass = getSDKBadgeClass(name);
+      const grid = ensureSDKSection(sdkType);
+
+      const div = document.createElement('div');
+      div.className = 'sdk';
+      div.id = `sdk-${name}`;
+      div.innerHTML = `
+        <h2><span class="sdk-badge ${badgeClass}">${sdkType}</span>${name.replace('sdk-', '')}</h2>
+        <div class="progress"><div class="progress-bar" style="width:0%;background:#238636"></div></div>
+        <div class="stats"><span class="pass">✓ 0</span><span class="fail">✗ 0</span><span class="skip">○ 0</span><span class="time"></span></div>
+        <div class="tests"></div>
+      `;
+      grid.appendChild(div);
+    }
+
+    function updateSDKCard(name) {
+      const s = sdks[name];
+      const el = document.getElementById(`sdk-${name}`);
+      if (!el) return;
+
+      const done = s.passed + s.failed + s.skipped;
+      const pct = s.total ? (done / s.total * 100) : 0;
+      const color = s.failed > 0 ? '#f85149' : '#238636';
+
+      el.querySelector('.progress-bar').style.cssText = `width:${pct}%;background:${color}`;
+      el.querySelector('.pass').textContent = `✓ ${s.passed}`;
+      el.querySelector('.fail').textContent = `✗ ${s.failed}`;
+      el.querySelector('.skip').textContent = `○ ${s.skipped}`;
+
+      // Show timing
+      const timeEl = el.querySelector('.time');
+      if (s.totalElapsed != null) {
+        timeEl.textContent = formatDuration(s.totalElapsed);
+      } else if (s.startTime) {
+        timeEl.textContent = formatDuration((Date.now() - s.startTime) / 1000) + '...';
+      }
+
+      // Group tests by category
+      const byCategory = {};
+      Object.entries(s.tests).forEach(([test, status]) => {
+        const cat = getCategory(test);
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push({ test, status });
+      });
+
+      // Sort categories, put ones with failures first
+      const categoryOrder = Object.keys(TEST_CATEGORIES).concat(['Other']);
+      const sortedCategories = categoryOrder.filter(cat => byCategory[cat]);
+      sortedCategories.sort((a, b) => {
+        const aHasFail = byCategory[a]?.some(t => t.status === 'fail');
+        const bHasFail = byCategory[b]?.some(t => t.status === 'fail');
+        if (aHasFail && !bHasFail) return -1;
+        if (!aHasFail && bHasFail) return 1;
+        return 0;
+      });
+
+      const testsEl = el.querySelector('.tests');
+      testsEl.innerHTML = sortedCategories.map(cat => {
+        const tests = byCategory[cat];
+        const catPassed = tests.filter(t => t.status === 'pass').length;
+        const catFailed = tests.filter(t => t.status === 'fail').length;
+        const hasFail = catFailed > 0;
+
+        // Sort: failed first within category
+        tests.sort((a, b) => {
+          if (a.status === 'fail' && b.status !== 'fail') return -1;
+          if (a.status !== 'fail' && b.status === 'fail') return 1;
+          return 0;
+        });
+
+        return `
+          <div class="category">
+            <div class="category-header" onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.toggle').textContent = this.nextElementSibling.classList.contains('collapsed') ? '▸' : '▾'">
+              <span>${cat} <span class="toggle">▾</span></span>
+              <span class="category-stats">
+                <span class="pass">✓${catPassed}</span>
+                ${catFailed > 0 ? `<span class="fail">✗${catFailed}</span>` : ''}
+              </span>
+            </div>
+            <div class="category-tests${hasFail ? '' : ' collapsed'}">
+              ${tests.map(({ test, status }) => {
+                const icon = status === 'pass' ? '✓' : status === 'fail' ? '✗' : '○';
+                const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'skip';
+                const elapsed = s.testElapsed[test];
+                const timeStr = elapsed != null ? `<span class="time">${formatDuration(elapsed)}</span>` : '';
+                return `<div class="test"><span class="icon ${cls}">${icon}</span><span style="flex:1">${test}</span>${timeStr}</div>`;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // === Table View ===
+    function renderTable() {
+      const table = document.getElementById('matrix');
+      const thead = table.querySelector('thead');
+      const tbody = table.querySelector('tbody');
+      const tfoot = table.querySelector('tfoot tr');
+
+      // Sort SDK columns by type: Backend, Frontend, Mobile
+      const typeOrder = Object.keys(SDK_TYPES);
+      const sortedSDKs = [...sdkOrder].sort((a, b) => {
+        const aType = typeOrder.indexOf(getSDKType(a));
+        const bType = typeOrder.indexOf(getSDKType(b));
+        if (aType !== bType) return aType - bType;
+        return sdkOrder.indexOf(a) - sdkOrder.indexOf(b);
+      });
+
+      // Build type sub-header row
+      let typeHeaderHTML = '<th class="test-name"></th>';
+      let lastType = '';
+      sortedSDKs.forEach(sdk => {
+        const type = getSDKType(sdk);
+        const info = SDK_TYPES[type] || {};
+        if (type !== lastType) {
+          const count = sortedSDKs.filter(s => getSDKType(s) === type).length;
+          typeHeaderHTML += `<th colspan="${count}">${info.icon || ''} ${type}</th>`;
+          lastType = type;
+        }
+      });
+
+      // Build header with SDK names
+      thead.innerHTML = `<tr class="sdk-type-header">${typeHeaderHTML}</tr>` +
+        '<tr><th class="test-name">Test</th>' +
+        sortedSDKs.map(sdk => `<th>${sdk.replace('sdk-', '')}</th>`).join('') + '</tr>';
+
+      // Group tests by category
+      const testsByCategory = {};
+      allTests.forEach(test => {
+        const cat = getCategory(test);
+        if (!testsByCategory[cat]) testsByCategory[cat] = [];
+        testsByCategory[cat].push(test);
+      });
+
+      // Sort categories, put ones with failures first
+      const categoryOrder = Object.keys(TEST_CATEGORIES).concat(['Other']);
+      const sortedCategories = categoryOrder.filter(cat => testsByCategory[cat]);
+      sortedCategories.sort((a, b) => {
+        const aHasFail = testsByCategory[a]?.some(test =>
+          sortedSDKs.some(sdk => sdks[sdk].tests[test] === 'fail'));
+        const bHasFail = testsByCategory[b]?.some(test =>
+          sortedSDKs.some(sdk => sdks[sdk].tests[test] === 'fail'));
+        if (aHasFail && !bHasFail) return -1;
+        if (!aHasFail && bHasFail) return 1;
+        return 0;
+      });
+
+      // Build rows grouped by category
+      let html = '';
+      sortedCategories.forEach(cat => {
+        const tests = testsByCategory[cat];
+        // Sort tests within category: failed first
+        tests.sort((a, b) => {
+          const aFailed = sortedSDKs.some(sdk => sdks[sdk].tests[a] === 'fail');
+          const bFailed = sortedSDKs.some(sdk => sdks[sdk].tests[b] === 'fail');
+          if (aFailed && !bFailed) return -1;
+          if (!aFailed && bFailed) return 1;
+          return a.localeCompare(b);
+        });
+
+        // Category header row
+        html += `<tr class="category-row"><td class="test-name" colspan="${sortedSDKs.length + 1}">${cat}</td></tr>`;
+
+        // Test rows
+        tests.forEach(test => {
+          const cells = sortedSDKs.map(sdk => {
+            const status = sdks[sdk].tests[test];
+            if (status === 'pass') return '<td class="result result-pass">✓</td>';
+            if (status === 'fail') return '<td class="result result-fail">✗</td>';
+            if (status === 'skip') return '<td class="result result-skip">○</td>';
+            return '<td class="result result-pending">-</td>';
+          }).join('');
+          html += `<tr><td class="test-name">${test.replace(/^Test/, '')}</td>${cells}</tr>`;
+        });
+      });
+
+      tbody.innerHTML = html;
+
+      // Build footer with totals and timing
+      tfoot.innerHTML = '<td class="test-name"><strong>Total</strong></td>' +
+        sortedSDKs.map(sdk => {
+          const s = sdks[sdk];
+          const total = s.passed + s.failed + s.skipped;
+          const cls = s.failed > 0 ? 'summary-fail' : 'summary-pass';
+          const timeStr = s.totalElapsed != null ? `<br><span style="font-size:11px;color:#8b949e">${formatDuration(s.totalElapsed)}</span>` : '';
+          return `<td class="${cls}">${s.passed}/${total}${timeStr}</td>`;
+        }).join('');
+    }
+
+    function updateGlobalStats() {
+      let totalPassed = 0, totalFailed = 0, totalSkipped = 0, totalTime = 0;
+      let sdkCount = 0, completedCount = 0;
+      for (const sdk of sdkOrder) {
+        const s = sdks[sdk];
+        totalPassed += s.passed;
+        totalFailed += s.failed;
+        totalSkipped += s.skipped;
+        sdkCount++;
+        if (s.totalElapsed != null) {
+          totalTime += s.totalElapsed;
+          completedCount++;
+        }
+      }
+      const total = totalPassed + totalFailed + totalSkipped;
+      const statsEl = document.getElementById('global-stats');
+      let text = `${sdkCount} SDKs | ${totalPassed}/${total} tests`;
+      if (totalFailed > 0) text += ` | ${totalFailed} failed`;
+      if (completedCount > 0) text += ` | ${formatDuration(totalTime)} total`;
+      statsEl.textContent = text;
+    }
+
+    // Init
+    loadState();
+    updateGlobalStats();
+    connect();
+  </script>
+</body>
+</html>

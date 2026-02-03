@@ -62,15 +62,37 @@ await client.identify({
 
 ## API
 
-| Method                     | Description                       |
-| -------------------------- | --------------------------------- |
-| `init(user?)`              | Initialize client and fetch flags |
-| `isEnabled(key, default?)` | Check if a flag is enabled        |
-| `getAllFlags()`            | Get all flags as object           |
-| `identify(user)`           | Update user context               |
-| `reset()`                  | Clear user context                |
-| `refresh()`                | Force refresh flags               |
-| `close()`                  | Clean up resources                |
+| Method                           | Description                       |
+| -------------------------------- | --------------------------------- |
+| `init(user?)`                    | Initialize client and fetch flags |
+| `isEnabled(key, default?)`       | Check if a flag is enabled        |
+| `isEnabledDetail(key, default?)` | Check flag with evaluation reason |
+| `getAllFlags()`                  | Get all flags as object           |
+| `identify(user)`                 | Update user context               |
+| `reset()`                        | Clear user context                |
+| `refresh()`                      | Force refresh flags               |
+| `close()`                        | Clean up resources                |
+
+## Evaluation Reasons
+
+Get detailed information about why a flag evaluated to a particular value:
+
+```typescript
+const detail = client.isEnabledDetail("my-flag", false);
+console.log(detail.value); // boolean
+console.log(detail.reason.kind); // "OFF" | "TARGET_MATCH" | "RULE_MATCH" | "FALLTHROUGH" | "ERROR" | "UNKNOWN"
+```
+
+Reason kinds:
+
+| Kind           | Description                        |
+| -------------- | ---------------------------------- |
+| `OFF`          | Flag is disabled                   |
+| `TARGET_MATCH` | User is in the flag's target list  |
+| `RULE_MATCH`   | User matched a targeting rule      |
+| `FALLTHROUGH`  | Default rollout (no rules matched) |
+| `ERROR`        | Error during evaluation            |
+| `UNKNOWN`      | Flag not found                     |
 
 ## Events
 

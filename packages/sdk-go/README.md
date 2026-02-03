@@ -111,19 +111,41 @@ err = client.Reset(ctx)
 
 ### Client Methods
 
-| Method                    | Description                    |
-| ------------------------- | ------------------------------ |
-| `NewClient(config)`       | Create a new client            |
-| `Initialize(ctx)`         | Initialize and fetch flags     |
-| `IsEnabled(key, default)` | Check if flag is enabled       |
-| `GetAllFlags()`           | Get all flag values            |
-| `Identify(ctx, user)`     | Set user context               |
-| `Reset(ctx)`              | Clear user context             |
-| `Refresh(ctx)`            | Force refresh flags            |
-| `GetMetrics()`            | Get SDK metrics                |
-| `GetCircuitState()`       | Get circuit breaker state      |
-| `IsReady()`               | Check if client is initialized |
-| `Close()`                 | Stop polling and cleanup       |
+| Method                          | Description                       |
+| ------------------------------- | --------------------------------- |
+| `NewClient(config)`             | Create a new client               |
+| `Initialize(ctx)`               | Initialize and fetch flags        |
+| `IsEnabled(key, default)`       | Check if flag is enabled          |
+| `IsEnabledDetail(key, default)` | Check flag with evaluation reason |
+| `GetAllFlags()`                 | Get all flag values               |
+| `Identify(ctx, user)`           | Set user context                  |
+| `Reset(ctx)`                    | Clear user context                |
+| `Refresh(ctx)`                  | Force refresh flags               |
+| `GetMetrics()`                  | Get SDK metrics                   |
+| `GetCircuitState()`             | Get circuit breaker state         |
+| `IsReady()`                     | Check if client is initialized    |
+| `Close()`                       | Stop polling and cleanup          |
+
+### Evaluation Reasons
+
+Get detailed information about why a flag evaluated to a particular value:
+
+```go
+detail := client.IsEnabledDetail("my-flag", false)
+fmt.Println(detail.Value)       // bool
+fmt.Println(detail.Reason.Kind) // "OFF", "TARGET_MATCH", "RULE_MATCH", "FALLTHROUGH", "ERROR", "UNKNOWN"
+```
+
+Reason kinds:
+
+| Kind           | Description                        |
+| -------------- | ---------------------------------- |
+| `OFF`          | Flag is disabled                   |
+| `TARGET_MATCH` | User is in the flag's target list  |
+| `RULE_MATCH`   | User matched a targeting rule      |
+| `FALLTHROUGH`  | Default rollout (no rules matched) |
+| `ERROR`        | Error during evaluation            |
+| `UNKNOWN`      | Flag not found                     |
 
 ### Circuit Breaker States
 

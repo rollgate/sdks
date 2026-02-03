@@ -167,6 +167,9 @@ func TestCacheConsistency(t *testing.T) {
 // TestETagWithUserContext tests ETag behavior with user context.
 func TestETagWithUserContext(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

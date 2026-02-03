@@ -10,6 +10,7 @@ import {
   RollgateBrowserClient,
   type RollgateOptions,
   type UserContext,
+  type EvaluationDetail,
 } from "@rollgate/sdk-browser";
 
 import {
@@ -89,7 +90,29 @@ export class ClientEntity {
   constructor(
     private readonly client: RollgateBrowserClient,
     private readonly tag: string,
+    private readonly baseUrl: string,
+    private readonly apiKey: string,
   ) {}
+
+  /**
+   * Notify mock server about user context for remote evaluation.
+   */
+  private async notifyMockIdentify(user: UserContext): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/api/v1/sdk/identify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({ user }),
+      });
+      log(`[identify] Sent user context to mock server: ${user.id}`);
+    } catch (e) {
+      // Ignore errors - mock might not support identify
+      log(`[identify] Failed to notify mock (non-fatal): ${e}`);
+    }
+  }
 
   close(): void {
     this.client.close();
@@ -107,31 +130,65 @@ export class ClientEntity {
         }
 
         let value: unknown;
+        let reason: unknown;
+        let variationId: string | undefined;
 
         switch (evalParams.valueType) {
           case ValueType.Bool:
-            value = this.client.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail) {
+              const detail = this.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = this.client.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
             break;
           case ValueType.Int:
           case ValueType.Double:
             // SDK doesn't support number flags yet, return default
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           case ValueType.String:
             // SDK doesn't support string flags yet, return default
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           default:
-            value = this.client.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail) {
+              const detail = this.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = this.client.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
         }
 
-        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}`);
+        log(
+          `[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`,
+        );
+
+        if (evalParams.detail) {
+          return { value, reason, variationId };
+        }
         return { value };
       }
 
@@ -145,15 +202,25 @@ export class ClientEntity {
         }
         const user = identifyParams.user || identifyParams.context;
         if (user) {
-          await this.client.identify({
+          const userContext: UserContext = {
             id: user.id || user.key || "unknown",
             email: user.email,
             attributes: user.attributes as
               | Record<string, string | number | boolean>
               | undefined,
-          });
+          };
+          // Notify mock server about user context BEFORE SDK identify
+          // so rules can be evaluated with user attributes
+          await this.notifyMockIdentify(userContext);
+          await this.client.identify(userContext);
         }
         log(`[${this.tag}] identify: ${JSON.stringify(user)}`);
+        return undefined;
+      }
+
+      case CommandType.Reset: {
+        await this.client.reset();
+        log(`[${this.tag}] reset`);
         return undefined;
       }
 
@@ -235,5 +302,5 @@ export async function newSdkClientEntity(
     throw new Error("client initialization failed");
   }
 
-  return new ClientEntity(client, tag);
+  return new ClientEntity(client, tag, sdkConfig.baseUrl || "", apiKey);
 }

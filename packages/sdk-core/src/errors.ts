@@ -112,10 +112,16 @@ export class RollgateError extends Error {
     const category =
       (error.category as ErrorCategory) || ErrorCategory.INTERNAL;
 
+    // Default retryable based on status code if not explicitly set
+    const retryable =
+      error.retryable !== undefined
+        ? error.retryable
+        : statusCode !== undefined && statusCode >= 500;
+
     return new RollgateError(error.message, error.code, category, {
       details: error.details,
       field: error.field,
-      retryable: error.retryable,
+      retryable,
       statusCode,
     });
   }

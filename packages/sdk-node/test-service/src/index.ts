@@ -65,11 +65,21 @@ interface Command {
   defaultJsonValue?: unknown;
 }
 
+interface EvaluationReason {
+  kind: string;
+  ruleId?: string;
+  ruleIndex?: number;
+  inRollout?: boolean;
+  errorKind?: string;
+}
+
 interface Response {
   value?: boolean;
   stringValue?: string;
   numberValue?: number;
   jsonValue?: unknown;
+  reason?: EvaluationReason;
+  variationId?: string;
   flags?: Record<string, boolean>;
   isReady?: boolean;
   circuitState?: string;
@@ -262,6 +272,71 @@ async function handleCommand(cmd: Command): Promise<Response> {
       const defaultValue = cmd.defaultJsonValue ?? null;
       const jsonValue = client.getJSON(cmd.flagKey, defaultValue);
       return { jsonValue };
+    }
+
+    case "isEnabledDetail": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey) {
+        return { error: "ValidationError", message: "flagKey is required" };
+      }
+
+      const defaultValue = cmd.defaultValue ?? false;
+      const detail = client.isEnabledDetail(cmd.flagKey, defaultValue);
+      return {
+        value: detail.value,
+        reason: {
+          kind: detail.reason.kind,
+          ruleId: detail.reason.ruleId,
+          ruleIndex: detail.reason.ruleIndex,
+          inRollout: detail.reason.inRollout,
+          errorKind: detail.reason.errorKind,
+        },
+        variationId: detail.variationId,
+      };
+    }
+
+    case "getValueDetail": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey) {
+        return { error: "ValidationError", message: "flagKey is required" };
+      }
+
+      const defaultValue = cmd.defaultJsonValue;
+      const detail = client.getValueDetail(cmd.flagKey, defaultValue);
+
+      // Determine value type and return appropriately
+      const response: Response = {
+        reason: {
+          kind: detail.reason.kind,
+          ruleId: detail.reason.ruleId,
+          ruleIndex: detail.reason.ruleIndex,
+          inRollout: detail.reason.inRollout,
+          errorKind: detail.reason.errorKind,
+        },
+        variationId: detail.variationId,
+      };
+
+      if (typeof detail.value === "boolean") {
+        response.value = detail.value;
+      } else if (typeof detail.value === "string") {
+        response.stringValue = detail.value;
+      } else if (typeof detail.value === "number") {
+        response.numberValue = detail.value;
+      } else {
+        response.jsonValue = detail.value;
+      }
+
+      return response;
     }
 
     case "close": {

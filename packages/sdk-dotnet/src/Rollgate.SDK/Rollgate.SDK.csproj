@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Rollgate.SDK</RootNamespace>
+    <PackageId>Rollgate.SDK</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Rollgate Feature Flag SDK for .NET</Description>
+  </PropertyGroup>
+
+</Project>

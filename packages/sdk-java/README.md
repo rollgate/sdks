@@ -109,18 +109,40 @@ client.reset();
 
 ### RollgateClient Methods
 
-| Method                    | Description                    |
-| ------------------------- | ------------------------------ |
-| `initialize()`            | Initialize and fetch flags     |
-| `isEnabled(key, default)` | Check if flag is enabled       |
-| `getAllFlags()`           | Get all flag values            |
-| `identify(user)`          | Set user context               |
-| `reset()`                 | Clear user context             |
-| `refresh()`               | Force refresh flags            |
-| `isReady()`               | Check if client is initialized |
-| `getCircuitState()`       | Get circuit breaker state      |
-| `getCacheStats()`         | Get cache statistics           |
-| `close()`                 | Stop polling and cleanup       |
+| Method                          | Description                       |
+| ------------------------------- | --------------------------------- |
+| `initialize()`                  | Initialize and fetch flags        |
+| `isEnabled(key, default)`       | Check if flag is enabled          |
+| `isEnabledDetail(key, default)` | Check flag with evaluation reason |
+| `getAllFlags()`                 | Get all flag values               |
+| `identify(user)`                | Set user context                  |
+| `reset()`                       | Clear user context                |
+| `refresh()`                     | Force refresh flags               |
+| `isReady()`                     | Check if client is initialized    |
+| `getCircuitState()`             | Get circuit breaker state         |
+| `getCacheStats()`               | Get cache statistics              |
+| `close()`                       | Stop polling and cleanup          |
+
+### Evaluation Reasons
+
+Get detailed information about why a flag evaluated to a particular value:
+
+```java
+EvaluationDetail<Boolean> detail = client.isEnabledDetail("my-flag", false);
+System.out.println(detail.getValue());         // Boolean
+System.out.println(detail.getReason().getKind()); // "OFF", "TARGET_MATCH", etc.
+```
+
+Reason kinds:
+
+| Kind           | Description                        |
+| -------------- | ---------------------------------- |
+| `OFF`          | Flag is disabled                   |
+| `TARGET_MATCH` | User is in the flag's target list  |
+| `RULE_MATCH`   | User matched a targeting rule      |
+| `FALLTHROUGH`  | Default rollout (no rules matched) |
+| `ERROR`        | Error during evaluation            |
+| `UNKNOWN`      | Flag not found                     |
 
 ### Circuit Breaker States
 

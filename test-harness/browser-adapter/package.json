@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "yarn build && node dist/index.js"
+    "start": "npm run build && node dist/index.js"
   },
   "dependencies": {
     "body-parser": "^1.20.3",

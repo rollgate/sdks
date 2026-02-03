@@ -18,8 +18,8 @@ const App = {
 function runContractTests() {
   log("Starting Vue contract test entity...");
 
-  // Connect to adapter WebSocket (Vue uses port 8021)
-  const wsPort = import.meta.env.VITE_WS_PORT || "8021";
+  // Connect to adapter WebSocket (standard port 8011)
+  const wsPort = import.meta.env.VITE_WS_PORT || "8011";
   const ws = new TestHarnessWebSocket(`ws://localhost:${wsPort}`);
   ws.connect();
 }

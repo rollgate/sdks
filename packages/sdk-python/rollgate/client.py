@@ -31,6 +31,15 @@ from rollgate.errors import (
     RateLimitError,
     classify_error,
 )
+from rollgate.reasons import (
+    EvaluationReason,
+    EvaluationDetail,
+    EvaluationReasonKind,
+    EvaluationErrorKind,
+    fallthrough_reason,
+    error_reason,
+    unknown_reason,
+)
 
 logger = logging.getLogger("rollgate")
 
@@ -92,15 +101,17 @@ class RollgateClient:
         ```
     """
 
-    def __init__(self, config: RollgateConfig):
+    def __init__(self, config: RollgateConfig, http_client: Optional[httpx.AsyncClient] = None):
         """
         Initialize the Rollgate client.
 
         Args:
             config: Client configuration
+            http_client: Optional pre-configured httpx.AsyncClient for connection reuse
         """
         self._config = config
         self._flags: Dict[str, bool] = {}
+        self._flag_reasons: Dict[str, EvaluationReason] = {}
         self._initialized = False
         self._user_context: Optional[UserContext] = None
         self._circuit_breaker = CircuitBreaker(config.circuit_breaker)
@@ -108,8 +119,22 @@ class RollgateClient:
         self._last_etag: Optional[str] = None
         self._poll_task: Optional[asyncio.Task] = None
         self._sse_task: Optional[asyncio.Task] = None
-        self._http_client: Optional[httpx.AsyncClient] = None
         self._closing = False
+
+        # Use provided HTTP client or create one
+        if http_client:
+            self._http_client = http_client
+            self._owns_http_client = False
+        else:
+            self._http_client = httpx.AsyncClient(
+                timeout=config.timeout_ms / 1000,
+                limits=httpx.Limits(
+                    max_connections=10,
+                    max_keepalive_connections=5,
+                    keepalive_expiry=5,
+                ),
+            )
+            self._owns_http_client = True
 
         # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
@@ -174,7 +199,6 @@ class RollgateClient:
             user: Optional user context for targeting
         """
         self._user_context = user
-        self._http_client = httpx.AsyncClient(timeout=self._config.timeout_ms / 1000)
 
         # Try to load cached flags first
         self._cache.load()
@@ -218,6 +242,9 @@ class RollgateClient:
             "Authorization": f"Bearer {self._config.api_key}",
         }
 
+        backoff = 1.0  # Start at 1 second (matches Go SDK)
+        max_backoff = 30.0
+
         while not self._closing:
             try:
                 async with aconnect_sse(
@@ -227,6 +254,8 @@ class RollgateClient:
                     params=params,
                     headers=headers,
                 ) as event_source:
+                    # Reset backoff on successful connection
+                    backoff = 1.0
                     async for event in event_source.aiter_sse():
                         if self._closing:
                             break
@@ -241,13 +270,15 @@ class RollgateClient:
                                 logger.warning(f"Failed to parse SSE message: {e}")
             except Exception as e:
                 if not self._closing:
-                    logger.warning(f"SSE connection error, reconnecting: {e}")
-                    await asyncio.sleep(5)  # Wait before reconnecting
+                    logger.warning(f"SSE connection error, reconnecting in {backoff}s: {e}")
+                    await asyncio.sleep(backoff)
+                    # Exponential backoff with cap
+                    backoff = min(backoff * 2, max_backoff)
 
     async def _fetch_flags(self) -> None:
         """Fetch all flags from the API."""
         url = f"{self._config.base_url}/api/v1/sdk/flags"
-        params = {}
+        params = {"withReasons": "true"}
         if self._user_context:
             params["user_id"] = self._user_context.id
 
@@ -340,6 +371,18 @@ class RollgateClient:
             self._last_etag = etag
 
         data = response.json()
+        # Store reasons if present
+        if "reasons" in data:
+            self._flag_reasons = {
+                k: EvaluationReason(
+                    kind=EvaluationReasonKind(v.get("kind", "UNKNOWN")),
+                    rule_id=v.get("ruleId"),
+                    rule_index=v.get("ruleIndex"),
+                    in_rollout=v.get("inRollout"),
+                    error_kind=EvaluationErrorKind(v["errorKind"]) if v.get("errorKind") else None,
+                )
+                for k, v in data["reasons"].items()
+            }
         return data.get("flags", {})
 
     def _update_flags(self, new_flags: Dict[str, bool]) -> None:
@@ -374,11 +417,56 @@ class RollgateClient:
         Returns:
             True if the flag is enabled
         """
+        return self.is_enabled_detail(flag_key, default_value).value
+
+    def is_enabled_detail(
+        self, flag_key: str, default_value: bool = False
+    ) -> EvaluationDetail[bool]:
+        """
+        Check if a flag is enabled with evaluation reason.
+
+        Args:
+            flag_key: The flag key to check
+            default_value: Default value if flag not found
+
+        Returns:
+            EvaluationDetail containing the value and reason
+        """
         if not self._initialized:
             logger.warning("Client not initialized. Call init() first.")
-            return default_value
+            return EvaluationDetail(
+                value=default_value,
+                reason=error_reason(EvaluationErrorKind.CLIENT_NOT_READY),
+            )
 
-        return self._flags.get(flag_key, default_value)
+        if flag_key not in self._flags:
+            return EvaluationDetail(
+                value=default_value,
+                reason=unknown_reason(),
+            )
+
+        value = self._flags[flag_key]
+        # Use stored reason from server, or FALLTHROUGH as default
+        stored_reason = self._flag_reasons.get(flag_key)
+        return EvaluationDetail(
+            value=value,
+            reason=stored_reason if stored_reason else fallthrough_reason(in_rollout=value),
+        )
+
+    def bool_variation_detail(
+        self, flag_key: str, default_value: bool = False
+    ) -> EvaluationDetail[bool]:
+        """
+        Alias for is_enabled_detail for LaunchDarkly compatibility.
+
+        Args:
+            flag_key: The flag key to check
+            default_value: Default value if flag not found
+
+        Returns:
+            EvaluationDetail containing the value and reason
+        """
+        return self.is_enabled_detail(flag_key, default_value)
 
     def get_all_flags(self) -> Dict[str, bool]:
         """
@@ -452,12 +540,17 @@ class RollgateClient:
             except asyncio.CancelledError:
                 pass
 
-        # Close HTTP client
-        if self._http_client:
+        # Close HTTP client only if we own it
+        if self._owns_http_client and self._http_client:
             await self._http_client.aclose()
 
-        # Close cache
+        # Close cache (also clears its callbacks)
         self._cache.close()
+
+        # Clear all callbacks to prevent memory leaks
+        self._circuit_breaker.clear_callbacks()
+        for event in self._callbacks:
+            self._callbacks[event].clear()
 
     async def __aenter__(self) -> "RollgateClient":
         """Async context manager entry."""
