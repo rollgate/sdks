@@ -1,0 +1,10 @@
+name: rollgate
+description: Rollgate Feature Flag SDK for Dart/Flutter
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  http: ^1.2.0
+  crypto: ^3.0.0

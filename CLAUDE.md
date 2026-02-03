@@ -38,7 +38,9 @@ packages/
   sdk-go/          → github.com/rollgate/sdk-go
   sdk-python/      → rollgate (PyPI)
   sdk-java/        → io.rollgate:sdk-java
+  sdk-dotnet/      → Rollgate.SDK (NuGet)
   sdk-react-native/ → @rollgate/sdk-react-native
+  sdk-flutter/     → rollgate (pub.dev)
 test-harness/      → Cross-SDK contract tests (Go)
   dashboard/       → Real-time test monitoring
   internal/        → Test suite (90 tests)
@@ -48,7 +50,7 @@ test-harness/      → Cross-SDK contract tests (Go)
 
 ## Contract Tests & Dashboard
 
-### Eseguire TUTTI i 756 Contract Tests (9 SDK)
+### Eseguire TUTTI i 1080 Contract Tests (12 SDK)
 
 ```bash
 # Comando unico per testare tutti gli SDK
@@ -60,7 +62,7 @@ Questo script:
 
 1. Killa processi esistenti sulle porte usate
 2. Avvia la dashboard e apre il browser
-3. Avvia tutti i backend test services (node, go, python, java)
+3. Avvia tutti i backend test services (node, go, python, java, dotnet, flutter)
 4. Esegue i test sequenzialmente per ogni SDK
 5. Cleanup automatico alla fine
 
@@ -68,17 +70,20 @@ Dashboard: http://localhost:8080/static/
 
 ### Test Services (porte)
 
-| SDK         | Porta | Tipo                           |
-| ----------- | ----- | ------------------------------ |
-| sdk-node    | 8001  | Backend                        |
-| sdk-go      | 8003  | Backend                        |
-| sdk-python  | 8004  | Backend                        |
-| sdk-java    | 8005  | Backend                        |
-| sdk-browser | 8010  | Frontend (via browser-adapter) |
-| sdk-react   | 8010  | Frontend (via browser-adapter) |
-| sdk-vue     | 8010  | Frontend (via browser-adapter) |
-| sdk-svelte  | 8010  | Frontend (via browser-adapter) |
-| sdk-angular | 8010  | Frontend (via browser-adapter) |
+| SDK              | Porta | Tipo                           |
+| ---------------- | ----- | ------------------------------ |
+| sdk-node         | 8001  | Backend                        |
+| sdk-go           | 8003  | Backend                        |
+| sdk-python       | 8004  | Backend                        |
+| sdk-java         | 8005  | Backend                        |
+| sdk-react-native | 8006  | Mobile                         |
+| sdk-dotnet       | 8007  | Backend                        |
+| sdk-flutter      | 8008  | Mobile                         |
+| sdk-browser      | 8010  | Frontend (via browser-adapter) |
+| sdk-react        | 8010  | Frontend (via browser-adapter) |
+| sdk-vue          | 8010  | Frontend (via browser-adapter) |
+| sdk-svelte       | 8010  | Frontend (via browser-adapter) |
+| sdk-angular      | 8010  | Frontend (via browser-adapter) |
 
 ### Eseguire Test Singolo SDK
 
@@ -113,6 +118,7 @@ go run main.go
 - Ogni SDK deve passare i 90 contract tests
 - Test services in `packages/sdk-*/test-service/`
 - **sdk-react/vue/angular/svelte DEVONO wrappare sdk-browser** (non implementare logica HTTP/cache)
+- **sdk-flutter** usa solo polling (no SSE), come sdk-react-native
 
 ---
 

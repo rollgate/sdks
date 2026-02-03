@@ -18,6 +18,110 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Sessione 2026-02-03 #13 (SDK .NET + SDK Flutter)
+
+### Obiettivo
+
+Aggiungere due nuovi SDK: sdk-dotnet (C#/.NET 8) e sdk-flutter (Dart/Flutter).
+
+### Lavoro Completato
+
+#### 1. SDK .NET (C#/.NET 8) ✅
+
+- **Struttura**: `packages/sdk-dotnet/`
+  - `src/Rollgate.SDK/` - SDK library (net8.0, zero external dependencies)
+    - `Config.cs` - Configuration with defaults
+    - `UserContext.cs` - User context for targeting
+    - `Reasons.cs` - EvaluationReason, EvaluationDetail<T>
+    - `Errors.cs` - Error types and classification
+    - `Cache.cs` - In-memory cache with TTL and stale-while-revalidate
+    - `CircuitBreaker.cs` - Circuit breaker (closed/open/half_open)
+    - `Retry.cs` - Exponential backoff with jitter
+    - `Dedup.cs` - Request deduplication
+    - `Metrics.cs` - SDK metrics
+    - `Evaluate.cs` - Evaluation engine (17 operators, SHA-256 rollout)
+    - `SSEClient.cs` - SSE streaming with auto-reconnect
+    - `RollgateClient.cs` - Main client class
+  - `test-service/` - ASP.NET Core minimal API on port 8007, 12 commands
+
+#### 2. SDK Flutter (Dart) ✅
+
+- **Struttura**: `packages/sdk-flutter/`
+  - `lib/src/` - SDK library (Dart, polling only, no SSE)
+    - `config.dart`, `user_context.dart`, `reasons.dart`, `errors.dart`
+    - `cache.dart`, `circuit_breaker.dart`, `retry.dart`, `dedup.dart`, `metrics.dart`
+    - `evaluate.dart` - Evaluation engine (17 operators, SHA-256 rollout)
+    - `client.dart` - Main client (polling only)
+  - `test-service/bin/server.dart` - HTTP server on port 8008, 12 commands
+
+#### 3. Integration ✅
+
+- **test-harness/test-all.sh**: Added ports 8007/8008, sdk-dotnet/sdk-flutter startup and test execution
+- **test-harness/dashboard/static/index.html**: Added sdk-dotnet to Backend, sdk-flutter to Mobile
+- **CLAUDE.md**: Updated ports table, project structure, test counts
+- **docs/SDK-ARCHITECTURE.md**: Added sdk-dotnet and sdk-flutter to diagrams and status table
+
+### Test Services (Porte)
+
+| SDK | Porta | Tipo |
+|-----|-------|------|
+| sdk-dotnet | 8007 | Backend |
+| sdk-flutter | 8008 | Mobile |
+
+### Come Testare
+
+```bash
+# sdk-dotnet
+cd packages/sdk-dotnet/test-service
+PORT=8007 dotnet run
+# In another terminal:
+cd test-harness/dashboard
+TEST_SERVICES="sdk-dotnet=http://localhost:8007" ./runner.exe sdk-dotnet ./internal/tests/... -count=1
+
+# sdk-flutter
+cd packages/sdk-flutter/test-service
+PORT=8008 dart run bin/server.dart
+# In another terminal:
+cd test-harness/dashboard
+TEST_SERVICES="sdk-flutter=http://localhost:8008" ./runner.exe sdk-flutter ./internal/tests/... -count=1
+```
+
+### Branch
+
+`feat/test-dashboard`
+
+#### 4. .NET SDK IPv4 Fix ✅
+
+- **Problema**: `TestInitTimeout` (100ms timeout) falliva perché .NET HttpClient su Windows tenta prima IPv6 (::1) per "localhost", con fallback lento a IPv4 (127.0.0.1)
+- **Fix**: `ConnectCallback` custom in `SocketsHttpHandler` che forza `AddressFamily.InterNetwork` (IPv4)
+- **Fix**: Timeout per-request via `CancellationTokenSource` invece di `HttpClient.Timeout`
+- **Fix**: `CircuitBreaker.ExecuteAsync()` per eliminare sync-over-async pattern
+- **Confronto LaunchDarkly**: Usano `SocketsHttpHandler` con `ConnectTimeout` separato da `ResponseStartTimeout`
+
+#### 5. Dashboard Timing ✅
+
+- **Runner**: Aggiunto `elapsed` per test e `totalElapsed` per SDK nell'evento `done`
+- **Dashboard**: Tempi per singolo test, per SDK, e globale nel header
+
+### Dipendenze Installate
+
+- **.NET SDK 8.0.417**: `winget install Microsoft.DotNet.SDK.8`
+- **Dart SDK 3.10.7**: `winget install Google.DartSDK` (path: `C:\Users\domen\AppData\Local\Microsoft\WinGet\Packages\Google.DartSDK_Microsoft.Winget.Source_8wekyb3d8bbwe\dart-sdk`)
+
+### Test Results
+
+| SDK | Test | Note |
+|-----|------|------|
+| sdk-dotnet | **90/90 pass** | Con IPv4 ConnectCallback fix |
+| sdk-flutter | **90/90 pass** | Prima esecuzione |
+
+### Prossimi Step
+
+- [ ] Run test-all.sh with all 12 SDKs (1080 tests)
+- [ ] Merge PR
+
+---
+
 ## Sessione 2026-02-03 #12 (Evaluation Reasons - Test Completi)
 
 ### Obiettivo

@@ -1,10 +1,11 @@
 #!/bin/bash
-# Test All SDKs - Esegue i 84 contract test su tutti gli SDK
+# Test All SDKs - Esegue i 90 contract test su tutti gli SDK
 #
-# Backend SDKs: sdk-node, sdk-go, sdk-python, sdk-java, sdk-react-native (5 SDK)
+# Backend SDKs: sdk-node, sdk-go, sdk-python, sdk-java, sdk-dotnet (5 SDK)
+# Mobile SDKs: sdk-react-native, sdk-flutter (2 SDK)
 # Frontend SDKs: sdk-browser, sdk-react, sdk-vue, sdk-svelte, sdk-angular (5 SDK)
 #
-# Totale: 10 SDK x 84 test = 840 test
+# Totale: 12 SDK x 90 test = 1080 test
 
 set -e
 
@@ -21,7 +22,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║       Rollgate SDK Contract Test Suite - All SDKs          ║${NC}"
-echo -e "${BLUE}║                   10 SDK × 84 tests = 840                   ║${NC}"
+echo -e "${BLUE}║                  12 SDK × 90 tests = 1080                    ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -65,8 +66,8 @@ kill_and_wait() {
 # Funzione per killare tutti i processi sulle porte usate
 kill_all_ports() {
     echo -e "${YELLOW}Killing processes on required ports...${NC}"
-    # Backend ports (node, go, python, java, react-native)
-    for port in 8001 8003 8004 8005 8006; do
+    # Backend ports (node, go, python, java, react-native, dotnet, flutter)
+    for port in 8001 8003 8004 8005 8006 8007 8008; do
         kill_and_wait $port
     done
     # Frontend/browser adapter port
@@ -90,6 +91,10 @@ cleanup() {
     pkill -f "go run" 2>/dev/null || true
     # Kill Python processes
     pkill -f "python main.py" 2>/dev/null || true
+    # Kill dotnet processes (for sdk-dotnet)
+    pkill -f "dotnet run" 2>/dev/null || true
+    # Kill dart processes (for sdk-flutter)
+    pkill -f "dart run" 2>/dev/null || true
     # Free all ports
     kill_all_ports
 }
@@ -162,13 +167,23 @@ echo -e "  Starting sdk-react-native on port 8006..."
 cd "$ROOT_DIR/packages/sdk-react-native/test-service"
 PORT=8006 node dist/index.js > /tmp/sdk-react-native.log 2>&1 &
 
+# sdk-dotnet (porta 8007)
+echo -e "  Starting sdk-dotnet on port 8007..."
+cd "$ROOT_DIR/packages/sdk-dotnet/test-service"
+PORT=8007 dotnet run --no-build > /tmp/sdk-dotnet.log 2>&1 &
+
+# sdk-flutter (porta 8008)
+echo -e "  Starting sdk-flutter on port 8008..."
+cd "$ROOT_DIR/packages/sdk-flutter/test-service"
+PORT=8008 dart run bin/server.dart > /tmp/sdk-flutter.log 2>&1 &
+
 # Attendi avvio
 echo -e "  Waiting for services to start..."
-sleep 5
+sleep 8
 
 # Verifica servizi
 echo -e "  Verifying services..."
-for port in 8001 8003 8004 8005 8006; do
+for port in 8001 8003 8004 8005 8006 8007 8008; do
     if curl -s "http://localhost:$port" > /dev/null 2>&1; then
         echo -e "    ${GREEN}✓ Port $port OK${NC}"
     else
@@ -203,6 +218,14 @@ echo -e "  ${GREEN}✓ sdk-java complete${NC}"
 echo -e "\n  ${BLUE}Testing sdk-react-native...${NC}"
 TEST_SERVICES="sdk-react-native=http://localhost:8006" ./runner.exe sdk-react-native ./internal/tests/... -count=1
 echo -e "  ${GREEN}✓ sdk-react-native complete${NC}"
+
+echo -e "\n  ${BLUE}Testing sdk-dotnet...${NC}"
+TEST_SERVICES="sdk-dotnet=http://localhost:8007" ./runner.exe sdk-dotnet ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-dotnet complete${NC}"
+
+echo -e "\n  ${BLUE}Testing sdk-flutter...${NC}"
+TEST_SERVICES="sdk-flutter=http://localhost:8008" ./runner.exe sdk-flutter ./internal/tests/... -count=1
+echo -e "  ${GREEN}✓ sdk-flutter complete${NC}"
 
 echo -e "\n${GREEN}✓ All backend SDK tests complete${NC}"
 
