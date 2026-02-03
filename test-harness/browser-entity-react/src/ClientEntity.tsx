@@ -168,7 +168,9 @@ function RollgateCommandHandler({
               }
           }
 
-          log(`[${tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`);
+          log(
+            `[${tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`,
+          );
 
           if (evalParams.detail) {
             return { value, reason, variationId };

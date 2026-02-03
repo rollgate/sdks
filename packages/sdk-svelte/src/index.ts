@@ -71,7 +71,10 @@ export interface RollgateStores {
   /** Check if a flag is enabled (non-reactive) */
   isEnabled: (flagKey: string, defaultValue?: boolean) => boolean;
   /** Check if a flag is enabled with evaluation reason */
-  isEnabledDetail: (flagKey: string, defaultValue?: boolean) => EvaluationDetail<boolean>;
+  isEnabledDetail: (
+    flagKey: string,
+    defaultValue?: boolean,
+  ) => EvaluationDetail<boolean>;
   /** Change user context */
   identify: (user: UserContext) => Promise<void>;
   /** Clear user context */
