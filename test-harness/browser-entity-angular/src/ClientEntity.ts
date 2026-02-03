@@ -181,7 +181,9 @@ export class ClientEntity {
             }
         }
 
-        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`);
+        log(
+          `[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`,
+        );
 
         if (evalParams.detail) {
           return { value, reason, variationId };

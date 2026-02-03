@@ -63,10 +63,10 @@ Aggiungere due nuovi SDK: sdk-dotnet (C#/.NET 8) e sdk-flutter (Dart/Flutter).
 
 ### Test Services (Porte)
 
-| SDK | Porta | Tipo |
-|-----|-------|------|
-| sdk-dotnet | 8007 | Backend |
-| sdk-flutter | 8008 | Mobile |
+| SDK         | Porta | Tipo    |
+| ----------- | ----- | ------- |
+| sdk-dotnet  | 8007  | Backend |
+| sdk-flutter | 8008  | Mobile  |
 
 ### Come Testare
 
@@ -110,29 +110,29 @@ TEST_SERVICES="sdk-flutter=http://localhost:8008" ./runner.exe sdk-flutter ./int
 
 ### Test Results
 
-| SDK | Test | Note |
-|-----|------|------|
-| sdk-dotnet | **90/90 pass** | Con IPv4 ConnectCallback fix |
-| sdk-flutter | **90/90 pass** | Prima esecuzione |
+| SDK         | Test           | Note                         |
+| ----------- | -------------- | ---------------------------- |
+| sdk-dotnet  | **90/90 pass** | Con IPv4 ConnectCallback fix |
+| sdk-flutter | **90/90 pass** | Prima esecuzione             |
 
 ### Test Completi 12 SDK ✅
 
 Run `test-all.sh` con tutti i 12 SDK: **1080/1080 test passano**.
 
-| SDK | Test | Tempo | Tipo |
-|-----|------|-------|------|
-| sdk-node | 90/90 | 33.1s | Backend |
-| sdk-go | 90/90 | 26.3s | Backend |
-| sdk-python | 90/90 | **1m49s** ⚠️ | Backend |
-| sdk-java | 90/90 | 32.5s | Backend |
-| sdk-dotnet | 90/90 | 29.9s | Backend |
-| sdk-browser | 90/90 | 33.8s | Frontend |
-| sdk-react | 90/90 | 34.1s | Frontend |
-| sdk-vue | 90/90 | 29.9s | Frontend |
-| sdk-svelte | 90/90 | **1m11s** ⚠️ | Frontend |
-| sdk-angular | 90/90 | **1m12s** ⚠️ | Frontend |
-| sdk-react-native | 90/90 | 30.1s | Mobile |
-| sdk-flutter | 90/90 | 34.3s | Mobile |
+| SDK              | Test  | Tempo        | Tipo     |
+| ---------------- | ----- | ------------ | -------- |
+| sdk-node         | 90/90 | 33.1s        | Backend  |
+| sdk-go           | 90/90 | 26.3s        | Backend  |
+| sdk-python       | 90/90 | **1m49s** ⚠️ | Backend  |
+| sdk-java         | 90/90 | 32.5s        | Backend  |
+| sdk-dotnet       | 90/90 | 29.9s        | Backend  |
+| sdk-browser      | 90/90 | 33.8s        | Frontend |
+| sdk-react        | 90/90 | 34.1s        | Frontend |
+| sdk-vue          | 90/90 | 29.9s        | Frontend |
+| sdk-svelte       | 90/90 | **1m11s** ⚠️ | Frontend |
+| sdk-angular      | 90/90 | **1m12s** ⚠️ | Frontend |
+| sdk-react-native | 90/90 | 30.1s        | Mobile   |
+| sdk-flutter      | 90/90 | 34.3s        | Mobile   |
 
 **Tempo totale**: 8m56s
 
@@ -140,11 +140,11 @@ Run `test-all.sh` con tutti i 12 SDK: **1080/1080 test passano**.
 
 3 SDK avevano tempi anomali. Dopo fix:
 
-| SDK | Prima | Dopo | Fix applicato |
-|-----|-------|------|---------------|
-| **sdk-python** | 1m49s | **35s** | Shared httpx.AsyncClient (DI pattern), SSE exponential backoff |
-| **sdk-angular** | 1m12s | **43s** | Aggiunto `@analogjs/vite-plugin-angular` a vite.config.ts |
-| **sdk-svelte** | 1m11s | **72s** | Cached flags subscription (ma residuo ~30s è overhead Svelte 4 stores) |
+| SDK             | Prima | Dopo    | Fix applicato                                                          |
+| --------------- | ----- | ------- | ---------------------------------------------------------------------- |
+| **sdk-python**  | 1m49s | **35s** | Shared httpx.AsyncClient (DI pattern), SSE exponential backoff         |
+| **sdk-angular** | 1m12s | **43s** | Aggiunto `@analogjs/vite-plugin-angular` a vite.config.ts              |
+| **sdk-svelte**  | 1m11s | **72s** | Cached flags subscription (ma residuo ~30s è overhead Svelte 4 stores) |
 
 **Dettagli fix:**
 
@@ -198,18 +198,18 @@ Completare test Evaluation Reasons su tutti i 10 SDK e creare PR.
 
 #### 2. Test Reasons - Tutti i 10 SDK Passano ✅
 
-| SDK | Reason Tests |
-|-----|-------------|
-| sdk-node | 6/6 PASS |
-| sdk-go | 6/6 PASS |
-| sdk-python | 6/6 PASS |
-| sdk-java | 6/6 PASS |
-| sdk-react-native | 6/6 PASS |
-| sdk-browser | 6/6 PASS |
-| sdk-react | 6/6 PASS |
-| sdk-vue | 6/6 PASS |
-| sdk-svelte | 6/6 PASS |
-| sdk-angular | 6/6 PASS |
+| SDK              | Reason Tests |
+| ---------------- | ------------ |
+| sdk-node         | 6/6 PASS     |
+| sdk-go           | 6/6 PASS     |
+| sdk-python       | 6/6 PASS     |
+| sdk-java         | 6/6 PASS     |
+| sdk-react-native | 6/6 PASS     |
+| sdk-browser      | 6/6 PASS     |
+| sdk-react        | 6/6 PASS     |
+| sdk-vue          | 6/6 PASS     |
+| sdk-svelte       | 6/6 PASS     |
+| sdk-angular      | 6/6 PASS     |
 
 **Totale: 60/60 reason tests passano**
 
@@ -234,6 +234,7 @@ Completare test Evaluation Reasons su tutti i 10 SDK e creare PR.
   - Aggiunto supporto env vars `EXTERNAL_SERVER_URL` e `EXTERNAL_API_KEY`
 
 **Usage**:
+
 ```bash
 EXTERNAL_SERVER_URL=http://localhost:4000 \
 EXTERNAL_API_KEY=your-api-key \
@@ -243,10 +244,10 @@ go test ./internal/tests/...
 
 #### 5. Verifica Allineamento Mock vs Server ✅
 
-| Campo | Mock Server | Real Server |
-|-------|-------------|-------------|
-| `kind` | ✅ `json:"kind"` | ✅ `json:"kind"` |
-| `ruleId` | ✅ `json:"ruleId,omitempty"` | ✅ `json:"ruleId,omitempty"` |
+| Campo       | Mock Server                     | Real Server                     |
+| ----------- | ------------------------------- | ------------------------------- |
+| `kind`      | ✅ `json:"kind"`                | ✅ `json:"kind"`                |
+| `ruleId`    | ✅ `json:"ruleId,omitempty"`    | ✅ `json:"ruleId,omitempty"`    |
 | `ruleIndex` | ✅ `json:"ruleIndex,omitempty"` | ✅ `json:"ruleIndex,omitempty"` |
 | `inRollout` | ✅ `json:"inRollout,omitempty"` | ✅ `json:"inRollout,omitempty"` |
 | `errorKind` | ✅ `json:"errorKind,omitempty"` | ✅ `json:"errorKind,omitempty"` |
@@ -278,11 +279,11 @@ go test ./internal/tests/...
 
 #### Risultati Test E2E ✅
 
-| Stato | Count | Note |
-|-------|-------|------|
-| PASS | 49 | Test contro server reale |
-| SKIP | 41 | Richiedono mock server (scenari specifici) |
-| FAIL | 0 | |
+| Stato | Count | Note                                       |
+| ----- | ----- | ------------------------------------------ |
+| PASS  | 49    | Test contro server reale                   |
+| SKIP  | 41    | Richiedono mock server (scenari specifici) |
+| FAIL  | 0     |                                            |
 
 Script: `test-harness/test-real-server.sh`
 
