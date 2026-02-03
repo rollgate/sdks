@@ -143,6 +143,11 @@ cd test-harness/dashboard && go build -o runner.exe runner.go
 
 ---
 
-## Preferenze Utente
+## Preferenze Utente (OBBLIGATORIO)
 
-- **Eseguire comandi bash senza concatenarli** (es. non usare `&&` o `;`) per evitare richieste di permessi multiple quando i singoli comandi matchano i permessi in `settings.local.json`
+- **MAI CONCATENARE comandi bash** - Non usare MAI `&&`, `;`, `||` per concatenare comandi. Ogni comando deve essere una chiamata Bash separata. Questo è CRITICO perché i comandi singoli matchano i permessi in `settings.local.json` ma quelli concatenati no, causando richieste di permesso continue che rallentano il lavoro.
+  - ❌ `sleep 3 && curl http://localhost:4000/health`
+  - ✅ Due chiamate Bash separate: `sleep 3` poi `curl http://localhost:4000/health`
+- **Usare wrapper script per comandi con env vars multiple** - Quando servono più variabili d'ambiente, creare uno script .sh e eseguirlo direttamente, MAI inline tipo `VAR1=x VAR2=y command`
+  - ❌ `EXTERNAL_SERVER_URL="..." TEST_SERVICES="..." go test ...`
+  - ✅ Creare script wrapper ed eseguire `./script.sh`

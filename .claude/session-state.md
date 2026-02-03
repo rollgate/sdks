@@ -18,13 +18,130 @@ Questo file traccia il lavoro svolto in ogni sessione Claude.
 
 ---
 
+## Sessione 2026-02-03 #12 (Evaluation Reasons - Test Completi)
+
+### Obiettivo
+
+Completare test Evaluation Reasons su tutti i 10 SDK e creare PR.
+
+### Lavoro Completato
+
+#### 1. Fix Browser Service per Reason Tests ✅
+
+- **File**: `test-harness/internal/harness/browser_service.go`
+  - Aggiunto case `CommandIsEnabledDetail` in `convertToLDCommand()` - converte a `evaluate` con `detail: true`
+  - Aggiunto parsing reason in `convertFromLDResponse()` - estrae `kind`, `ruleId`, `ruleIndex`, `inRollout`, `errorKind`
+  - Aggiunto handling quando client non inizializzato - ritorna ERROR reason
+
+#### 2. Test Reasons - Tutti i 10 SDK Passano ✅
+
+| SDK | Reason Tests |
+|-----|-------------|
+| sdk-node | 6/6 PASS |
+| sdk-go | 6/6 PASS |
+| sdk-python | 6/6 PASS |
+| sdk-java | 6/6 PASS |
+| sdk-react-native | 6/6 PASS |
+| sdk-browser | 6/6 PASS |
+| sdk-react | 6/6 PASS |
+| sdk-vue | 6/6 PASS |
+| sdk-svelte | 6/6 PASS |
+| sdk-angular | 6/6 PASS |
+
+**Totale: 60/60 reason tests passano**
+
+#### 3. Commits e PR ✅
+
+- **rollgate-sdks** (`feat/test-dashboard`):
+  - `666d0df` - feat: add Evaluation Reasons support to all SDKs (44 files, +2850 lines)
+  - `32e85ec` - feat(test-harness): add support for testing against real server
+  - PR #1 aggiornata: https://github.com/rollgate/sdks/pull/1
+
+- **rollgate** (`main`):
+  - `dd6b8c3` - feat(api): add Evaluation Reasons to SDK flags endpoint
+
+#### 4. Supporto Test Server Reale ✅
+
+- **File**: `test-harness/internal/harness/harness.go`
+  - Aggiunto `ExternalServerURL` a Config
+  - Modificato `Start()` per verificare server esterno invece di avviare mock
+  - Modificato `InitSDKConfig()` per usare URL esterno
+
+- **File**: `test-harness/internal/tests/init_test.go`
+  - Aggiunto supporto env vars `EXTERNAL_SERVER_URL` e `EXTERNAL_API_KEY`
+
+**Usage**:
+```bash
+EXTERNAL_SERVER_URL=http://localhost:4000 \
+EXTERNAL_API_KEY=your-api-key \
+TEST_SERVICES="sdk-node=http://localhost:8001" \
+go test ./internal/tests/...
+```
+
+#### 5. Verifica Allineamento Mock vs Server ✅
+
+| Campo | Mock Server | Real Server |
+|-------|-------------|-------------|
+| `kind` | ✅ `json:"kind"` | ✅ `json:"kind"` |
+| `ruleId` | ✅ `json:"ruleId,omitempty"` | ✅ `json:"ruleId,omitempty"` |
+| `ruleIndex` | ✅ `json:"ruleIndex,omitempty"` | ✅ `json:"ruleIndex,omitempty"` |
+| `inRollout` | ✅ `json:"inRollout,omitempty"` | ✅ `json:"inRollout,omitempty"` |
+| `errorKind` | ✅ `json:"errorKind,omitempty"` | ✅ `json:"errorKind,omitempty"` |
+
+### Test Server Reale - In Progress
+
+#### Setup Completato ✅
+
+1. **PostgreSQL** container `rollgate-db` avviato su porta 5432
+2. **Redis** container `rollgate-redis` avviato su porta 6379
+3. **Database** seeded con:
+   - Organization `Test Org`
+   - User `test-user@example.com`
+   - Project `test-project`
+   - Environment `Development`
+   - Feature flags: `enabled-flag`, `disabled-flag`, `test-flag`
+   - API key `test-sdk-key-12345` (hash SHA256)
+   - Pricing tier `free`
+   - Org subscription attiva
+
+4. **Server rollgate** compilato e avviato su porta 4000
+
+#### Bug Trovato e Fixato ✅
+
+- Endpoint `/api/v1/sdk/flags` ritornava 500 Internal Server Error
+- **Causa**: `f.description` nullable nel DB ma modello Go usava `string` (non `*string`)
+- **Fix**: Aggiunto `COALESCE(f.description, '')` nelle query in `apps/api/internal/repository/postgres/flag.go`
+- **File aggiuntivo**: Aggiunto `log.Printf` in `apps/api/internal/handlers/sdk.go` per debugging
+
+#### Risultati Test E2E ✅
+
+| Stato | Count | Note |
+|-------|-------|------|
+| PASS | 49 | Test contro server reale |
+| SKIP | 41 | Richiedono mock server (scenari specifici) |
+| FAIL | 0 | |
+
+Script: `test-harness/test-real-server.sh`
+
+### Prossimi Step
+
+- [ ] Commit modifiche test harness
+- [ ] Commit fix server rollgate
+- [ ] Merge PR
+
+### Branch
+
+`feat/test-dashboard` (rollgate-sdks)
+
+---
+
 ## Sessione 2026-02-02 #11 (Evaluation Reasons + Analytics Events)
 
 ### Obiettivo
 
 Implementare Evaluation Reasons e Analytics Events su tutti gli SDK + server rollgate.
 
-### Lavoro Completato (In Progress)
+### Lavoro Completato
 
 **NOTE**: Questo lavoro modifica DUE repository:
 
