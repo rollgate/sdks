@@ -101,12 +101,13 @@ class RollgateClient:
         ```
     """
 
-    def __init__(self, config: RollgateConfig):
+    def __init__(self, config: RollgateConfig, http_client: Optional[httpx.AsyncClient] = None):
         """
         Initialize the Rollgate client.
 
         Args:
             config: Client configuration
+            http_client: Optional pre-configured httpx.AsyncClient for connection reuse
         """
         self._config = config
         self._flags: Dict[str, bool] = {}
@@ -118,8 +119,22 @@ class RollgateClient:
         self._last_etag: Optional[str] = None
         self._poll_task: Optional[asyncio.Task] = None
         self._sse_task: Optional[asyncio.Task] = None
-        self._http_client: Optional[httpx.AsyncClient] = None
         self._closing = False
+
+        # Use provided HTTP client or create one
+        if http_client:
+            self._http_client = http_client
+            self._owns_http_client = False
+        else:
+            self._http_client = httpx.AsyncClient(
+                timeout=config.timeout_ms / 1000,
+                limits=httpx.Limits(
+                    max_connections=10,
+                    max_keepalive_connections=5,
+                    keepalive_expiry=5,
+                ),
+            )
+            self._owns_http_client = True
 
         # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
@@ -184,7 +199,6 @@ class RollgateClient:
             user: Optional user context for targeting
         """
         self._user_context = user
-        self._http_client = httpx.AsyncClient(timeout=self._config.timeout_ms / 1000)
 
         # Try to load cached flags first
         self._cache.load()
@@ -228,6 +242,9 @@ class RollgateClient:
             "Authorization": f"Bearer {self._config.api_key}",
         }
 
+        backoff = 1.0  # Start at 1 second (matches Go SDK)
+        max_backoff = 30.0
+
         while not self._closing:
             try:
                 async with aconnect_sse(
@@ -237,6 +254,8 @@ class RollgateClient:
                     params=params,
                     headers=headers,
                 ) as event_source:
+                    # Reset backoff on successful connection
+                    backoff = 1.0
                     async for event in event_source.aiter_sse():
                         if self._closing:
                             break
@@ -251,8 +270,10 @@ class RollgateClient:
                                 logger.warning(f"Failed to parse SSE message: {e}")
             except Exception as e:
                 if not self._closing:
-                    logger.warning(f"SSE connection error, reconnecting: {e}")
-                    await asyncio.sleep(5)  # Wait before reconnecting
+                    logger.warning(f"SSE connection error, reconnecting in {backoff}s: {e}")
+                    await asyncio.sleep(backoff)
+                    # Exponential backoff with cap
+                    backoff = min(backoff * 2, max_backoff)
 
     async def _fetch_flags(self) -> None:
         """Fetch all flags from the API."""
@@ -519,8 +540,8 @@ class RollgateClient:
             except asyncio.CancelledError:
                 pass
 
-        # Close HTTP client
-        if self._http_client:
+        # Close HTTP client only if we own it
+        if self._owns_http_client and self._http_client:
             await self._http_client.aclose()
 
         # Close cache (also clears its callbacks)

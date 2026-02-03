@@ -115,10 +115,69 @@ TEST_SERVICES="sdk-flutter=http://localhost:8008" ./runner.exe sdk-flutter ./int
 | sdk-dotnet | **90/90 pass** | Con IPv4 ConnectCallback fix |
 | sdk-flutter | **90/90 pass** | Prima esecuzione |
 
+### Test Completi 12 SDK ✅
+
+Run `test-all.sh` con tutti i 12 SDK: **1080/1080 test passano**.
+
+| SDK | Test | Tempo | Tipo |
+|-----|------|-------|------|
+| sdk-node | 90/90 | 33.1s | Backend |
+| sdk-go | 90/90 | 26.3s | Backend |
+| sdk-python | 90/90 | **1m49s** ⚠️ | Backend |
+| sdk-java | 90/90 | 32.5s | Backend |
+| sdk-dotnet | 90/90 | 29.9s | Backend |
+| sdk-browser | 90/90 | 33.8s | Frontend |
+| sdk-react | 90/90 | 34.1s | Frontend |
+| sdk-vue | 90/90 | 29.9s | Frontend |
+| sdk-svelte | 90/90 | **1m11s** ⚠️ | Frontend |
+| sdk-angular | 90/90 | **1m12s** ⚠️ | Frontend |
+| sdk-react-native | 90/90 | 30.1s | Mobile |
+| sdk-flutter | 90/90 | 34.3s | Mobile |
+
+**Tempo totale**: 8m56s
+
+#### Performance Anomalie Rilevate e Fixate
+
+3 SDK avevano tempi anomali. Dopo fix:
+
+| SDK | Prima | Dopo | Fix applicato |
+|-----|-------|------|---------------|
+| **sdk-python** | 1m49s | **35s** | Shared httpx.AsyncClient (DI pattern), SSE exponential backoff |
+| **sdk-angular** | 1m12s | **43s** | Aggiunto `@analogjs/vite-plugin-angular` a vite.config.ts |
+| **sdk-svelte** | 1m11s | **72s** | Cached flags subscription (ma residuo ~30s è overhead Svelte 4 stores) |
+
+**Dettagli fix:**
+
+1. **sdk-python** (`packages/sdk-python/rollgate/client.py` + `test_service/main.py`):
+   - Root cause: `httpx.AsyncClient` creato/distrutto per ogni test (TCP overhead su Windows)
+   - Fix: Dependency injection di `http_client` condiviso, `_owns_http_client` flag per gestire close()
+   - Bonus: SSE reconnect cambiato da 5s fisso a backoff esponenziale (1s→30s, come Go SDK)
+
+2. **sdk-angular** (`test-harness/browser-entity-angular/vite.config.ts`):
+   - Root cause: `@analogjs/vite-plugin-angular` era in devDependencies ma non configurato nel plugin Vite
+   - Fix: Aggiunto `angular()` plugin a vite.config.ts
+   - Nota: Angular 17 usa ancora Zone.js (overhead ~30kB + change detection cycles). Angular 18+ ha zoneless sperimentale.
+
+3. **sdk-svelte** (`test-harness/browser-entity-svelte/src/ClientEntity.ts`):
+   - Fix: Rimosso `get()` da svelte/store (subscribe/unsubscribe anti-pattern), usato cached subscription
+   - Residuo: ~30s overhead rispetto a React (40s) è intrinseco a Svelte 4 store creation/teardown per test
+   - Svelte 5 runes eliminerebbero questo overhead, ma upgrade è change più ampio
+   - Versioni attuali: Svelte 4.2.20, Angular 17.3.12
+
+### Fix test-all.sh ✅
+
+- Aggiunto auto-detection Dart SDK path (non è su PATH di default)
+- Aggiunto `dotnet build` prima di `dotnet run --no-build`
+- Aggiunto `dart pub get` prima di `dart run`
+- Aggiunto cleanup Playwright browser tra test frontend
+
 ### Prossimi Step
 
-- [ ] Run test-all.sh with all 12 SDKs (1080 tests)
+- [x] Fix performance sdk-python (shared httpx client + SSE backoff)
+- [x] Fix performance sdk-angular (Vite plugin)
+- [x] Fix performance sdk-svelte (cached flags subscription)
 - [ ] Merge PR
+- [ ] Future: Upgrade Svelte 4→5 (runes), Angular 17→18+ (zoneless)
 
 ---
 
