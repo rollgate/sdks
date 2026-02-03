@@ -283,6 +283,13 @@ export class SDKMetrics {
     this.listeners.get(event)?.delete(callback);
   }
 
+  /**
+   * Remove all event listeners (for cleanup)
+   */
+  removeAllListeners(): void {
+    this.listeners.clear();
+  }
+
   private emit(event: string, data: MetricsSnapshot): void {
     this.listeners.get(event)?.forEach((callback) => callback(data));
   }

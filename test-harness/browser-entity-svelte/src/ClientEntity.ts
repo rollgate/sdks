@@ -4,7 +4,6 @@
  * Uses createRollgate stores to execute commands from test harness.
  * Svelte stores work without needing actual Svelte components mounted.
  */
-import { get } from "svelte/store";
 import {
   createRollgate,
   type RollgateConfig,
@@ -79,23 +78,38 @@ function makeInitialContext(options: SDKConfigParams): UserContext | undefined {
   };
 }
 
+// Store config for identify notifications
+let globalBaseUrl: string | undefined;
+let globalApiKey: string | undefined;
+
 /**
  * Entity that wraps a Svelte SDK instance
  */
 export class ClientEntity {
   private stores: RollgateStores | null = null;
+  private cachedFlags: Record<string, boolean> = {};
+  private unsubFlags: (() => void) | null = null;
 
   constructor(private readonly tag: string) {}
 
   setStores(stores: RollgateStores): void {
     this.stores = stores;
+    // Persistent subscription avoids get() subscribe/unsubscribe overhead per call
+    this.unsubFlags = stores.flags.subscribe((flags) => {
+      this.cachedFlags = flags;
+    });
   }
 
   close(): void {
+    if (this.unsubFlags) {
+      this.unsubFlags();
+      this.unsubFlags = null;
+    }
     if (this.stores) {
       this.stores.close();
       this.stores = null;
     }
+    this.cachedFlags = {};
     log(`[${this.tag}] Client closed`);
   }
 
@@ -114,34 +128,64 @@ export class ClientEntity {
         }
 
         let value: unknown;
+        let reason: unknown;
+        let variationId: string | undefined;
 
         switch (evalParams.valueType) {
           case ValueType.Bool:
-            value = this.stores.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail) {
+              const detail = this.stores.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = this.stores.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
             break;
           case ValueType.Int:
           case ValueType.Double:
           case ValueType.String:
             // SDK doesn't support these types yet
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           default:
-            value = this.stores.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail) {
+              const detail = this.stores.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = this.stores.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
         }
 
-        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}`);
+        log(
+          `[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`,
+        );
+
+        if (evalParams.detail) {
+          return { value, reason, variationId };
+        }
         return { value };
       }
 
       case CommandType.EvaluateAllFlags: {
-        const flags = get(this.stores.flags);
-        return { state: flags };
+        return { state: this.cachedFlags };
       }
 
       case CommandType.IdentifyEvent: {
@@ -151,15 +195,26 @@ export class ClientEntity {
         }
         const user = identifyParams.user || identifyParams.context;
         if (user) {
-          await this.stores.identify({
+          const userContext = {
             id: user.id || user.key || "unknown",
             email: user.email,
             attributes: user.attributes as
               | Record<string, string | number | boolean>
               | undefined,
-          });
+          };
+          // Notify mock server about user context BEFORE SDK identify
+          if (globalBaseUrl && globalApiKey) {
+            await notifyMockIdentify(globalBaseUrl, globalApiKey, userContext);
+          }
+          await this.stores.identify(userContext);
         }
         log(`[${this.tag}] identify: ${JSON.stringify(user)}`);
+        return undefined;
+      }
+
+      case CommandType.Reset: {
+        await this.stores.reset();
+        log(`[${this.tag}] reset`);
         return undefined;
       }
 
@@ -214,6 +269,10 @@ export async function newSdkClientEntity(
 
   const config = makeSdkConfig(options.configuration, tag);
   const initialUser = makeInitialContext(options.configuration);
+
+  // Store config for identify notifications
+  globalBaseUrl = config.baseUrl;
+  globalApiKey = config.apiKey;
 
   // Notify mock server about user context BEFORE SDK init (for remote evaluation)
   if (initialUser && config.baseUrl && config.apiKey) {

@@ -1,0 +1,10 @@
+name: rollgate_test_service
+description: Test service for Rollgate Flutter SDK
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  rollgate:
+    path: ..

@@ -23,42 +23,63 @@ import uvicorn
 # Add parent directory to path to import rollgate
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import httpx
+
 from rollgate import RollgateClient, RollgateConfig, UserContext
 
 client: Optional[RollgateClient] = None
 current_base_url: Optional[str] = None
 current_api_key: Optional[str] = None
+shared_http_client: Optional[httpx.AsyncClient] = None
+# Shared httpx client for SDK instances - avoids TCP connection overhead per test
+shared_sdk_http_client: Optional[httpx.AsyncClient] = None
 
 
 async def notify_mock_identify(user: UserContext, api_key: str) -> None:
     """Notify mock server about user context for remote evaluation."""
+    global shared_http_client
     if not current_base_url:
         return
 
-    import httpx
     try:
-        async with httpx.AsyncClient() as http_client:
-            await http_client.post(
-                f"{current_base_url}/api/v1/sdk/identify",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                },
-                json={"user": {"id": user.id, "email": user.email, "attributes": user.attributes}},
-                timeout=5.0,
-            )
+        if shared_http_client is None:
+            shared_http_client = httpx.AsyncClient(timeout=5.0)
+        await shared_http_client.post(
+            f"{current_base_url}/api/v1/sdk/identify",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            json={"user": {"id": user.id, "email": user.email, "attributes": user.attributes}},
+        )
     except Exception:
         # Ignore errors - mock might not support identify
         pass
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create shared SDK HTTP client at startup for connection reuse across tests
+    global shared_sdk_http_client
+    shared_sdk_http_client = httpx.AsyncClient(
+        timeout=10.0,
+        limits=httpx.Limits(
+            max_connections=10,
+            max_keepalive_connections=5,
+            keepalive_expiry=30,
+        ),
+    )
     yield
     # Cleanup on shutdown
-    global client
+    global client, shared_http_client
     if client:
         await client.close()
         client = None
+    if shared_http_client:
+        await shared_http_client.aclose()
+        shared_http_client = None
+    if shared_sdk_http_client:
+        await shared_sdk_http_client.aclose()
+        shared_sdk_http_client = None
 
 app = FastAPI(lifespan=lifespan)
 
@@ -75,6 +96,8 @@ def make_response(
     success: Optional[bool] = None,
     error: Optional[str] = None,
     message: Optional[str] = None,
+    reason: Optional[dict] = None,
+    variation_id: Optional[str] = None,
 ) -> dict:
     resp = {}
     if value is not None:
@@ -99,6 +122,10 @@ def make_response(
         resp["error"] = error
     if message is not None:
         resp["message"] = message
+    if reason is not None:
+        resp["reason"] = reason
+    if variation_id is not None:
+        resp["variationId"] = variation_id
     return resp
 
 
@@ -142,7 +169,7 @@ async def handle_command(cmd: dict) -> dict:
                 # Notify mock about user context before init (for remote evaluation)
                 await notify_mock_identify(user, current_api_key)
 
-            client = RollgateClient(config)
+            client = RollgateClient(config, http_client=shared_sdk_http_client)
             await client.init(user)
 
             return make_response(success=True)
@@ -160,6 +187,39 @@ async def handle_command(cmd: dict) -> dict:
         default_value = cmd.get("defaultValue", False)
         value = client.is_enabled(flag_key, default_value)
         return make_response(value=value)
+
+    elif command == "isEnabledDetail":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        flag_key = cmd.get("flagKey")
+        if not flag_key:
+            return make_response(error="ValidationError", message="flagKey is required")
+
+        default_value = cmd.get("defaultValue", False)
+        detail = client.is_enabled_detail(flag_key, default_value)
+        return make_response(
+            value=detail.value,
+            reason=detail.reason.to_dict(),
+            variation_id=detail.variation_id,
+        )
+
+    elif command == "getValueDetail":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        flag_key = cmd.get("flagKey")
+        if not flag_key:
+            return make_response(error="ValidationError", message="flagKey is required")
+
+        # For now, Python SDK only supports boolean flags with detail
+        default_value = cmd.get("defaultValue", False)
+        detail = client.is_enabled_detail(flag_key, default_value)
+        return make_response(
+            value=detail.value,
+            reason=detail.reason.to_dict(),
+            variation_id=detail.variation_id,
+        )
 
     elif command == "getString":
         if not client:
@@ -243,10 +303,10 @@ async def handle_command(cmd: dict) -> dict:
         cache_stats = client.get_cache_stats()
         return make_response(
             is_ready=True,
-            circuit_state=str(client.circuit_state).lower(),
+            circuit_state=client.circuit_state.value,
             cache_stats={
-                "hits": cache_stats.get("hits", 0),
-                "misses": cache_stats.get("misses", 0),
+                "hits": cache_stats.hits,
+                "misses": cache_stats.misses,
             },
         )
 

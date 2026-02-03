@@ -11,6 +11,9 @@ import (
 // TestOperatorEq tests the "eq" (equals) operator.
 func TestOperatorEq(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -52,6 +55,9 @@ func TestOperatorEq(t *testing.T) {
 // TestOperatorNeq tests the "neq" (not equals) operator.
 func TestOperatorNeq(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -92,6 +98,9 @@ func TestOperatorNeq(t *testing.T) {
 // TestOperatorContains tests the "contains" operator.
 func TestOperatorContains(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -134,6 +143,9 @@ func TestOperatorContains(t *testing.T) {
 // TestOperatorStartsWith tests the "starts_with" operator.
 func TestOperatorStartsWith(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -174,6 +186,9 @@ func TestOperatorStartsWith(t *testing.T) {
 // TestOperatorEndsWith tests the "ends_with" operator.
 func TestOperatorEndsWith(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -214,6 +229,9 @@ func TestOperatorEndsWith(t *testing.T) {
 // TestOperatorGt tests the "gt" (greater than) operator.
 func TestOperatorGt(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -263,6 +281,9 @@ func TestOperatorGt(t *testing.T) {
 // TestOperatorLte tests the "lte" (less than or equal) operator.
 func TestOperatorLte(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -312,6 +333,9 @@ func TestOperatorLte(t *testing.T) {
 // TestOperatorIn tests the "in" operator.
 func TestOperatorIn(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -352,6 +376,9 @@ func TestOperatorIn(t *testing.T) {
 // TestOperatorNotIn tests the "not_in" operator.
 func TestOperatorNotIn(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -392,6 +419,9 @@ func TestOperatorNotIn(t *testing.T) {
 // TestOperatorRegex tests the "regex" operator.
 func TestOperatorRegex(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -441,6 +471,9 @@ func TestOperatorRegex(t *testing.T) {
 // TestOperatorSemverGt tests the "semver_gt" operator.
 func TestOperatorSemverGt(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -490,6 +523,9 @@ func TestOperatorSemverGt(t *testing.T) {
 // TestOperatorSemverEq tests the "semver_eq" operator.
 func TestOperatorSemverEq(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -530,6 +566,9 @@ func TestOperatorSemverEq(t *testing.T) {
 // TestCombinedOperators tests multiple conditions with different operators.
 func TestCombinedOperators(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -593,6 +632,9 @@ func TestCombinedOperators(t *testing.T) {
 // TestMissingAttribute tests behavior when attribute is missing.
 func TestMissingAttribute(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

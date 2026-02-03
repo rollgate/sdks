@@ -25,6 +25,8 @@ import type {
   UserContext,
   RollgateOptions,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser
@@ -32,6 +34,8 @@ export type {
   UserContext,
   RollgateOptions,
   MetricsSnapshot,
+  EvaluationReason,
+  EvaluationDetail,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -66,6 +70,11 @@ export interface RollgateStores {
   isReady: Readable<boolean>;
   /** Check if a flag is enabled (non-reactive) */
   isEnabled: (flagKey: string, defaultValue?: boolean) => boolean;
+  /** Check if a flag is enabled with evaluation reason */
+  isEnabledDetail: (
+    flagKey: string,
+    defaultValue?: boolean,
+  ) => EvaluationDetail<boolean>;
   /** Change user context */
   identify: (user: UserContext) => Promise<void>;
   /** Clear user context */
@@ -156,6 +165,13 @@ export function createRollgate(
     return client.isEnabled(flagKey, defaultValue);
   };
 
+  const isEnabledDetail = (
+    flagKey: string,
+    defaultValue: boolean = false,
+  ): EvaluationDetail<boolean> => {
+    return client.isEnabledDetail(flagKey, defaultValue);
+  };
+
   const identify = async (newUser: UserContext): Promise<void> => {
     await client.identify(newUser);
   };
@@ -192,6 +208,7 @@ export function createRollgate(
     circuitState: { subscribe: circuitState.subscribe },
     isReady: { subscribe: isReady.subscribe },
     isEnabled,
+    isEnabledDetail,
     identify,
     reset,
     refresh,

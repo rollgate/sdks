@@ -82,6 +82,10 @@ function makeInitialContext(options: SDKConfigParams): UserContext | undefined {
 // Global context that will be set by the mounted component
 let globalContext: RollgateContext | null = null;
 
+// Store config for identify notifications
+let globalBaseUrl: string | undefined;
+let globalApiKey: string | undefined;
+
 /**
  * Entity that wraps a Vue SDK instance
  */
@@ -119,28 +123,59 @@ export class ClientEntity {
         }
 
         let value: unknown;
+        let reason: unknown;
+        let variationId: string | undefined;
 
         switch (evalParams.valueType) {
           case ValueType.Bool:
-            value = globalContext.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail && globalContext.client) {
+              const detail = globalContext.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = globalContext.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
             break;
           case ValueType.Int:
           case ValueType.Double:
           case ValueType.String:
             // SDK doesn't support these types yet
             value = evalParams.defaultValue;
+            if (evalParams.detail) {
+              reason = { kind: "UNKNOWN" };
+            }
             break;
           default:
-            value = globalContext.isEnabled(
-              evalParams.flagKey,
-              evalParams.defaultValue as boolean,
-            );
+            if (evalParams.detail && globalContext.client) {
+              const detail = globalContext.client.isEnabledDetail(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+              value = detail.value;
+              reason = detail.reason;
+              variationId = detail.variationId;
+            } else {
+              value = globalContext.isEnabled(
+                evalParams.flagKey,
+                evalParams.defaultValue as boolean,
+              );
+            }
         }
 
-        log(`[${this.tag}] evaluate ${evalParams.flagKey} = ${value}`);
+        log(
+          `[${this.tag}] evaluate ${evalParams.flagKey} = ${value}${evalParams.detail ? ` (reason: ${JSON.stringify(reason)})` : ""}`,
+        );
+
+        if (evalParams.detail) {
+          return { value, reason, variationId };
+        }
         return { value };
       }
 
@@ -154,15 +189,26 @@ export class ClientEntity {
         }
         const user = identifyParams.user || identifyParams.context;
         if (user) {
-          await globalContext.identify({
+          const userContext = {
             id: user.id || user.key || "unknown",
             email: user.email,
             attributes: user.attributes as
               | Record<string, string | number | boolean>
               | undefined,
-          });
+          };
+          // Notify mock server about user context BEFORE SDK identify
+          if (globalBaseUrl && globalApiKey) {
+            await notifyMockIdentify(globalBaseUrl, globalApiKey, userContext);
+          }
+          await globalContext.identify(userContext);
         }
         log(`[${this.tag}] identify: ${JSON.stringify(user)}`);
+        return undefined;
+      }
+
+      case CommandType.Reset: {
+        await globalContext.reset();
+        log(`[${this.tag}] reset`);
         return undefined;
       }
 
@@ -217,6 +263,10 @@ export async function newSdkClientEntity(
 
   const config = makeSdkConfig(options.configuration, tag);
   const initialUser = makeInitialContext(options.configuration);
+
+  // Store config for identify notifications
+  globalBaseUrl = config.baseUrl;
+  globalApiKey = config.apiKey;
 
   // Notify mock server about user context BEFORE SDK init (for remote evaluation)
   if (initialUser && config.baseUrl && config.apiKey) {

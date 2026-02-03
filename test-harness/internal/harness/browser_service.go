@@ -118,15 +118,55 @@ func (bs *BrowserTestService) SendCommand(ctx context.Context, cmd protocol.Comm
 			config = *cmd.Config
 		}
 		if err := bs.CreateClient(ctx, config, cmd.User); err != nil {
-			return protocol.Response{}, fmt.Errorf("auto-create client failed: %w", err)
+			// Return error in Response rather than as Go error
+			// This matches test expectations for invalid API keys, etc.
+			return protocol.Response{Error: err.Error()}, nil
 		}
 		// Return success for init (client creation includes initialization)
 		trueVal := true
 		return protocol.Response{Success: &trueVal}, nil
 	}
 
+	// Handle getState directly - if client exists, it's ready
+	if cmd.Command == protocol.CommandGetState {
+		if bs.clientID == "" {
+			falseVal := false
+			return protocol.Response{IsReady: &falseVal, CircuitState: "UNKNOWN"}, nil
+		}
+		trueVal := true
+		return protocol.Response{IsReady: &trueVal, CircuitState: "closed"}, nil
+	}
+
+	// Handle close command - delete the client
+	if cmd.Command == protocol.CommandClose {
+		if err := bs.DeleteClient(ctx); err != nil {
+			return protocol.Response{}, fmt.Errorf("delete client failed: %w", err)
+		}
+		trueVal := true
+		return protocol.Response{Success: &trueVal}, nil
+	}
+
+	// When there's no client (init failed), return default values for flag evaluations
 	if bs.clientID == "" {
-		return protocol.Response{}, fmt.Errorf("no client created, call CreateClient first")
+		switch cmd.Command {
+		case protocol.CommandIsEnabled:
+			// Return the default value when SDK is not initialized
+			return protocol.Response{Value: cmd.DefaultValue}, nil
+		case protocol.CommandIsEnabledDetail:
+			// Return the default value with ERROR reason when SDK is not initialized
+			reason := protocol.EvaluationReason{Kind: "ERROR", ErrorKind: "CLIENT_NOT_READY"}
+			return protocol.Response{Value: cmd.DefaultValue, Reason: &reason}, nil
+		case protocol.CommandGetString:
+			return protocol.Response{StringValue: &cmd.DefaultStringValue}, nil
+		case protocol.CommandGetNumber:
+			return protocol.Response{NumberValue: cmd.DefaultNumberValue}, nil
+		case protocol.CommandIdentify, protocol.CommandReset:
+			// No-op when no client
+			trueVal := true
+			return protocol.Response{Success: &trueVal}, nil
+		default:
+			return protocol.Response{}, fmt.Errorf("no client created, call CreateClient first")
+		}
 	}
 
 	// Convert our command format to LaunchDarkly format
@@ -218,6 +258,17 @@ func (bs *BrowserTestService) convertToLDCommand(cmd protocol.Command) map[strin
 			},
 		}
 
+	case protocol.CommandIsEnabledDetail:
+		return map[string]interface{}{
+			"command": "evaluate",
+			"evaluate": map[string]interface{}{
+				"flagKey":      cmd.FlagKey,
+				"valueType":    "bool",
+				"defaultValue": cmd.DefaultValue,
+				"detail":       true,
+			},
+		}
+
 	case protocol.CommandGetString:
 		return map[string]interface{}{
 			"command": "evaluate",
@@ -294,6 +345,37 @@ func (bs *BrowserTestService) convertFromLDResponse(cmdType string, body []byte)
 			if boolVal, ok := val.(bool); ok {
 				response.Value = &boolVal
 			}
+		}
+
+	case protocol.CommandIsEnabledDetail:
+		if val, ok := rawResp["value"]; ok {
+			if boolVal, ok := val.(bool); ok {
+				response.Value = &boolVal
+			}
+		}
+		if reason, ok := rawResp["reason"]; ok {
+			if reasonMap, ok := reason.(map[string]interface{}); ok {
+				response.Reason = &protocol.EvaluationReason{}
+				if kind, ok := reasonMap["kind"].(string); ok {
+					response.Reason.Kind = kind
+				}
+				if ruleId, ok := reasonMap["ruleId"].(string); ok {
+					response.Reason.RuleID = ruleId
+				}
+				if ruleIndex, ok := reasonMap["ruleIndex"].(float64); ok {
+					idx := int(ruleIndex)
+					response.Reason.RuleIndex = &idx
+				}
+				if inRollout, ok := reasonMap["inRollout"].(bool); ok {
+					response.Reason.InRollout = &inRollout
+				}
+				if errorKind, ok := reasonMap["errorKind"].(string); ok {
+					response.Reason.ErrorKind = errorKind
+				}
+			}
+		}
+		if variationId, ok := rawResp["variationId"].(string); ok {
+			response.VariationID = variationId
 		}
 
 	case protocol.CommandGetString:

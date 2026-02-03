@@ -4,12 +4,27 @@
  */
 
 import { createHash } from "crypto";
+import type {
+  EvaluationReason,
+  EvaluationDetail,
+  EvaluationReasonKind,
+} from "@rollgate/sdk-core";
+import {
+  offReason,
+  targetMatchReason,
+  ruleMatchReason,
+  fallthroughReason,
+  unknownReason,
+} from "@rollgate/sdk-core";
 
 export interface UserContext {
   id: string;
   email?: string;
   attributes?: Record<string, string | number | boolean>;
 }
+
+// Re-export reason types for convenience
+export type { EvaluationReason, EvaluationDetail, EvaluationReasonKind };
 
 export interface Condition {
   attribute: string;
@@ -71,6 +86,7 @@ export interface EvaluationResult<T = unknown> {
   enabled: boolean;
   value: T;
   variationId?: string;
+  reason?: EvaluationReason;
 }
 
 /**
@@ -126,6 +142,69 @@ export function evaluateFlag(
     return false;
   }
   return isInRollout(rule.key, user.id, rule.rollout);
+}
+
+/**
+ * Evaluate a flag and return the result with detailed reason.
+ * This provides the same evaluation logic as evaluateFlag but includes
+ * the reason why the flag evaluated to its value.
+ */
+export function evaluateFlagWithReason(
+  rule: FlagRule,
+  user: UserContext | null,
+): EvaluationDetail<boolean> {
+  // 1. If flag is disabled, always return false
+  if (!rule.enabled) {
+    return { value: false, reason: offReason() };
+  }
+
+  // 2. Check if user is in target list (always enabled for targeted users)
+  if (user?.id && rule.targetUsers?.includes(user.id)) {
+    return { value: true, reason: targetMatchReason() };
+  }
+
+  // 3. Check targeting rules (if user context is provided)
+  if (user && rule.rules && rule.rules.length > 0) {
+    for (let i = 0; i < rule.rules.length; i++) {
+      const targetingRule = rule.rules[i];
+      if (targetingRule.enabled && matchesRule(targetingRule, user)) {
+        // User matches this rule, use rule's rollout percentage
+        if (targetingRule.rollout >= 100) {
+          return {
+            value: true,
+            reason: ruleMatchReason(targetingRule.id, i, true),
+          };
+        }
+        if (targetingRule.rollout <= 0) {
+          return {
+            value: false,
+            reason: ruleMatchReason(targetingRule.id, i, false),
+          };
+        }
+        const inRollout = isInRollout(rule.key, user.id, targetingRule.rollout);
+        return {
+          value: inRollout,
+          reason: ruleMatchReason(targetingRule.id, i, inRollout),
+        };
+      }
+    }
+  }
+
+  // 4. Default rollout percentage (FALLTHROUGH)
+  if (rule.rollout >= 100) {
+    return { value: true, reason: fallthroughReason(true) };
+  }
+  if (rule.rollout <= 0) {
+    return { value: false, reason: fallthroughReason(false) };
+  }
+
+  // Use consistent hashing for rollout (requires user ID)
+  if (!user?.id) {
+    return { value: false, reason: fallthroughReason(false) };
+  }
+
+  const inRollout = isInRollout(rule.key, user.id, rule.rollout);
+  return { value: inRollout, reason: fallthroughReason(inRollout) };
 }
 
 /**
@@ -336,6 +415,7 @@ export function evaluateFlagValue<T = unknown>(
     return {
       enabled: false,
       value: getDefaultValue(rule) as T,
+      reason: offReason(),
     };
   }
 
@@ -344,62 +424,72 @@ export function evaluateFlagValue<T = unknown>(
     return {
       enabled: true,
       value: getEnabledValue(rule, undefined) as T,
+      reason: targetMatchReason(),
     };
   }
 
   // Check targeting rules
   if (user && rule.rules && rule.rules.length > 0) {
-    for (const targetingRule of rule.rules) {
+    for (let i = 0; i < rule.rules.length; i++) {
+      const targetingRule = rule.rules[i];
       if (targetingRule.enabled && matchesRuleV2(targetingRule, user)) {
         // Rule matches - check rollout
         if (targetingRule.rollout <= 0) {
           return {
             enabled: false,
             value: getDefaultValue(rule) as T,
+            reason: ruleMatchReason(targetingRule.id, i, false),
           };
         }
-        if (
+        const inRollout =
           targetingRule.rollout >= 100 ||
-          isInRollout(rule.key, user.id, targetingRule.rollout)
-        ) {
+          isInRollout(rule.key, user.id, targetingRule.rollout);
+        if (inRollout) {
           return {
             enabled: true,
             value: getEnabledValue(rule, targetingRule.variationId) as T,
             variationId: targetingRule.variationId,
+            reason: ruleMatchReason(targetingRule.id, i, true),
           };
         }
         return {
           enabled: false,
           value: getDefaultValue(rule) as T,
+          reason: ruleMatchReason(targetingRule.id, i, false),
         };
       }
     }
   }
 
-  // Default rollout
+  // Default rollout (FALLTHROUGH)
   if (rule.rollout >= 100) {
     return {
       enabled: true,
       value: getEnabledValue(rule, undefined) as T,
+      reason: fallthroughReason(true),
     };
   }
   if (rule.rollout <= 0 || !user?.id) {
     return {
       enabled: false,
       value: getDefaultValue(rule) as T,
+      reason: fallthroughReason(false),
     };
   }
 
-  if (isInRollout(rule.key, user.id, rule.rollout)) {
+  const inRollout = isInRollout(rule.key, user.id, rule.rollout);
+  if (inRollout) {
     return {
       enabled: true,
       value: getEnabledValue(rule, undefined) as T,
+      reason: fallthroughReason(true),
     };
   }
 
   return {
     enabled: false,
     value: getDefaultValue(rule) as T,
+    reason: fallthroughReason(false),
   };
 }
 

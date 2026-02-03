@@ -58,6 +58,11 @@ export function isRetryableError(error: unknown): boolean {
     return false;
   }
 
+  // Check if error has explicit retryable property (e.g., RollgateError)
+  if ("retryable" in error && typeof error.retryable === "boolean") {
+    return error.retryable;
+  }
+
   const message = error.message.toLowerCase();
 
   // Network errors (always retry)

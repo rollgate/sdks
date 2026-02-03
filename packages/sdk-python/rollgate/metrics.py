@@ -339,6 +339,10 @@ class SDKMetrics:
         if callback in self._listeners[event]:
             self._listeners[event].remove(callback)
 
+    def clear_listeners(self) -> None:
+        """Clear all listeners (for cleanup)."""
+        self._listeners.clear()
+
     def _emit(self, event: str, data: MetricsSnapshot) -> None:
         """Emit an event to all listeners."""
         for callback in self._listeners.get(event, []):

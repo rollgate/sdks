@@ -61,6 +61,18 @@ func (s *Server) GetFlagStore() *FlagStore {
 
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// CORS headers for browser SDK testing
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "ETag, Retry-After")
+
+	// Handle preflight
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	s.mux.ServeHTTP(w, r)
 }
 
@@ -160,11 +172,18 @@ func (s *Server) checkErrorSimulation(w http.ResponseWriter) bool {
 		errorType = "NotFoundError"
 	}
 
+	// Determine if error is retryable based on status code
+	retryable := statusCode >= 500 || statusCode == http.StatusTooManyRequests
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":   errorType,
-		"message": message,
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": map[string]interface{}{
+			"code":      errorType,
+			"category":  "internal",
+			"message":   message,
+			"retryable": retryable,
+		},
 	})
 
 	return true
@@ -182,6 +201,7 @@ func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.URL.Query().Get("user_id")
+	includeReasons := r.URL.Query().Get("withReasons") == "true"
 
 	// Get user attributes from session (set via identify)
 	var userAttrs map[string]interface{}
@@ -194,9 +214,12 @@ func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 	// Build response
 	allFlags := s.flags.GetAll()
 	evaluated := make(map[string]bool, len(allFlags))
+	reasons := make(map[string]EvaluationReason, len(allFlags))
 
 	for key, flag := range allFlags {
-		evaluated[key] = s.evaluateFlag(flag, userID, userAttrs)
+		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
+		evaluated[key] = result.Value
+		reasons[key] = result.Reason
 	}
 
 	// Generate ETag
@@ -210,9 +233,14 @@ func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("ETag", etag)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+
+	response := map[string]interface{}{
 		"flags": evaluated,
-	})
+	}
+	if includeReasons {
+		response["reasons"] = reasons
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
@@ -334,32 +362,51 @@ func (s *Server) authenticate(r *http.Request) bool {
 }
 
 func (s *Server) evaluateFlag(flag *FlagState, userID string, attrs map[string]interface{}) bool {
+	result := s.evaluateFlagWithReason(flag, userID, attrs)
+	return result.Value
+}
+
+// evaluateFlagWithReason evaluates a flag and returns both value and reason.
+func (s *Server) evaluateFlagWithReason(flag *FlagState, userID string, attrs map[string]interface{}) EvaluationResult {
 	if !flag.Enabled {
-		return false
+		return EvaluationResult{Value: false, Reason: EvaluationReason{Kind: "OFF"}}
 	}
 
 	// Check target users first
 	for _, target := range flag.TargetUsers {
 		if target == userID {
-			return true
+			return EvaluationResult{Value: true, Reason: EvaluationReason{Kind: "TARGET_MATCH"}}
 		}
 	}
 
 	// Check rules
 	if len(flag.Rules) > 0 {
-		for _, rule := range flag.Rules {
+		for i, rule := range flag.Rules {
 			if !rule.Enabled {
 				continue
 			}
 			if s.evaluateConditions(rule.Conditions, userID, attrs) {
-				return s.evaluateRollout(rule.RolloutPercentage, userID, flag.Key)
+				inRollout := s.evaluateRollout(rule.RolloutPercentage, userID, flag.Key)
+				return EvaluationResult{
+					Value: inRollout,
+					Reason: EvaluationReason{
+						Kind:      "RULE_MATCH",
+						RuleID:    rule.ID,
+						RuleIndex: i,
+						InRollout: inRollout,
+					},
+				}
 			}
 		}
 		// No rule matched - fall through to global rollout
 	}
 
-	// Global rollout
-	return s.evaluateRollout(flag.RolloutPercentage, userID, flag.Key)
+	// Global rollout (FALLTHROUGH)
+	inRollout := s.evaluateRollout(flag.RolloutPercentage, userID, flag.Key)
+	return EvaluationResult{
+		Value:  inRollout,
+		Reason: EvaluationReason{Kind: "FALLTHROUGH", InRollout: inRollout},
+	}
 }
 
 func (s *Server) evaluateConditions(conditions []Condition, userID string, attrs map[string]interface{}) bool {

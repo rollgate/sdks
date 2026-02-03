@@ -50,6 +50,15 @@ venv/
 target/
 *.class
 *.jar
+dependency-reduced-pom.xml
+
+# .NET
+bin/
+obj/
+
+# Dart
+.dart_tool/
+pubspec.lock
 
 # Go
 *.exe

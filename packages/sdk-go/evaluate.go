@@ -135,9 +135,9 @@ func matchesCondition(condition Condition, user *UserContext) bool {
 	condValue := strings.ToLower(condition.Value)
 
 	switch condition.Operator {
-	case "equals":
+	case "equals", "eq":
 		return value == condValue
-	case "not_equals":
+	case "not_equals", "neq":
 		return value != condValue
 	case "contains":
 		return strings.Contains(value, condValue)
@@ -163,13 +163,13 @@ func matchesCondition(condition Condition, user *UserContext) bool {
 			}
 		}
 		return true
-	case "greater_than":
+	case "greater_than", "gt":
 		return compareNumeric(attrValue, condition.Value, ">")
-	case "greater_equal":
+	case "greater_equal", "gte":
 		return compareNumeric(attrValue, condition.Value, ">=")
-	case "less_than":
+	case "less_than", "lt":
 		return compareNumeric(attrValue, condition.Value, "<")
-	case "less_equal":
+	case "less_equal", "lte":
 		return compareNumeric(attrValue, condition.Value, "<=")
 	case "regex":
 		re, err := regexp.Compile(condition.Value)

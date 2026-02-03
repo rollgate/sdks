@@ -139,10 +139,10 @@ async function main() {
     res.json(commandResult);
   });
 
-  // DELETE / - Shutdown
-  app.delete("/", () => {
-    console.log(`[${SDK_NAME}-adapter] Shutdown requested`);
-    process.exit();
+  // DELETE / - Cleanup (don't exit, just acknowledge)
+  app.delete("/", (_req, res) => {
+    console.log(`[${SDK_NAME}-adapter] Cleanup requested`);
+    res.json({ success: true });
   });
 
   // POST / - Create client

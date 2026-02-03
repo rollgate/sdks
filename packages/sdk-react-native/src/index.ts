@@ -35,6 +35,8 @@ import type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
+  EvaluationReason,
+  EvaluationDetail,
 } from "./client";
 
 // Re-export types and classes
@@ -45,6 +47,8 @@ export type {
   RetryConfig,
   CircuitBreakerConfig,
   CacheConfig,
+  EvaluationReason,
+  EvaluationDetail,
 };
 export {
   createClient,
@@ -115,7 +119,7 @@ export function RollgateProvider({
   const [isError, setIsError] = useState(false);
   const [isStale, setIsStale] = useState(false);
   const [circuitState, setCircuitState] = useState<CircuitState>(
-    CircuitState.CLOSED
+    CircuitState.CLOSED,
   );
 
   const clientRef = useRef<RollgateReactNativeClient | null>(null);
@@ -183,7 +187,7 @@ export function RollgateProvider({
       }
       return defaultValue;
     },
-    []
+    [],
   );
 
   const identify = useCallback(async (newUser: UserContext): Promise<void> => {
@@ -259,11 +263,7 @@ export function RollgateProvider({
     client: clientRef.current,
   };
 
-  return React.createElement(
-    RollgateContext.Provider,
-    { value },
-    children
-  );
+  return React.createElement(RollgateContext.Provider, { value }, children);
 }
 
 /**
@@ -276,7 +276,7 @@ export function RollgateProvider({
  */
 export function useFlag(
   flagKey: string,
-  defaultValue: boolean = false
+  defaultValue: boolean = false,
 ): boolean {
   const context = useContext(RollgateContext);
 
@@ -285,6 +285,34 @@ export function useFlag(
   }
 
   return context.isEnabled(flagKey, defaultValue);
+}
+
+/**
+ * Hook to check if a single flag is enabled with evaluation reason
+ *
+ * @example
+ * ```tsx
+ * const { value, reason } = useFlagDetail('new-feature', false);
+ * ```
+ */
+export function useFlagDetail(
+  flagKey: string,
+  defaultValue: boolean = false,
+): EvaluationDetail<boolean> {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useFlagDetail must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.isEnabledDetail(flagKey, defaultValue);
+  }
+
+  return {
+    value: defaultValue,
+    reason: { kind: "ERROR", errorKind: "CLIENT_NOT_READY" },
+  };
 }
 
 /**
@@ -307,6 +335,69 @@ export function useFlags(flagKeys: string[]): Record<string, boolean> {
     result[key] = context.isEnabled(key, false);
   }
   return result;
+}
+
+/**
+ * Hook to get a string flag value
+ *
+ * @example
+ * ```tsx
+ * const buttonColor = useStringFlag('button-color', 'blue');
+ * ```
+ */
+export function useStringFlag(flagKey: string, defaultValue: string): string {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useStringFlag must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.getString(flagKey, defaultValue);
+  }
+  return defaultValue;
+}
+
+/**
+ * Hook to get a number flag value
+ *
+ * @example
+ * ```tsx
+ * const maxItems = useNumberFlag('max-items', 10);
+ * ```
+ */
+export function useNumberFlag(flagKey: string, defaultValue: number): number {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useNumberFlag must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.getNumber(flagKey, defaultValue);
+  }
+  return defaultValue;
+}
+
+/**
+ * Hook to get a JSON flag value
+ *
+ * @example
+ * ```tsx
+ * const config = useJSONFlag('feature-config', { enabled: false });
+ * ```
+ */
+export function useJSONFlag<T>(flagKey: string, defaultValue: T): T {
+  const context = useContext(RollgateContext);
+
+  if (!context) {
+    throw new Error("useJSONFlag must be used within a RollgateProvider");
+  }
+
+  if (context.client) {
+    return context.client.getJSON<T>(flagKey, defaultValue);
+  }
+  return defaultValue;
 }
 
 /**
@@ -348,5 +439,34 @@ export function useMetrics(): { metrics: MetricsSnapshot } {
   };
 }
 
+/**
+ * Component that renders children only if flag is enabled
+ *
+ * @example
+ * ```tsx
+ * <Feature flag="new-dashboard" fallback={<OldDashboard />}>
+ *   <NewDashboard />
+ * </Feature>
+ * ```
+ */
+interface FeatureProps {
+  flag: string;
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+export function Feature({
+  flag,
+  children,
+  fallback = null,
+}: FeatureProps): React.ReactElement {
+  const enabled = useFlag(flag);
+  return React.createElement(
+    React.Fragment,
+    null,
+    enabled ? children : fallback,
+  );
+}
+
 // Re-export types for backwards compatibility
-export type { RollgateContextValue, RollgateProviderProps };
+export type { RollgateContextValue, RollgateProviderProps, FeatureProps };

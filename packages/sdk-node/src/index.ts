@@ -66,12 +66,15 @@ import {
   evaluateFlag,
   evaluateAllFlags,
   evaluateFlagValue,
+  evaluateFlagWithReason,
   FlagRule,
   FlagRuleV2,
   RulesPayload,
   RulesPayloadV2,
   UserContext as EvalUserContext,
 } from "./evaluate";
+import type { EvaluationReason, EvaluationDetail } from "@rollgate/sdk-core";
+import { unknownReason, errorReason } from "@rollgate/sdk-core";
 import {
   TelemetryCollector,
   TelemetryConfig,
@@ -142,6 +145,7 @@ export {
   evaluateFlag,
   evaluateAllFlags,
   evaluateFlagValue,
+  evaluateFlagWithReason,
   FlagRule,
   FlagRuleV2,
   RulesPayload,
@@ -152,6 +156,19 @@ export {
   FlagType,
   EvaluationResult,
 } from "./evaluate";
+export type { EvaluationReason, EvaluationDetail } from "@rollgate/sdk-core";
+export {
+  offReason,
+  targetMatchReason,
+  ruleMatchReason,
+  fallthroughReason,
+  errorReason,
+  unknownReason,
+} from "@rollgate/sdk-core";
+export type {
+  EvaluationReasonKind,
+  EvaluationErrorKind,
+} from "@rollgate/sdk-core";
 export {
   TelemetryCollector,
   TelemetryConfig,
@@ -168,6 +185,7 @@ export interface UserContext {
 
 interface FlagsResponse {
   flags: Record<string, boolean>;
+  reasons?: Record<string, EvaluationReason>;
 }
 
 export class RollgateClient extends EventEmitter {
@@ -185,6 +203,7 @@ export class RollgateClient extends EventEmitter {
   };
   private flags: Map<string, boolean> = new Map();
   private flagValues: Map<string, unknown> = new Map(); // V2: typed values
+  private flagReasons: Map<string, EvaluationReason> | null = null; // Reasons from server
   private rules: Record<string, FlagRule> | null = null; // Rules for client-side evaluation
   private rulesV2: Record<string, FlagRuleV2> | null = null; // V2 rules with variations
   private rulesVersion: string | null = null;
@@ -513,6 +532,8 @@ export class RollgateClient extends EventEmitter {
       if (this.userContext?.id) {
         url.searchParams.set("user_id", this.userContext.id);
       }
+      // Request evaluation reasons from server
+      url.searchParams.set("withReasons", "true");
 
       // Check if circuit breaker allows the request
       if (!this.circuitBreaker.isAllowingRequests()) {
@@ -682,6 +703,11 @@ export class RollgateClient extends EventEmitter {
       const oldFlags = new Map(this.flags);
       this.flags = new Map(Object.entries(data.flags || {}));
 
+      // Store reasons from server response
+      if (data.reasons) {
+        this.flagReasons = new Map(Object.entries(data.reasons));
+      }
+
       // Emit change events for any flags that changed
       for (const [key, value] of this.flags) {
         const oldValue = oldFlags.get(key);
@@ -839,6 +865,122 @@ export class RollgateClient extends EventEmitter {
   }
 
   /**
+   * Check if a flag is enabled with detailed evaluation reason.
+   * Returns both the value and the reason why it evaluated that way.
+   */
+  isEnabledDetail(
+    flagKey: string,
+    defaultValue: boolean = false,
+  ): EvaluationDetail<boolean> {
+    const startTime = performance.now();
+
+    if (!this.initialized) {
+      const evaluationTime = performance.now() - startTime;
+      this.metrics.recordEvaluation(flagKey, defaultValue, evaluationTime);
+      return {
+        value: defaultValue,
+        reason: errorReason("CLIENT_NOT_READY"),
+      };
+    }
+
+    // If we have rules, use client-side evaluation with reason
+    if (this.rules && this.rules[flagKey]) {
+      const detail = evaluateFlagWithReason(
+        this.rules[flagKey],
+        this.userContext,
+      );
+      const evaluationTime = performance.now() - startTime;
+      this.metrics.recordEvaluation(flagKey, detail.value, evaluationTime);
+      this.telemetry.recordEvaluation(flagKey, detail.value);
+      return detail;
+    }
+
+    // Fallback to server-evaluated flags
+    const value = this.flags.get(flagKey);
+    const evaluationTime = performance.now() - startTime;
+
+    if (value === undefined) {
+      this.metrics.recordEvaluation(flagKey, defaultValue, evaluationTime);
+      return {
+        value: defaultValue,
+        reason: unknownReason(),
+      };
+    }
+
+    this.metrics.recordEvaluation(flagKey, value, evaluationTime);
+    // Server-evaluated flags don't have client-side reasons
+    // The reason would need to come from the server
+    return {
+      value,
+      reason: this.flagReasons?.get(flagKey) ?? { kind: "UNKNOWN" },
+    };
+  }
+
+  /**
+   * Get a flag's value with type support and detailed evaluation reason.
+   * Returns both the value and the reason why it evaluated that way.
+   */
+  getValueDetail<T>(flagKey: string, defaultValue: T): EvaluationDetail<T> {
+    if (!this.initialized) {
+      return {
+        value: defaultValue,
+        reason: errorReason("CLIENT_NOT_READY"),
+      };
+    }
+
+    // V2 rules support typed values with reasons
+    if (this.rulesV2 && this.rulesV2[flagKey]) {
+      const result = evaluateFlagValue<T>(
+        this.rulesV2[flagKey],
+        this.userContext,
+      );
+      if (!result.enabled) {
+        return {
+          value: defaultValue,
+          reason: result.reason ?? { kind: "UNKNOWN" },
+          variationId: result.variationId,
+        };
+      }
+      return {
+        value: result.value,
+        reason: result.reason ?? { kind: "UNKNOWN" },
+        variationId: result.variationId,
+      };
+    }
+
+    // Fallback: try boolean rules
+    if (this.rules && this.rules[flagKey]) {
+      const detail = evaluateFlagWithReason(
+        this.rules[flagKey],
+        this.userContext,
+      );
+      if (typeof defaultValue === "boolean") {
+        return detail as unknown as EvaluationDetail<T>;
+      }
+      return {
+        value: defaultValue,
+        reason: detail.reason,
+      };
+    }
+
+    // Check v2 values map
+    if (this.flagValues.has(flagKey)) {
+      const val = this.flagValues.get(flagKey);
+      if (val !== undefined) {
+        return {
+          value: val as T,
+          reason: this.flagReasons?.get(flagKey) ?? { kind: "UNKNOWN" },
+        };
+      }
+    }
+
+    return {
+      value: defaultValue,
+      reason: unknownReason(),
+    };
+  }
+
+  /**
    * Get all flags as an object
    */
   getAllFlags(): Record<string, boolean> {
@@ -943,6 +1085,11 @@ export class RollgateClient extends EventEmitter {
 
     // Close cache (persists if configured)
     this.cache.close();
+
+    // Clean up all internal components to prevent memory leaks
+    this.circuitBreaker.removeAllListeners();
+    this.metrics.removeAllListeners();
+    this.dedup.clear();
 
     this.removeAllListeners();
   }

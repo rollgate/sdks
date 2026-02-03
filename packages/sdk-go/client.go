@@ -26,9 +26,10 @@ type Client struct {
 	config Config
 	client *http.Client
 
-	flags    map[string]bool
-	user     *UserContext
-	lastETag string
+	flags       map[string]bool
+	flagReasons map[string]EvaluationReason
+	user        *UserContext
+	lastETag    string
 
 	circuitBreaker *CircuitBreaker
 	cache          *FlagCache
@@ -44,7 +45,8 @@ type Client struct {
 
 // flagsResponse represents the API response for flags.
 type flagsResponse struct {
-	Flags map[string]bool `json:"flags"`
+	Flags   map[string]bool              `json:"flags"`
+	Reasons map[string]EvaluationReason  `json:"reasons,omitempty"`
 }
 
 // NewClient creates a new Rollgate client with the given config.
@@ -77,6 +79,7 @@ func NewClient(config Config) (*Client, error) {
 		config:         config,
 		client:         &http.Client{Timeout: config.Timeout},
 		flags:          make(map[string]bool),
+		flagReasons:    make(map[string]EvaluationReason),
 		circuitBreaker: NewCircuitBreaker(config.CircuitBreaker),
 		cache:          NewFlagCache(config.Cache),
 		retryer:        NewRetryer(config.Retry),
@@ -203,6 +206,11 @@ func (c *Client) initializeWithSSE(ctx context.Context) error {
 
 // IsEnabled checks if a flag is enabled for the current user.
 func (c *Client) IsEnabled(flagKey string, defaultValue bool) bool {
+	return c.IsEnabledDetail(flagKey, defaultValue).Value
+}
+
+// IsEnabledDetail returns the flag value along with the evaluation reason.
+func (c *Client) IsEnabledDetail(flagKey string, defaultValue bool) BoolEvaluationDetail {
 	start := time.Now()
 	defer func() {
 		c.metrics.RecordEvaluation(time.Since(start).Nanoseconds())
@@ -211,10 +219,39 @@ func (c *Client) IsEnabled(flagKey string, defaultValue bool) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if value, ok := c.flags[flagKey]; ok {
-		return value
+	// Check if client is ready
+	if !c.ready {
+		return BoolEvaluationDetail{
+			Value:  defaultValue,
+			Reason: ErrorReason(ErrorClientNotReady),
+		}
 	}
-	return defaultValue
+
+	// Check if flag exists
+	value, ok := c.flags[flagKey]
+	if !ok {
+		return BoolEvaluationDetail{
+			Value:  defaultValue,
+			Reason: UnknownReason(),
+		}
+	}
+
+	// Use stored reason from server, or FALLTHROUGH as default
+	if storedReason, ok := c.flagReasons[flagKey]; ok {
+		return BoolEvaluationDetail{
+			Value:  value,
+			Reason: storedReason,
+		}
+	}
+	return BoolEvaluationDetail{
+		Value:  value,
+		Reason: FallthroughReason(value),
+	}
+}
+
+// BoolVariationDetail is an alias for IsEnabledDetail for LaunchDarkly compatibility.
+func (c *Client) BoolVariationDetail(flagKey string, defaultValue bool) BoolEvaluationDetail {
+	return c.IsEnabledDetail(flagKey, defaultValue)
 }
 
 // GetAllFlags returns all current flag values.
@@ -259,14 +296,85 @@ func (c *Client) Identify(ctx context.Context, user *UserContext) error {
 	c.user = user
 	c.mu.Unlock()
 
+	// Send identify request to server with user attributes
+	if user != nil && user.ID != "" {
+		if err := c.sendIdentify(ctx, user); err != nil {
+			// Log but don't fail - refresh will still work with user_id param
+			if c.config.Logger != nil {
+				c.config.Logger.Warn("failed to send identify", "error", err)
+			}
+		}
+	}
+
 	return c.Refresh(ctx)
+}
+
+// sendIdentify sends user context to the server for server-side evaluation.
+func (c *Client) sendIdentify(ctx context.Context, user *UserContext) error {
+	u := c.config.BaseURL + "/api/v1/sdk/identify"
+
+	body := map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":         user.ID,
+			"email":      user.Email,
+			"attributes": user.Attributes,
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, io.NopCloser(
+		&bytesReader{data: jsonBody},
+	))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("identify failed with status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// bytesReader wraps a byte slice to implement io.Reader.
+type bytesReader struct {
+	data []byte
+	pos  int
+}
+
+func (r *bytesReader) Read(p []byte) (n int, err error) {
+	if r.pos >= len(r.data) {
+		return 0, io.EOF
+	}
+	n = copy(p, r.data[r.pos:])
+	r.pos += n
+	return n, nil
 }
 
 // Reset clears the user context.
 func (c *Client) Reset(ctx context.Context) error {
 	c.mu.Lock()
+	oldUser := c.user
 	c.user = nil
 	c.mu.Unlock()
+
+	// Clear user session on server
+	if oldUser != nil && oldUser.ID != "" {
+		_ = c.sendIdentify(ctx, &UserContext{ID: oldUser.ID}) // Send empty attributes
+	}
 
 	return c.Refresh(ctx)
 }
@@ -358,11 +466,13 @@ func (c *Client) doFetchRequest(ctx context.Context, statusCode *int) error {
 	}
 
 	c.mu.RLock()
+	q := u.Query()
 	if c.user != nil && c.user.ID != "" {
-		q := u.Query()
 		q.Set("user_id", c.user.ID)
-		u.RawQuery = q.Encode()
 	}
+	// Request evaluation reasons from server
+	q.Set("withReasons", "true")
+	u.RawQuery = q.Encode()
 	c.mu.RUnlock()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -417,9 +527,12 @@ func (c *Client) doFetchRequest(ctx context.Context, statusCode *int) error {
 		return NewNetworkError("failed to parse response", err)
 	}
 
-	// Update flags
+	// Update flags and reasons
 	c.mu.Lock()
 	c.flags = flagsResp.Flags
+	if flagsResp.Reasons != nil {
+		c.flagReasons = flagsResp.Reasons
+	}
 	c.mu.Unlock()
 
 	// Update cache

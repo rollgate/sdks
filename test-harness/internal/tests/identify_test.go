@@ -11,6 +11,9 @@ import (
 // TestIdentify tests user identification.
 func TestIdentify(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -71,6 +74,9 @@ func TestIdentify(t *testing.T) {
 // TestReset tests user context reset.
 func TestReset(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -100,6 +106,9 @@ func TestReset(t *testing.T) {
 // TestTargetUsers tests specific user targeting.
 func TestTargetUsers(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -129,6 +138,9 @@ func TestTargetUsers(t *testing.T) {
 // TestAttributeTargeting tests attribute-based targeting.
 func TestAttributeTargeting(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -180,6 +192,9 @@ func TestAttributeTargeting(t *testing.T) {
 // TestMultipleConditions tests rules with multiple conditions (AND logic).
 func TestMultipleConditions(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
