@@ -47,8 +47,7 @@ jobs:
       - name: Build SDK Node Test Service
         run: |
           cd packages/sdk-node/test-service
-          npm install
-          npm run build
+          npx tsc
 
       - name: Start SDK Node Test Service
         run: |
@@ -136,8 +135,7 @@ jobs:
       - name: Build and start test service
         run: |
           cd packages/sdk-node/test-service
-          npm install
-          npm run build
+          npx tsc
           PORT=8001 node dist/index.js &
           sleep 3
 

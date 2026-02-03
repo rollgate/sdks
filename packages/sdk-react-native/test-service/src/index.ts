@@ -240,7 +240,7 @@ class TestReactNativeClient {
 
   isEnabledDetail(
     flagKey: string,
-    defaultValue: boolean = false
+    defaultValue: boolean = false,
   ): EvaluationDetail<boolean> {
     const startTime = Date.now();
 

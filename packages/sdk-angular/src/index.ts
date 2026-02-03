@@ -166,7 +166,10 @@ export class RollgateService implements OnDestroy {
   /**
    * Check if a flag is enabled with evaluation reason
    */
-  isEnabledDetail(flagKey: string, defaultValue: boolean = false): EvaluationDetail<boolean> {
+  isEnabledDetail(
+    flagKey: string,
+    defaultValue: boolean = false,
+  ): EvaluationDetail<boolean> {
     if (this.client) {
       return this.client.isEnabledDetail(flagKey, defaultValue);
     }
