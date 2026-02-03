@@ -44,6 +44,9 @@ func TestFlagEvaluation(t *testing.T) {
 // TestGetAllFlags tests getting all flags.
 func TestGetAllFlags(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -68,6 +71,9 @@ func TestGetAllFlags(t *testing.T) {
 // TestRollout tests percentage rollout.
 func TestRollout(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -134,6 +140,9 @@ func TestConsistentHashing(t *testing.T) {
 // TestFlagTypes tests different flag scenarios.
 func TestFlagTypes(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -156,6 +165,9 @@ func TestFlagTypes(t *testing.T) {
 // TestEmptyFlags tests behavior with no flags.
 func TestEmptyFlags(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

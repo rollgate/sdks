@@ -99,6 +99,9 @@ func TestUserIdVeryLong(t *testing.T) {
 // TestFlagKeySpecialChars tests flag keys with special characters.
 func TestFlagKeySpecialChars(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -133,6 +136,9 @@ func TestFlagKeySpecialChars(t *testing.T) {
 // TestFlagKeyVeryLong tests flag key with 500+ characters.
 func TestFlagKeyVeryLong(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -158,6 +164,9 @@ func TestFlagKeyVeryLong(t *testing.T) {
 // TestAttributeNull tests behavior with null/nil attribute values.
 func TestAttributeNull(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -191,6 +200,9 @@ func TestAttributeNull(t *testing.T) {
 // TestAttributeEmpty tests behavior with empty string attributes.
 func TestAttributeEmpty(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -231,6 +243,9 @@ func TestAttributeEmpty(t *testing.T) {
 // TestAttributeBoolean tests boolean attribute handling.
 func TestAttributeBoolean(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -271,6 +286,9 @@ func TestAttributeBoolean(t *testing.T) {
 // TestAttributeNumber tests numeric attribute handling.
 func TestAttributeNumber(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -320,6 +338,9 @@ func TestAttributeNumber(t *testing.T) {
 // TestManyFlags tests performance with many flags.
 func TestManyFlags(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -359,6 +380,9 @@ func TestManyFlags(t *testing.T) {
 // TestManyAttributes tests user with many attributes.
 func TestManyAttributes(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -401,6 +425,9 @@ func TestManyAttributes(t *testing.T) {
 // TestConcurrentEvaluations tests thread safety of flag evaluations.
 func TestConcurrentEvaluations(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -450,6 +477,9 @@ func TestConcurrentEvaluations(t *testing.T) {
 // TestRapidIdentify tests rapid identify calls.
 func TestRapidIdentify(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

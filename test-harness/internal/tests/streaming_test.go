@@ -90,6 +90,9 @@ func TestSSEInitialFlags(t *testing.T) {
 // TestSSEFlagUpdate tests that SDK receives flag updates via SSE.
 func TestSSEFlagUpdate(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -174,6 +177,9 @@ func TestSSEFallbackToPolling(t *testing.T) {
 // TestSSEDisconnectRecovery tests that SDK handles SSE disconnection gracefully.
 func TestSSEDisconnectRecovery(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

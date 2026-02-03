@@ -2,6 +2,8 @@ package tests
 
 import (
 	"context"
+	"log"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +82,9 @@ func TestInit(t *testing.T) {
 // TestInitTimeout tests SDK initialization with timeout.
 func TestInitTimeout(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

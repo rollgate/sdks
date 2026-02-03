@@ -237,11 +237,17 @@ func (h *Harness) Stop(ctx context.Context) error {
 
 // SetScenario sets a test scenario on the mock server.
 func (h *Harness) SetScenario(scenario string) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetScenario(scenario)
 }
 
 // SetFlag sets a single flag on the mock server.
 func (h *Harness) SetFlag(flag *mock.FlagState) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetFlag(flag)
 }
 
@@ -297,6 +303,9 @@ func (h *Harness) ForEachService(ctx context.Context, fn func(svc SDKService) er
 
 // SetError configures error simulation on the mock server.
 func (h *Harness) SetError(statusCode int, count int, retryAfter int, message string) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetError(&mock.ErrorSimulation{
 		StatusCode: statusCode,
 		Count:      count,
@@ -307,6 +316,9 @@ func (h *Harness) SetError(statusCode int, count int, retryAfter int, message st
 
 // SetErrorWithDelay configures error simulation with delay.
 func (h *Harness) SetErrorWithDelay(statusCode int, count int, delay time.Duration) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.SetError(&mock.ErrorSimulation{
 		StatusCode: statusCode,
 		Count:      count,
@@ -316,36 +328,57 @@ func (h *Harness) SetErrorWithDelay(statusCode int, count int, delay time.Durati
 
 // ClearError removes error simulation.
 func (h *Harness) ClearError() {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.ClearError()
 }
 
 // GetErrorCount returns how many errors have been simulated.
 func (h *Harness) GetErrorCount() int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.GetErrorCount()
 }
 
 // ClearUserSessions clears all user sessions from mock server.
 func (h *Harness) ClearUserSessions() {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.ClearUserSessions()
 }
 
 // GetSSEClientCount returns the count of connected SSE clients.
 func (h *Harness) GetSSEClientCount() int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.GetSSEClientCount()
 }
 
 // SendSSEEvent sends a custom event to all SSE clients.
 func (h *Harness) SendSSEEvent(data map[string]interface{}) int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.SendSSEEvent(data)
 }
 
 // DisconnectSSEClients disconnects all SSE clients.
 func (h *Harness) DisconnectSSEClients() int {
+	if h.mockServer == nil {
+		return 0
+	}
 	return h.mockServer.DisconnectSSEClients()
 }
 
 // BroadcastFlagChange broadcasts a flag change to all SSE clients.
 func (h *Harness) BroadcastFlagChange(flagKey string, enabled bool) {
+	if h.mockServer == nil {
+		return
+	}
 	h.mockServer.BroadcastFlagChange(flagKey, enabled)
 }
 

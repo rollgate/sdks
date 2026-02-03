@@ -12,6 +12,9 @@ import (
 // TestReasonFallthrough tests that existing flags return FALLTHROUGH reason.
 func TestReasonFallthrough(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -62,6 +65,9 @@ func TestReasonUnknown(t *testing.T) {
 // TestReasonOff tests that disabled flags return OFF reason.
 func TestReasonOff(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -90,6 +96,9 @@ func TestReasonOff(t *testing.T) {
 // TestReasonTargetMatch tests that targeted users get TARGET_MATCH reason.
 func TestReasonTargetMatch(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
