@@ -33,6 +33,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.registry-tokens
 
 # Python
 __pycache__/
