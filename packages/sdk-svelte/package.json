@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-svelte",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Svelte SDK for Rollgate feature flags",
   "svelte": "dist/index.mjs",
   "main": "dist/index.mjs",

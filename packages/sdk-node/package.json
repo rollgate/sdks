@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-node",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Rollgate Node.js SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

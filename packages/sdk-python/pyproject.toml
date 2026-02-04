@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rollgate"
-version = "0.1.0"
+version = "1.0.0"
 description = "Python SDK for Rollgate feature flags"
 readme = "README.md"
 license = "MIT"
@@ -13,7 +13,7 @@ authors = [
 ]
 keywords = ["feature-flags", "feature-toggles", "rollgate", "sdk"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
