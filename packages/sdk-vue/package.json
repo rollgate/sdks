@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-vue",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Vue SDK for Rollgate feature flags",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
