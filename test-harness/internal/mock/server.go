@@ -25,6 +25,17 @@ type ErrorSimulation struct {
 	Message    string        `json:"message"`    // Error message
 }
 
+// TrackEventItem represents a single tracked event received by the mock server.
+type TrackEventItem struct {
+	FlagKey     string                 `json:"flagKey"`
+	EventName   string                 `json:"eventName"`
+	UserID      string                 `json:"userId"`
+	VariationID string                 `json:"variationId,omitempty"`
+	Value       *float64               `json:"value,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Timestamp   string                 `json:"timestamp,omitempty"`
+}
+
 // Server is a mock Rollgate API server.
 type Server struct {
 	mux        *http.ServeMux
@@ -39,6 +50,9 @@ type Server struct {
 	errorSim   *ErrorSimulation
 	errorCount int
 	errorMu    sync.Mutex
+	// Received events for testing
+	receivedEvents []TrackEventItem
+	eventsMu       sync.Mutex
 }
 
 // NewServer creates a new mock server.
@@ -80,11 +94,13 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/api/v1/sdk/flags", s.handleFlags)
 	s.mux.HandleFunc("/api/v1/sdk/stream", s.handleSSE)
 	s.mux.HandleFunc("/api/v1/sdk/identify", s.handleIdentify)
+	s.mux.HandleFunc("/api/v1/sdk/events", s.handleEvents)
 	s.mux.HandleFunc("/api/v1/test/set-error", s.handleSetError)
 	s.mux.HandleFunc("/api/v1/test/clear-error", s.handleClearError)
 	s.mux.HandleFunc("/api/v1/test/sse/send-event", s.handleSSESendEvent)
 	s.mux.HandleFunc("/api/v1/test/sse/disconnect", s.handleSSEDisconnect)
 	s.mux.HandleFunc("/api/v1/test/sse/clients", s.handleSSEClients)
+	s.mux.HandleFunc("/api/v1/test/events", s.handleTestEvents)
 	s.mux.HandleFunc("/health", s.handleHealth)
 }
 
@@ -746,6 +762,81 @@ func (s *Server) SendSSEEvent(data map[string]interface{}) int {
 		}
 	}
 	return sent
+}
+
+// handleEvents receives tracked events from SDKs (POST /api/v1/sdk/events).
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !s.authenticate(r) {
+		http.Error(w, `{"error":"AuthenticationError","message":"Invalid API key"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var body struct {
+		Events []TrackEventItem `json:"events"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.eventsMu.Lock()
+	s.receivedEvents = append(s.receivedEvents, body.Events...)
+	s.eventsMu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"received": len(body.Events),
+	})
+}
+
+// handleTestEvents is the test control endpoint for events (GET/DELETE /api/v1/test/events).
+func (s *Server) handleTestEvents(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.eventsMu.Lock()
+		events := make([]TrackEventItem, len(s.receivedEvents))
+		copy(events, s.receivedEvents)
+		s.eventsMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"events": events,
+			"count":  len(events),
+		})
+
+	case http.MethodDelete:
+		s.eventsMu.Lock()
+		s.receivedEvents = nil
+		s.eventsMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// GetReceivedEvents returns all events received by the mock server.
+func (s *Server) GetReceivedEvents() []TrackEventItem {
+	s.eventsMu.Lock()
+	defer s.eventsMu.Unlock()
+	events := make([]TrackEventItem, len(s.receivedEvents))
+	copy(events, s.receivedEvents)
+	return events
+}
+
+// ClearReceivedEvents clears all received events.
+func (s *Server) ClearReceivedEvents() {
+	s.eventsMu.Lock()
+	defer s.eventsMu.Unlock()
+	s.receivedEvents = nil
 }
 
 // DisconnectSSEClients disconnects all SSE clients.

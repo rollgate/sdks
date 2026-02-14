@@ -34,6 +34,9 @@ type Response struct {
 	// For success responses
 	Success *bool `json:"success,omitempty"`
 
+	// For event tracking
+	EventsReceived *int `json:"eventsReceived,omitempty"`
+
 	// For errors
 	Error   string `json:"error,omitempty"`
 	Message string `json:"message,omitempty"`

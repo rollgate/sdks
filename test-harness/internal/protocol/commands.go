@@ -12,6 +12,12 @@ type Command struct {
 	DefaultStringValue string       `json:"defaultStringValue,omitempty"`
 	DefaultNumberValue *float64     `json:"defaultNumberValue,omitempty"`
 	DefaultJSONValue   interface{}  `json:"defaultJsonValue,omitempty"`
+	// Event tracking fields
+	EventName     string                 `json:"eventName,omitempty"`
+	UserID        string                 `json:"userId,omitempty"`
+	VariationID   string                 `json:"variationId,omitempty"`
+	EventValue    *float64               `json:"eventValue,omitempty"`
+	EventMetadata map[string]interface{} `json:"eventMetadata,omitempty"`
 }
 
 // Config represents SDK initialization configuration.
@@ -44,6 +50,8 @@ const (
 	CommandGetNumber         = "getNumber"
 	CommandGetJSON           = "getJson"
 	CommandGetValueDetail    = "getValueDetail"
+	CommandTrack             = "track"
+	CommandFlushEvents       = "flushEvents"
 )
 
 // NewInitCommand creates an init command.
@@ -135,4 +143,32 @@ func NewGetValueDetailCommand(flagKey string, defaultValue interface{}) Command 
 		FlagKey:          flagKey,
 		DefaultJSONValue: defaultValue,
 	}
+}
+
+// NewTrackCommand creates a track command.
+func NewTrackCommand(flagKey, eventName, userID string) Command {
+	return Command{
+		Command:   CommandTrack,
+		FlagKey:   flagKey,
+		EventName: eventName,
+		UserID:    userID,
+	}
+}
+
+// NewTrackCommandFull creates a track command with all optional fields.
+func NewTrackCommandFull(flagKey, eventName, userID, variationID string, value *float64, metadata map[string]interface{}) Command {
+	return Command{
+		Command:       CommandTrack,
+		FlagKey:       flagKey,
+		EventName:     eventName,
+		UserID:        userID,
+		VariationID:   variationID,
+		EventValue:    value,
+		EventMetadata: metadata,
+	}
+}
+
+// NewFlushEventsCommand creates a flushEvents command.
+func NewFlushEventsCommand() Command {
+	return Command{Command: CommandFlushEvents}
 }

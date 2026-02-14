@@ -63,6 +63,11 @@ interface Command {
   defaultStringValue?: string;
   defaultNumberValue?: number;
   defaultJsonValue?: unknown;
+  eventName?: string;
+  userId?: string;
+  variationId?: string;
+  eventValue?: number;
+  eventMetadata?: Record<string, unknown>;
 }
 
 interface EvaluationReason {
@@ -337,6 +342,50 @@ async function handleCommand(cmd: Command): Promise<Response> {
       }
 
       return response;
+    }
+
+    case "track": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey || !cmd.eventName || !cmd.userId) {
+        return {
+          error: "ValidationError",
+          message: "flagKey, eventName, and userId are required",
+        };
+      }
+
+      client.track({
+        flagKey: cmd.flagKey,
+        eventName: cmd.eventName,
+        userId: cmd.userId,
+        variationId: cmd.variationId,
+        value: cmd.eventValue,
+        metadata: cmd.eventMetadata as
+          | Record<string, string | number | boolean>
+          | undefined,
+      });
+      return { success: true };
+    }
+
+    case "flushEvents": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+
+      try {
+        await client.flushEvents();
+        return { success: true };
+      } catch (err) {
+        const error = err as Error;
+        return { error: error.name || "Error", message: error.message };
+      }
     }
 
     case "close": {
