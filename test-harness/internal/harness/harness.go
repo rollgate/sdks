@@ -397,6 +397,22 @@ func (h *Harness) InitSDKConfigWithStreaming() protocol.Config {
 	}
 }
 
+// GetReceivedEvents returns all events received by the mock server.
+func (h *Harness) GetReceivedEvents() []mock.TrackEventItem {
+	if h.mockServer == nil {
+		return nil
+	}
+	return h.mockServer.GetReceivedEvents()
+}
+
+// ClearReceivedEvents clears all received events from the mock server.
+func (h *Harness) ClearReceivedEvents() {
+	if h.mockServer == nil {
+		return
+	}
+	h.mockServer.ClearReceivedEvents()
+}
+
 // IsUsingExternalServer returns true if using an external server instead of mock.
 func (h *Harness) IsUsingExternalServer() bool {
 	return h.externalServerURL != ""
