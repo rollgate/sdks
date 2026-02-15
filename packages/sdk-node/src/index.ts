@@ -80,6 +80,14 @@ import {
   TelemetryConfig,
   DEFAULT_TELEMETRY_CONFIG,
 } from "./telemetry";
+import {
+  EventCollector,
+  DEFAULT_EVENT_COLLECTOR_CONFIG,
+} from "@rollgate/sdk-core";
+import type {
+  EventCollectorConfig,
+  TrackEventOptions,
+} from "@rollgate/sdk-core";
 
 export interface RollgateConfig {
   apiKey: string;
@@ -93,6 +101,7 @@ export interface RollgateConfig {
   circuitBreaker?: Partial<CircuitBreakerConfig>; // Circuit breaker configuration
   cache?: Partial<CacheConfig>; // Cache configuration
   telemetry?: Partial<TelemetryConfig>; // Telemetry configuration for client-side evaluation
+  events?: Partial<EventCollectorConfig>; // Event tracking configuration for A/B testing
 }
 
 // Re-export from sdk-core
@@ -176,6 +185,14 @@ export {
   EvaluationStats,
   DEFAULT_TELEMETRY_CONFIG,
 } from "./telemetry";
+export {
+  EventCollector,
+  DEFAULT_EVENT_COLLECTOR_CONFIG,
+} from "@rollgate/sdk-core";
+export type {
+  EventCollectorConfig,
+  TrackEventOptions,
+} from "@rollgate/sdk-core";
 
 export interface UserContext {
   id: string;
@@ -192,7 +209,7 @@ export class RollgateClient extends EventEmitter {
   private config: Required<
     Omit<
       RollgateConfig,
-      "retry" | "circuitBreaker" | "cache" | "sseUrl" | "telemetry"
+      "retry" | "circuitBreaker" | "cache" | "sseUrl" | "telemetry" | "events"
     >
   > & {
     sseUrl: string;
@@ -200,6 +217,7 @@ export class RollgateClient extends EventEmitter {
     circuitBreaker: CircuitBreakerConfig;
     cache: CacheConfig;
     telemetry: TelemetryConfig;
+    events: EventCollectorConfig;
   };
   private flags: Map<string, boolean> = new Map();
   private flagValues: Map<string, unknown> = new Map(); // V2: typed values
@@ -217,6 +235,7 @@ export class RollgateClient extends EventEmitter {
   private lastETag: string | null = null;
   private metrics: SDKMetrics;
   private telemetry: TelemetryCollector;
+  private eventCollector: EventCollector;
 
   constructor(config: RollgateConfig) {
     super();
@@ -229,6 +248,14 @@ export class RollgateClient extends EventEmitter {
       endpoint: `${baseUrl}/api/v1/sdk/telemetry`,
       apiKey: config.apiKey,
       ...config.telemetry,
+    };
+
+    // Build event collector config with endpoint derived from baseUrl
+    const eventsConfig: EventCollectorConfig = {
+      ...DEFAULT_EVENT_COLLECTOR_CONFIG,
+      endpoint: `${baseUrl}/api/v1/sdk/events`,
+      apiKey: config.apiKey,
+      ...config.events,
     };
 
     this.config = {
@@ -246,6 +273,7 @@ export class RollgateClient extends EventEmitter {
       },
       cache: { ...DEFAULT_CACHE_CONFIG, ...config.cache },
       telemetry: telemetryConfig,
+      events: eventsConfig,
     };
 
     // Initialize circuit breaker
@@ -262,6 +290,9 @@ export class RollgateClient extends EventEmitter {
 
     // Initialize telemetry collector
     this.telemetry = new TelemetryCollector(this.config.telemetry);
+
+    // Initialize event collector for conversion tracking
+    this.eventCollector = new EventCollector(this.config.events);
 
     // Forward circuit breaker events and track in metrics
     this.circuitBreaker.on("circuit-open", (data) => {
@@ -288,6 +319,10 @@ export class RollgateClient extends EventEmitter {
     // Forward telemetry events
     this.telemetry.on("flush", (data) => this.emit("telemetry-flush", data));
     this.telemetry.on("error", (err) => this.emit("telemetry-error", err));
+
+    // Forward event collector events
+    this.eventCollector.on("flush", (data) => this.emit("events-flush", data));
+    this.eventCollector.on("error", (err) => this.emit("events-error", err));
   }
 
   /**
@@ -401,6 +436,9 @@ export class RollgateClient extends EventEmitter {
 
     // Start telemetry collector (for client-side evaluation analytics)
     this.telemetry.start();
+
+    // Start event collector (for A/B testing conversion tracking)
+    this.eventCollector.start();
 
     this.emit("ready");
   }
@@ -1083,6 +1121,9 @@ export class RollgateClient extends EventEmitter {
     // Stop telemetry (flushes remaining data)
     await this.telemetry.stop();
 
+    // Stop event collector (flushes remaining events)
+    await this.eventCollector.stop();
+
     // Close cache (persists if configured)
     this.cache.close();
 
@@ -1106,6 +1147,40 @@ export class RollgateClient extends EventEmitter {
    */
   async flushTelemetry(): Promise<void> {
     await this.telemetry.flush();
+  }
+
+  /**
+   * Track a conversion event for A/B testing.
+   * Events are buffered and sent in batches.
+   *
+   * @example
+   * ```typescript
+   * client.track({
+   *   flagKey: 'checkout-redesign',
+   *   eventName: 'purchase',
+   *   userId: 'user-123',
+   *   variationId: 'variant-b',
+   *   value: 29.99,
+   *   metadata: { currency: 'EUR' },
+   * });
+   * ```
+   */
+  track(options: TrackEventOptions): void {
+    this.eventCollector.track(options);
+  }
+
+  /**
+   * Force flush buffered conversion events
+   */
+  async flushEvents(): Promise<void> {
+    await this.eventCollector.flush();
+  }
+
+  /**
+   * Get event collector buffer stats
+   */
+  getEventStats(): { eventCount: number } {
+    return this.eventCollector.getBufferStats();
   }
 }
 

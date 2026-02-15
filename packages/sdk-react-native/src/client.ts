@@ -23,6 +23,12 @@ import {
   fallthroughReason,
   errorReason,
   unknownReason,
+  EventCollector,
+  DEFAULT_EVENT_COLLECTOR_CONFIG,
+} from "@rollgate/sdk-core";
+import type {
+  TrackEventOptions,
+  EventCollectorConfig,
 } from "@rollgate/sdk-core";
 import type {
   RetryConfig,
@@ -42,6 +48,8 @@ export type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
+  EventCollectorConfig,
 };
 export { CircuitState, CircuitOpenError, RollgateError, ErrorCategory };
 
@@ -76,6 +84,8 @@ export interface RollgateOptions {
   startWaitTimeMs?: number;
   /** If true, initialization won't throw on failure (default: true for mobile) */
   initCanFail?: boolean;
+  /** Event collector configuration for conversion tracking */
+  events?: Partial<EventCollectorConfig>;
 }
 
 interface FlagsResponse {
@@ -106,7 +116,7 @@ export class RollgateReactNativeClient {
   private apiKey: string;
   private userContext: UserContext | null;
   private options: Required<
-    Omit<RollgateOptions, "retry" | "circuitBreaker" | "cache">
+    Omit<RollgateOptions, "retry" | "circuitBreaker" | "cache" | "events">
   > & {
     retry: RetryConfig;
     circuitBreaker: CircuitBreakerConfig;
@@ -124,6 +134,7 @@ export class RollgateReactNativeClient {
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private circuitBreaker: CircuitBreaker;
   private dedup: RequestDeduplicator;
+  private eventCollector: EventCollector;
   private lastETag: string | null = null;
   private metrics: SDKMetrics;
   private cacheTimestamp: number = 0;
@@ -157,6 +168,12 @@ export class RollgateReactNativeClient {
     this.circuitBreaker = new CircuitBreaker(this.options.circuitBreaker);
     this.dedup = new RequestDeduplicator();
     this.metrics = createMetrics();
+    this.eventCollector = new EventCollector({
+      ...DEFAULT_EVENT_COLLECTOR_CONFIG,
+      ...options.events,
+      endpoint: `${baseUrl}/api/v1/sdk/events`,
+      apiKey,
+    });
 
     // Setup circuit breaker event forwarding
     this.circuitBreaker.on("state-change", (data) => {
@@ -191,6 +208,7 @@ export class RollgateReactNativeClient {
 
       this.initialized = true;
       this.initResolver?.();
+      this.eventCollector.start();
       this.emit("ready");
     } catch (error) {
       if (this.options.initCanFail) {
@@ -401,10 +419,17 @@ export class RollgateReactNativeClient {
   }
 
   /**
-   * Flush any pending events (no-op for now, for API compatibility)
+   * Track a conversion event for A/B testing.
    */
-  flush(): void {
-    // No-op - RN SDK doesn't batch events yet
+  track(options: TrackEventOptions): void {
+    this.eventCollector.track(options);
+  }
+
+  /**
+   * Flush any pending events.
+   */
+  async flush(): Promise<void> {
+    await this.eventCollector.flush();
   }
 
   /**
@@ -425,6 +450,9 @@ export class RollgateReactNativeClient {
    * Close the client and clean up resources
    */
   close(): void {
+    // Best-effort flush events
+    this.eventCollector.stop().catch(() => {});
+
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
       this.pollInterval = null;

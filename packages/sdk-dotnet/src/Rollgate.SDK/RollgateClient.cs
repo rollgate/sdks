@@ -17,6 +17,7 @@ public class RollgateClient : IDisposable
     private readonly Retryer _retryer;
     private readonly RequestDeduplicator _dedup;
     private readonly SDKMetrics _metrics;
+    private readonly EventCollector _eventCollector;
     private readonly object _lock = new();
 
     private Dictionary<string, bool> _flags = new();
@@ -65,6 +66,11 @@ public class RollgateClient : IDisposable
         _metrics = new SDKMetrics();
 
         _circuitBreaker.OnStateChange((from, to) => _metrics.RecordCircuitStateChange(to));
+        _eventCollector = new EventCollector(
+            $"{config.BaseUrl}/api/v1/sdk/events",
+            config.ApiKey,
+            _httpClient
+        );
     }
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -95,6 +101,8 @@ public class RollgateClient : IDisposable
         }
 
         lock (_lock) { _ready = true; }
+
+        _eventCollector.Start();
 
         if (_config.RefreshInterval > TimeSpan.Zero)
             StartPolling();
@@ -227,8 +235,19 @@ public class RollgateClient : IDisposable
 
     public CacheStats GetCacheStats() => _cache.GetStats();
 
+    /// <summary>
+    /// Track a conversion event for A/B testing.
+    /// </summary>
+    public void Track(TrackEventOptions options) => _eventCollector.Track(options);
+
+    /// <summary>
+    /// Flush all buffered conversion events.
+    /// </summary>
+    public Task FlushEventsAsync(CancellationToken ct = default) => _eventCollector.FlushAsync(ct);
+
     public void Dispose()
     {
+        _eventCollector.Dispose();
         _pollingCts?.Cancel();
         _sseClient?.Dispose();
         _httpClient.Dispose();
@@ -283,7 +302,7 @@ public class RollgateClient : IDisposable
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.ApiKey);
         request.Headers.Add("X-SDK-Name", "rollgate-dotnet");
-        request.Headers.Add("X-SDK-Version", "0.1.0");
+        request.Headers.Add("X-SDK-Version", "1.1.0");
 
         if (!string.IsNullOrEmpty(etag))
             request.Headers.IfNoneMatch.Add(new EntityTagHeaderValue(etag));

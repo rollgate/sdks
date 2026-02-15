@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 public class SSEClient implements AutoCloseable {
 
     private static final String SDK_NAME = "rollgate-java";
-    private static final String SDK_VERSION = "0.1.0";
+    private static final String SDK_VERSION = "1.1.0";
 
     private final Config config;
     private final OkHttpClient httpClient;

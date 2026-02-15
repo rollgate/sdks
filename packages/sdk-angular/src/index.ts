@@ -33,6 +33,7 @@ import type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser
@@ -42,6 +43,7 @@ export type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -289,6 +291,15 @@ export class RollgateService implements OnDestroy {
       uptimeMs: 0,
       lastRequestAt: null,
     };
+  }
+
+  /**
+   * Track a conversion event for A/B testing
+   */
+  track(options: TrackEventOptions): void {
+    if (this.client) {
+      this.client.track(options);
+    }
   }
 
   ngOnDestroy(): void {

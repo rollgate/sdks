@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class RollgateClient implements AutoCloseable {
 
     private static final String SDK_NAME = "rollgate-java";
-    private static final String SDK_VERSION = "0.1.0";
+    private static final String SDK_VERSION = "1.1.0";
 
     private final Config config;
     private final OkHttpClient httpClient;
@@ -27,6 +27,7 @@ public class RollgateClient implements AutoCloseable {
     private final CircuitBreaker circuitBreaker;
     private final FlagCache cache;
     private final Retry retry;
+    private final EventCollector eventCollector;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private Map<String, Boolean> flags = new HashMap<>();
@@ -54,6 +55,12 @@ public class RollgateClient implements AutoCloseable {
         this.circuitBreaker = new CircuitBreaker(config.getCircuitBreaker());
         this.cache = new FlagCache(config.getCache());
         this.retry = new Retry(config.getRetry());
+        this.eventCollector = new EventCollector(
+            config.getBaseUrl() + "/api/v1/sdk/events",
+            config.getApiKey(),
+            this.httpClient,
+            30000, 100, true
+        );
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "rollgate-poller");
@@ -224,6 +231,20 @@ public class RollgateClient implements AutoCloseable {
     }
 
     /**
+     * Track a conversion event for A/B testing.
+     */
+    public void track(EventCollector.TrackEventOptions options) {
+        eventCollector.track(options);
+    }
+
+    /**
+     * Flush all buffered conversion events.
+     */
+    public void flushEvents() throws java.io.IOException {
+        eventCollector.flush();
+    }
+
+    /**
      * Check if client is ready.
      */
     public boolean isReady() {
@@ -246,6 +267,8 @@ public class RollgateClient implements AutoCloseable {
 
     @Override
     public void close() {
+        eventCollector.close();
+
         if (pollingTask != null) {
             pollingTask.cancel(true);
         }

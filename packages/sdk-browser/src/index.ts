@@ -31,6 +31,8 @@ import {
   fallthroughReason,
   errorReason,
   unknownReason,
+  EventCollector,
+  DEFAULT_EVENT_COLLECTOR_CONFIG,
 } from "@rollgate/sdk-core";
 import type {
   RetryConfig,
@@ -40,6 +42,8 @@ import type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  EventCollectorConfig,
+  TrackEventOptions,
 } from "@rollgate/sdk-core";
 
 // Re-export types from core
@@ -50,6 +54,8 @@ export type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  EventCollectorConfig,
+  TrackEventOptions,
 };
 export { CircuitState, CircuitOpenError, RollgateError, ErrorCategory };
 
@@ -86,6 +92,8 @@ export interface RollgateOptions {
   startWaitTimeMs?: number;
   /** If true, initialization won't throw on failure (default: false) */
   initCanFail?: boolean;
+  /** Event tracking configuration for A/B testing */
+  events?: Partial<EventCollectorConfig>;
 }
 
 interface FlagsResponse {
@@ -104,7 +112,7 @@ export class RollgateBrowserClient {
   private apiKey: string;
   private userContext: UserContext | null;
   private options: Required<
-    Omit<RollgateOptions, "retry" | "circuitBreaker" | "cache">
+    Omit<RollgateOptions, "retry" | "circuitBreaker" | "cache" | "events">
   > & {
     retry: RetryConfig;
     circuitBreaker: CircuitBreakerConfig;
@@ -125,6 +133,7 @@ export class RollgateBrowserClient {
   private dedup: RequestDeduplicator;
   private lastETag: string | null = null;
   private metrics: SDKMetrics;
+  private eventCollector: EventCollector;
 
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
@@ -158,6 +167,14 @@ export class RollgateBrowserClient {
     this.cache = new FlagCache(this.options.cache);
     this.dedup = new RequestDeduplicator();
     this.metrics = createMetrics();
+
+    // Initialize event collector for A/B testing conversion tracking
+    this.eventCollector = new EventCollector({
+      ...DEFAULT_EVENT_COLLECTOR_CONFIG,
+      endpoint: `${baseUrl}/api/v1/sdk/events`,
+      apiKey,
+      ...options.events,
+    });
 
     // Setup circuit breaker event forwarding
     this.circuitBreaker.on("state-change", (data) => {
@@ -197,11 +214,13 @@ export class RollgateBrowserClient {
       }
 
       this.initialized = true;
+      this.eventCollector.start();
       this.initResolver?.();
       this.emit("ready");
     } catch (error) {
       if (this.options.initCanFail) {
         this.initialized = true;
+        this.eventCollector.start();
         this.initResolver?.();
         this.emit("ready");
       } else {
@@ -333,10 +352,25 @@ export class RollgateBrowserClient {
   }
 
   /**
-   * Flush any pending events (no-op for now, for API compatibility)
+   * Flush any pending conversion events
    */
-  flush(): void {
-    // No-op - browser SDK doesn't batch events yet
+  async flush(): Promise<void> {
+    await this.eventCollector.flush();
+  }
+
+  /**
+   * Track a conversion event for A/B testing.
+   * Events are buffered and sent in batches.
+   */
+  track(options: TrackEventOptions): void {
+    this.eventCollector.track(options);
+  }
+
+  /**
+   * Get event collector buffer stats
+   */
+  getEventStats(): { eventCount: number } {
+    return this.eventCollector.getBufferStats();
   }
 
   /**
@@ -366,6 +400,9 @@ export class RollgateBrowserClient {
       this.eventSource.close();
       this.eventSource = null;
     }
+
+    // Stop event collector (best-effort flush)
+    this.eventCollector.stop().catch(() => {});
 
     // Clean up all internal components to prevent memory leaks
     this.cache.close();

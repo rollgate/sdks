@@ -11,6 +11,7 @@ import 'cache.dart';
 import 'circuit_breaker.dart';
 import 'retry.dart';
 import 'dedup.dart';
+import 'events.dart';
 import 'metrics.dart';
 
 class RollgateClient {
@@ -21,6 +22,7 @@ class RollgateClient {
   final Retryer _retryer;
   final RequestDeduplicator _dedup;
   final SDKMetrics _metrics;
+  final EventCollector _eventCollector;
 
   Map<String, bool> _flags = {};
   Map<String, EvaluationReason> _flagReasons = {};
@@ -35,7 +37,12 @@ class RollgateClient {
         _cache = FlagCache(_config.cache),
         _retryer = Retryer(_config.retry),
         _dedup = RequestDeduplicator(),
-        _metrics = SDKMetrics() {
+        _metrics = SDKMetrics(),
+        _eventCollector = EventCollector(
+          endpoint: '${_config.baseUrl}/api/v1/sdk/events',
+          apiKey: _config.apiKey,
+          httpClient: http.Client(),
+        ) {
     _circuitBreaker.onStateChange((from, to) {
       _metrics.recordCircuitStateChange(_circuitBreaker.getStateString());
     });
@@ -57,6 +64,7 @@ class RollgateClient {
     }
 
     _ready = true;
+    _eventCollector.start();
 
     if (_config.refreshInterval > Duration.zero) {
       _startPolling();
@@ -136,7 +144,14 @@ class RollgateClient {
   MetricsSnapshot get metrics => _metrics.snapshot();
   CacheStats get cacheStats => _cache.getStats();
 
+  /// Track a conversion event for A/B testing.
+  void track(TrackEventOptions options) => _eventCollector.track(options);
+
+  /// Flush all buffered conversion events.
+  Future<void> flushEvents() => _eventCollector.flush();
+
   void close() {
+    _eventCollector.stop();
     _pollingTimer?.cancel();
     _httpClient.close();
     _dedup.clear();
@@ -177,7 +192,7 @@ class RollgateClient {
       'Authorization': 'Bearer ${_config.apiKey}',
       'Content-Type': 'application/json',
       'X-SDK-Name': 'rollgate-flutter',
-      'X-SDK-Version': '0.1.0',
+      'X-SDK-Version': '1.1.0',
     };
 
     if (_lastETag != null) {

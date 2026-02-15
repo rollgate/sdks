@@ -122,6 +122,8 @@ export {
   createFeatureEvent,
   createIdentifyEvent,
   createCustomEvent,
+  EventCollector,
+  DEFAULT_EVENT_COLLECTOR_CONFIG,
 } from "./events";
 export type {
   AnalyticsEventKind,
@@ -133,4 +135,6 @@ export type {
   AnalyticsPayload,
   EvaluationStats,
   EventBuffer,
+  EventCollectorConfig,
+  TrackEventOptions,
 } from "./events";

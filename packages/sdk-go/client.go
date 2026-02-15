@@ -38,6 +38,8 @@ type Client struct {
 	metrics        *SDKMetrics
 	sseClient      *SSEClient
 
+	eventCollector *EventCollector
+
 	stopPolling chan struct{}
 	ready       bool
 	streaming   bool
@@ -75,9 +77,16 @@ func NewClient(config Config) (*Client, error) {
 		config.Cache = DefaultCacheConfig()
 	}
 
+	// Apply event collector defaults
+	if config.Events.FlushIntervalMs == 0 && config.Events.MaxBufferSize == 0 {
+		config.Events = DefaultEventCollectorConfig()
+	}
+
+	httpClient := &http.Client{Timeout: config.Timeout}
+
 	c := &Client{
 		config:         config,
-		client:         &http.Client{Timeout: config.Timeout},
+		client:         httpClient,
 		flags:          make(map[string]bool),
 		flagReasons:    make(map[string]EvaluationReason),
 		circuitBreaker: NewCircuitBreaker(config.CircuitBreaker),
@@ -85,7 +94,13 @@ func NewClient(config Config) (*Client, error) {
 		retryer:        NewRetryer(config.Retry),
 		dedup:          NewRequestDeduplicator(),
 		metrics:        NewSDKMetrics(),
-		stopPolling:    make(chan struct{}),
+		eventCollector: NewEventCollector(
+			config.BaseURL+"/api/v1/sdk/events",
+			config.APIKey,
+			config.Events,
+			httpClient,
+		),
+		stopPolling: make(chan struct{}),
 	}
 
 	// Set up circuit breaker state change tracking
@@ -132,6 +147,9 @@ func (c *Client) Initialize(ctx context.Context) error {
 	c.mu.Lock()
 	c.ready = true
 	c.mu.Unlock()
+
+	// Start event collector
+	c.eventCollector.Start()
 
 	// Start background polling if interval > 0
 	if c.config.RefreshInterval > 0 {
@@ -405,8 +423,19 @@ func (c *Client) IsReady() bool {
 	return c.ready
 }
 
+// Track sends a conversion event for A/B testing.
+func (c *Client) Track(opts TrackEventOptions) {
+	c.eventCollector.Track(opts)
+}
+
+// FlushEvents flushes all buffered conversion events.
+func (c *Client) FlushEvents() error {
+	return c.eventCollector.Flush()
+}
+
 // Close stops background polling/streaming and releases resources.
 func (c *Client) Close() {
+	c.eventCollector.Stop()
 	close(c.stopPolling)
 	if c.sseClient != nil {
 		c.sseClient.Close()
@@ -483,7 +512,7 @@ func (c *Client) doFetchRequest(ctx context.Context, statusCode *int) error {
 	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-SDK-Name", "rollgate-go")
-	req.Header.Set("X-SDK-Version", "0.1.0")
+	req.Header.Set("X-SDK-Version", "1.1.0")
 
 	c.mu.RLock()
 	if c.lastETag != "" {
