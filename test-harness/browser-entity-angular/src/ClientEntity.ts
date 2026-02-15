@@ -237,7 +237,9 @@ export class ClientEntity {
           value: trackParams.value,
           metadata: trackParams.metadata,
         });
-        log(`[${this.tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`);
+        log(
+          `[${this.tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`,
+        );
         return undefined;
       }
 
