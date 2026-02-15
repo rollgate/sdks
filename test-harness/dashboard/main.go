@@ -29,6 +29,16 @@ func (h *Hub) broadcast(msg any) {
 	}
 }
 
+func (h *Hub) broadcastRaw(sender *websocket.Conn, data []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients {
+		if c != sender {
+			c.WriteMessage(websocket.TextMessage, data)
+		}
+	}
+}
+
 func (h *Hub) add(c *websocket.Conn) {
 	h.mu.Lock()
 	h.clients[c] = true
@@ -60,9 +70,12 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	hub.add(c)
 	defer hub.remove(c)
 	for {
-		if _, _, err := c.ReadMessage(); err != nil {
+		_, msg, err := c.ReadMessage()
+		if err != nil {
 			break
 		}
+		// Broadcast received messages to all other clients (runner → dashboard UI)
+		hub.broadcastRaw(c, msg)
 	}
 }
 

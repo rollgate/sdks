@@ -52,7 +52,7 @@ function makeSdkConfig(options: SDKConfigParams, tag: string): RollgateConfig {
     baseUrl,
     sseUrl,
     streaming,
-    timeout: 5000,
+    timeout: options.startWaitTimeMs ?? 5000,
     refreshInterval: options.polling?.pollIntervalMs,
   };
 
@@ -212,12 +212,30 @@ export class ClientEntity {
         return undefined;
       }
 
+      case CommandType.Track: {
+        const trackParams = params.track;
+        if (!trackParams) {
+          throw malformedCommand;
+        }
+        globalContext.track({
+          flagKey: trackParams.flagKey,
+          eventName: trackParams.eventName,
+          userId: trackParams.userId,
+          variationId: trackParams.variationId,
+          value: trackParams.value,
+          metadata: trackParams.metadata,
+        });
+        log(`[${this.tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`);
+        return undefined;
+      }
+
       case CommandType.CustomEvent:
         log(`[${this.tag}] customEvent (no-op)`);
         return undefined;
 
       case CommandType.FlushEvents:
-        log(`[${this.tag}] flush (no-op for Vue SDK)`);
+        await globalContext.flush();
+        log(`[${this.tag}] flush`);
         return undefined;
 
       default:

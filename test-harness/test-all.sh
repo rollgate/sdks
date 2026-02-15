@@ -1,11 +1,11 @@
 #!/bin/bash
-# Test All SDKs - Esegue i 90 contract test su tutti gli SDK
+# Test All SDKs - Esegue i 95 contract test su tutti gli SDK
 #
 # Backend SDKs: sdk-node, sdk-go, sdk-python, sdk-java, sdk-dotnet (5 SDK)
 # Mobile SDKs: sdk-react-native, sdk-flutter (2 SDK)
 # Frontend SDKs: sdk-browser, sdk-react, sdk-vue, sdk-svelte, sdk-angular (5 SDK)
 #
-# Totale: 12 SDK x 90 test = 1080 test
+# Totale: 12 SDK x 95 test = 1140 test
 
 set -e
 
@@ -30,9 +30,11 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║       Rollgate SDK Contract Test Suite - All SDKs          ║${NC}"
-echo -e "${BLUE}║                  12 SDK × 90 tests = 1080                    ║${NC}"
+echo -e "${BLUE}║                  12 SDK × 95 tests = 1140                    ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
+
+TOTAL_START=$SECONDS
 
 # Funzione per verificare se una porta è libera
 is_port_free() {
@@ -205,6 +207,15 @@ for port in 8001 8003 8004 8005 8006 8007 8008; do
 done
 
 # ══════════════════════════════════════════════════════════════
+# FASE 3.5: Pre-compile test binary (saves ~5-7s per SDK)
+# ══════════════════════════════════════════════════════════════
+echo -e "\n${YELLOW}[PRE-COMPILE] Building test binary...${NC}"
+cd "$SCRIPT_DIR"
+go test -c -o "$DASHBOARD_DIR/test-suite.exe" ./internal/tests/
+echo -e "${GREEN}✓ Test binary compiled${NC}"
+export TEST_BINARY="$DASHBOARD_DIR/test-suite.exe"
+
+# ══════════════════════════════════════════════════════════════
 # FASE 4: Test Backend SDKs (sequenziali, schede separate)
 # ══════════════════════════════════════════════════════════════
 echo -e "\n${YELLOW}[FASE 4] Testing backend SDKs (sequential, separate tabs)...${NC}"
@@ -212,33 +223,42 @@ echo -e "\n${YELLOW}[FASE 4] Testing backend SDKs (sequential, separate tabs)...
 cd "$DASHBOARD_DIR"
 
 # Test backend SDK uno alla volta (così la dashboard mostra il progresso)
+BACKEND_FAILURES=0
+
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-node...${NC}"
-TEST_SERVICES="sdk-node=http://localhost:8001" ./runner.exe sdk-node ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-node complete${NC}"
+TEST_SERVICES="sdk-node=http://localhost:8001" ./runner.exe sdk-node || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-node complete ($((SECONDS - SDK_START))s)${NC}"
 
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-go...${NC}"
-TEST_SERVICES="sdk-go=http://localhost:8003" ./runner.exe sdk-go ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-go complete${NC}"
+TEST_SERVICES="sdk-go=http://localhost:8003" ./runner.exe sdk-go || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-go complete ($((SECONDS - SDK_START))s)${NC}"
 
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-python...${NC}"
-TEST_SERVICES="sdk-python=http://localhost:8004" ./runner.exe sdk-python ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-python complete${NC}"
+TEST_SERVICES="sdk-python=http://localhost:8004" ./runner.exe sdk-python || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-python complete ($((SECONDS - SDK_START))s)${NC}"
 
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-java...${NC}"
-TEST_SERVICES="sdk-java=http://localhost:8005" ./runner.exe sdk-java ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-java complete${NC}"
+TEST_SERVICES="sdk-java=http://localhost:8005" ./runner.exe sdk-java || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-java complete ($((SECONDS - SDK_START))s)${NC}"
 
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-react-native...${NC}"
-TEST_SERVICES="sdk-react-native=http://localhost:8006" ./runner.exe sdk-react-native ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-react-native complete${NC}"
+TEST_SERVICES="sdk-react-native=http://localhost:8006" ./runner.exe sdk-react-native || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-react-native complete ($((SECONDS - SDK_START))s)${NC}"
 
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-dotnet...${NC}"
-TEST_SERVICES="sdk-dotnet=http://localhost:8007" ./runner.exe sdk-dotnet ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-dotnet complete${NC}"
+TEST_SERVICES="sdk-dotnet=http://localhost:8007" ./runner.exe sdk-dotnet || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-dotnet complete ($((SECONDS - SDK_START))s)${NC}"
 
+SDK_START=$SECONDS
 echo -e "\n  ${BLUE}Testing sdk-flutter...${NC}"
-TEST_SERVICES="sdk-flutter=http://localhost:8008" ./runner.exe sdk-flutter ./internal/tests/... -count=1
-echo -e "  ${GREEN}✓ sdk-flutter complete${NC}"
+TEST_SERVICES="sdk-flutter=http://localhost:8008" ./runner.exe sdk-flutter || BACKEND_FAILURES=$((BACKEND_FAILURES + 1))
+echo -e "  ${GREEN}✓ sdk-flutter complete ($((SECONDS - SDK_START))s)${NC}"
 
 echo -e "\n${GREEN}✓ All backend SDK tests complete${NC}"
 
@@ -249,6 +269,7 @@ echo -e "\n${YELLOW}[FASE 5] Testing frontend SDKs (sequential)...${NC}"
 
 FRONTEND_SDKS=("browser" "react" "vue" "svelte" "angular")
 VITE_PORTS=(5173 5174 5175 5176 5177)
+FRONTEND_FAILURES=0
 
 for i in "${!FRONTEND_SDKS[@]}"; do
     SDK="${FRONTEND_SDKS[$i]}"
@@ -259,6 +280,7 @@ for i in "${!FRONTEND_SDKS[@]}"; do
         ENTITY_DIR="$SCRIPT_DIR/browser-entity-$SDK"
     fi
 
+    SDK_START=$SECONDS
     echo -e "\n  ${BLUE}Testing sdk-$SDK...${NC}"
 
     # Kill previous Playwright browser processes to prevent resource accumulation
@@ -274,31 +296,48 @@ for i in "${!FRONTEND_SDKS[@]}"; do
     # Start browser-adapter
     cd "$SCRIPT_DIR/browser-adapter"
     PORT=8010 WS_PORT=8011 node dist/index.js > /tmp/browser-adapter.log 2>&1 &
-    sleep 2
+    sleep 1
 
-    # Start browser entity with WebSocket port
+    # Start browser entity with Vite dev server
     cd "$ENTITY_DIR"
     VITE_WS_PORT=8011 npm run dev -- --port $VITE_PORT > /tmp/browser-entity-$SDK.log 2>&1 &
     sleep 3
 
     # Open browser
     VITE_URL="http://localhost:$VITE_PORT" node open-browser.mjs > /tmp/browser-$SDK.log 2>&1 &
-    sleep 3
+    sleep 2
 
     # Run tests
+    SETUP_TIME=$((SECONDS - SDK_START))
+    TEST_START=$SECONDS
     cd "$DASHBOARD_DIR"
-    TEST_SERVICES="sdk-$SDK=http://localhost:8010" ./runner.exe "sdk-$SDK" ./internal/tests/... -count=1
+    TEST_SERVICES="sdk-$SDK=http://localhost:8010" ./runner.exe "sdk-$SDK" || FRONTEND_FAILURES=$((FRONTEND_FAILURES + 1))
+    TEST_TIME=$((SECONDS - TEST_START))
 
-    echo -e "  ${GREEN}✓ sdk-$SDK complete${NC}"
+    echo -e "  ${GREEN}✓ sdk-$SDK complete (setup: ${SETUP_TIME}s, tests: ${TEST_TIME}s, total: $((SECONDS - SDK_START))s)${NC}"
 done
 
 # ══════════════════════════════════════════════════════════════
 # RISULTATI FINALI
 # ══════════════════════════════════════════════════════════════
+TOTAL_ELAPSED=$((SECONDS - TOTAL_START))
+TOTAL_MIN=$((TOTAL_ELAPSED / 60))
+TOTAL_SEC=$((TOTAL_ELAPSED % 60))
+
+TOTAL_FAILURES=$((BACKEND_FAILURES + FRONTEND_FAILURES))
+
 echo -e "\n${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║                    ALL TESTS COMPLETE                       ║${NC}"
+if [ $TOTAL_FAILURES -eq 0 ]; then
+echo -e "${GREEN}║                    ALL TESTS PASSED                         ║${NC}"
+else
+echo -e "${RED}║               SOME TESTS FAILED ($TOTAL_FAILURES SDK failures)               ║${NC}"
+fi
+echo -e "${BLUE}║              Total time: ${TOTAL_MIN}m${TOTAL_SEC}s                              ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Check dashboard at: ${BLUE}http://localhost:8080/static/${NC}"
 echo -e "Logs in: /tmp/sdk-*.log"
 echo ""
+
+# Exit with failure if any SDK had failing tests
+exit $TOTAL_FAILURES

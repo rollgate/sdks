@@ -143,34 +143,40 @@ func (s *Server) handleClearError(w http.ResponseWriter, r *http.Request) {
 // checkErrorSimulation checks if an error should be simulated and returns true if so.
 func (s *Server) checkErrorSimulation(w http.ResponseWriter) bool {
 	s.errorMu.Lock()
-	defer s.errorMu.Unlock()
 
 	if s.errorSim == nil {
+		s.errorMu.Unlock()
 		return false
 	}
 
 	// Check if we should still return errors
 	if s.errorSim.Count != -1 && s.errorCount >= s.errorSim.Count {
+		s.errorMu.Unlock()
 		return false
 	}
 
 	s.errorCount++
 
-	// Apply delay if configured
-	if s.errorSim.Delay > 0 {
-		time.Sleep(s.errorSim.Delay)
+	// Copy values we need before releasing the mutex
+	delay := s.errorSim.Delay
+	statusCode := s.errorSim.StatusCode
+	message := s.errorSim.Message
+	retryAfter := s.errorSim.RetryAfter
+	s.errorMu.Unlock()
+
+	// Apply delay AFTER releasing mutex so other requests aren't blocked
+	if delay > 0 {
+		time.Sleep(delay)
 	}
 
 	// Build error response
-	statusCode := s.errorSim.StatusCode
-	message := s.errorSim.Message
 	if message == "" {
 		message = http.StatusText(statusCode)
 	}
 
 	// Add Retry-After header for 429
-	if statusCode == http.StatusTooManyRequests && s.errorSim.RetryAfter > 0 {
-		w.Header().Set("Retry-After", strconv.Itoa(s.errorSim.RetryAfter))
+	if statusCode == http.StatusTooManyRequests && retryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 	}
 
 	// Determine error type based on status code
