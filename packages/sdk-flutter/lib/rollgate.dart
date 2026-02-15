@@ -8,3 +8,4 @@ export 'src/errors.dart';
 export 'src/cache.dart';
 export 'src/circuit_breaker.dart';
 export 'src/metrics.dart';
+export 'src/events.dart';

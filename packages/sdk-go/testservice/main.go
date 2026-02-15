@@ -49,14 +49,19 @@ type Config struct {
 
 // Command represents a command sent to the test service.
 type Command struct {
-	Command            string       `json:"command"`
-	Config             *Config      `json:"config,omitempty"`
-	User               *UserContext `json:"user,omitempty"`
-	FlagKey            string       `json:"flagKey,omitempty"`
-	DefaultValue       *bool        `json:"defaultValue,omitempty"`
-	DefaultStringValue string       `json:"defaultStringValue,omitempty"`
-	DefaultNumberValue *float64     `json:"defaultNumberValue,omitempty"`
-	DefaultJSONValue   interface{}  `json:"defaultJsonValue,omitempty"`
+	Command            string                 `json:"command"`
+	Config             *Config                `json:"config,omitempty"`
+	User               *UserContext           `json:"user,omitempty"`
+	FlagKey            string                 `json:"flagKey,omitempty"`
+	DefaultValue       *bool                  `json:"defaultValue,omitempty"`
+	DefaultStringValue string                 `json:"defaultStringValue,omitempty"`
+	DefaultNumberValue *float64               `json:"defaultNumberValue,omitempty"`
+	DefaultJSONValue   interface{}            `json:"defaultJsonValue,omitempty"`
+	EventName          string                 `json:"eventName,omitempty"`
+	UserID             string                 `json:"userId,omitempty"`
+	VariationID        string                 `json:"variationId,omitempty"`
+	EventValue         *float64               `json:"eventValue,omitempty"`
+	EventMetadata      map[string]interface{} `json:"eventMetadata,omitempty"`
 }
 
 // EvaluationReason represents the reason for a flag evaluation.
@@ -199,6 +204,10 @@ func handleCommand(cmd Command) Response {
 		return handleGetAllFlags(cmd)
 	case "getState":
 		return handleGetState(cmd)
+	case "track":
+		return handleTrack(cmd)
+	case "flushEvents":
+		return handleFlushEvents(cmd)
 	case "close":
 		return handleClose(cmd)
 	default:
@@ -514,6 +523,57 @@ func handleGetState(cmd Command) Response {
 			Misses: metrics.CacheMisses,
 		},
 	}
+}
+
+func handleTrack(cmd Command) Response {
+	clientMu.Lock()
+	c := client
+	clientMu.Unlock()
+
+	if c == nil {
+		return Response{Error: "NotInitializedError", Message: "Client not initialized"}
+	}
+
+	if cmd.FlagKey == "" || cmd.EventName == "" || cmd.UserID == "" {
+		return Response{Error: "ValidationError", Message: "flagKey, eventName, and userId are required"}
+	}
+
+	opts := rollgate.TrackEventOptions{
+		FlagKey:   cmd.FlagKey,
+		EventName: cmd.EventName,
+		UserID:    cmd.UserID,
+	}
+	if cmd.VariationID != "" {
+		opts.VariationID = cmd.VariationID
+	}
+	if cmd.EventValue != nil {
+		opts.Value = cmd.EventValue
+	}
+	if cmd.EventMetadata != nil {
+		opts.Metadata = make(map[string]any)
+		for k, v := range cmd.EventMetadata {
+			opts.Metadata[k] = v
+		}
+	}
+
+	c.Track(opts)
+	return Response{Success: boolPtr(true)}
+}
+
+func handleFlushEvents(cmd Command) Response {
+	clientMu.Lock()
+	c := client
+	clientMu.Unlock()
+
+	if c == nil {
+		return Response{Error: "NotInitializedError", Message: "Client not initialized"}
+	}
+
+	if err := c.FlushEvents(); err != nil {
+		return Response{Error: "FlushError", Message: err.Error()}
+	}
+
+	return Response{Success: boolPtr(true)}
 }
 
 func handleClose(cmd Command) Response {

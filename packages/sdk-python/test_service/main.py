@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import httpx
 
 from rollgate import RollgateClient, RollgateConfig, UserContext
+from rollgate.events import TrackEventOptions
 
 client: Optional[RollgateClient] = None
 current_base_url: Optional[str] = None
@@ -309,6 +310,37 @@ async def handle_command(cmd: dict) -> dict:
                 "misses": cache_stats.misses,
             },
         )
+
+    elif command == "track":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        flag_key = cmd.get("flagKey")
+        event_name = cmd.get("eventName")
+        user_id = cmd.get("userId")
+        if not flag_key or not event_name or not user_id:
+            return make_response(error="ValidationError", message="flagKey, eventName, and userId are required")
+
+        opts = TrackEventOptions(
+            flag_key=flag_key,
+            event_name=event_name,
+            user_id=user_id,
+            variation_id=cmd.get("variationId"),
+            value=cmd.get("eventValue"),
+            metadata=cmd.get("eventMetadata"),
+        )
+        client.track(opts)
+        return make_response(success=True)
+
+    elif command == "flushEvents":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        try:
+            await client.flush_events()
+            return make_response(success=True)
+        except Exception as e:
+            return make_response(error=type(e).__name__, message=str(e))
 
     elif command == "close":
         if client:
