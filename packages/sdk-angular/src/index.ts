@@ -302,6 +302,12 @@ export class RollgateService implements OnDestroy {
     }
   }
 
+  async flush(): Promise<void> {
+    if (this.client) {
+      await this.client.flush();
+    }
+  }
+
   ngOnDestroy(): void {
     if (this.client) {
       this.client.close();

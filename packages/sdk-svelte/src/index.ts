@@ -87,6 +87,8 @@ export interface RollgateStores {
   getMetrics: () => MetricsSnapshot;
   /** Track a conversion event for A/B testing */
   track: (options: TrackEventOptions) => void;
+  /** Flush pending conversion events */
+  flush: () => Promise<void>;
   /** Close the client */
   close: () => void;
   /** Get a reactive store for a single flag */
@@ -196,6 +198,10 @@ export function createRollgate(
     client.track(options);
   };
 
+  const flush = async (): Promise<void> => {
+    await client.flush();
+  };
+
   const close = (): void => {
     client.close();
   };
@@ -222,6 +228,7 @@ export function createRollgate(
     refresh,
     getMetrics,
     track,
+    flush,
     close,
     flag,
   };

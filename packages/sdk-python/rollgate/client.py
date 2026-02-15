@@ -341,7 +341,10 @@ class RollgateClient:
         if self._last_etag:
             headers["If-None-Match"] = self._last_etag
 
-        response = await self._http_client.get(url, params=params, headers=headers)
+        response = await self._http_client.get(
+            url, params=params, headers=headers,
+            timeout=self._config.timeout_ms / 1000,
+        )
 
         # Handle 304 Not Modified
         if response.status_code == 304:

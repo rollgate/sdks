@@ -5,7 +5,7 @@
 
 import { chromium } from '@playwright/test';
 
-const url = process.argv[2] || 'http://localhost:5173';
+const url = process.env.VITE_URL || process.argv[2] || 'http://localhost:5173';
 
 async function main() {
   console.log(`Opening browser at ${url}...`);

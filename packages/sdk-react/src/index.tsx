@@ -86,6 +86,8 @@ interface RollgateContextValue {
   getMetrics: () => MetricsSnapshot;
   /** Track a conversion event for A/B testing */
   track: (options: TrackEventOptions) => void;
+  /** Flush pending events to the server */
+  flush: () => Promise<void>;
   /** Access the underlying browser client */
   client: RollgateBrowserClient | null;
 }
@@ -256,6 +258,12 @@ export function RollgateProvider({
     }
   }, []);
 
+  const flush = useCallback(async (): Promise<void> => {
+    if (clientRef.current) {
+      await clientRef.current.flush();
+    }
+  }, []);
+
   const value: RollgateContextValue = {
     isEnabled,
     isLoading,
@@ -268,6 +276,7 @@ export function RollgateProvider({
     refresh,
     getMetrics,
     track,
+    flush,
     client: clientRef.current,
   };
 
