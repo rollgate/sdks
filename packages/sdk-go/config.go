@@ -35,6 +35,9 @@ type Config struct {
 
 	// Logger for debug output (optional)
 	Logger Logger
+
+	// Events configuration for conversion tracking
+	Events EventCollectorConfig
 }
 
 // RetryConfig holds retry settings.

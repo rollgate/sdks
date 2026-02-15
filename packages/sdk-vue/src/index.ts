@@ -31,6 +31,7 @@ import type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser
@@ -40,6 +41,7 @@ export type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -80,6 +82,8 @@ export interface RollgateContext {
   refresh: () => Promise<void>;
   /** Get metrics snapshot */
   getMetrics: () => MetricsSnapshot;
+  /** Track a conversion event for A/B testing */
+  track: (options: TrackEventOptions) => void;
   /** Underlying browser client */
   client: RollgateBrowserClient | null;
 }
@@ -207,6 +211,12 @@ function createRollgateContext(
     };
   };
 
+  const track = (options: TrackEventOptions): void => {
+    if (client) {
+      client.track(options);
+    }
+  };
+
   return {
     isEnabled,
     isLoading,
@@ -218,6 +228,7 @@ function createRollgateContext(
     reset,
     refresh,
     getMetrics,
+    track,
     client,
   };
 }

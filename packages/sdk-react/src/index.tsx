@@ -33,6 +33,7 @@ import type {
   CacheConfig,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser for convenience
@@ -45,6 +46,7 @@ export type {
   CacheConfig,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -82,6 +84,8 @@ interface RollgateContextValue {
   refresh: () => Promise<void>;
   /** Get metrics snapshot */
   getMetrics: () => MetricsSnapshot;
+  /** Track a conversion event for A/B testing */
+  track: (options: TrackEventOptions) => void;
   /** Access the underlying browser client */
   client: RollgateBrowserClient | null;
 }
@@ -246,6 +250,12 @@ export function RollgateProvider({
     };
   }, []);
 
+  const track = useCallback((options: TrackEventOptions): void => {
+    if (clientRef.current) {
+      clientRef.current.track(options);
+    }
+  }, []);
+
   const value: RollgateContextValue = {
     isEnabled,
     isLoading,
@@ -257,6 +267,7 @@ export function RollgateProvider({
     reset,
     refresh,
     getMetrics,
+    track,
     client: clientRef.current,
   };
 

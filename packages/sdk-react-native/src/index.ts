@@ -37,6 +37,7 @@ import type {
   CacheConfig,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "./client";
 
 // Re-export types and classes
@@ -49,6 +50,7 @@ export type {
   CacheConfig,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 };
 export {
   createClient,
@@ -87,6 +89,8 @@ interface RollgateContextValue {
   refresh: () => Promise<void>;
   /** Get metrics snapshot */
   getMetrics: () => MetricsSnapshot;
+  /** Track a conversion event for A/B testing */
+  track: (options: TrackEventOptions) => void;
   /** Access the underlying client */
   client: RollgateReactNativeClient | null;
 }
@@ -208,6 +212,12 @@ export function RollgateProvider({
     }
   }, []);
 
+  const track = useCallback((options: TrackEventOptions): void => {
+    if (clientRef.current) {
+      clientRef.current.track(options);
+    }
+  }, []);
+
   const getMetrics = useCallback((): MetricsSnapshot => {
     if (clientRef.current) {
       return clientRef.current.getMetrics();
@@ -260,6 +270,7 @@ export function RollgateProvider({
     reset,
     refresh,
     getMetrics,
+    track,
     client: clientRef.current,
   };
 

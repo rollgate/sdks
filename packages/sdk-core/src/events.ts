@@ -201,3 +201,217 @@ export function createCustomEvent(
     ...options,
   };
 }
+
+// ─── Conversion Event Tracking (A/B Testing) ────────────────────────
+
+/**
+ * Configuration for the EventCollector.
+ */
+export interface EventCollectorConfig {
+  /** API endpoint for event tracking (e.g. https://api.rollgate.io/api/v1/sdk/events) */
+  endpoint: string;
+  /** API key for authentication */
+  apiKey: string;
+  /** Flush interval in milliseconds (default: 30000 = 30 seconds) */
+  flushIntervalMs: number;
+  /** Maximum events to buffer before forcing a flush (default: 100) */
+  maxBufferSize: number;
+  /** Enable/disable event tracking (default: true) */
+  enabled: boolean;
+}
+
+export const DEFAULT_EVENT_COLLECTOR_CONFIG: EventCollectorConfig = {
+  endpoint: "",
+  apiKey: "",
+  flushIntervalMs: 30000,
+  maxBufferSize: 100,
+  enabled: true,
+};
+
+/**
+ * Options for tracking a conversion event.
+ */
+export interface TrackEventOptions {
+  /** The flag key this event is associated with */
+  flagKey: string;
+  /** The event name (e.g., 'purchase', 'signup', 'click') */
+  eventName: string;
+  /** User ID */
+  userId: string;
+  /** Variation ID the user was exposed to */
+  variationId?: string;
+  /** Optional numeric value (e.g., revenue amount) */
+  value?: number;
+  /** Optional metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * A single buffered conversion event matching the backend TrackEventItem schema.
+ */
+interface BufferedConversionEvent {
+  flagKey: string;
+  eventName: string;
+  userId: string;
+  variationId?: string;
+  value?: number;
+  metadata?: Record<string, unknown>;
+  timestamp: string;
+}
+
+type EventCollectorListener = (...args: unknown[]) => void;
+
+/**
+ * EventCollector buffers conversion events and sends them to the server in batches.
+ * Used for A/B testing conversion tracking.
+ *
+ * Works in both Node.js and browser environments (uses global fetch).
+ */
+export class EventCollector {
+  private config: EventCollectorConfig;
+  private buffer: BufferedConversionEvent[] = [];
+  private flushTimer: ReturnType<typeof setInterval> | null = null;
+  private isFlushing: boolean = false;
+  private listeners: Map<string, Set<EventCollectorListener>> = new Map();
+
+  constructor(config: Partial<EventCollectorConfig> = {}) {
+    this.config = { ...DEFAULT_EVENT_COLLECTOR_CONFIG, ...config };
+  }
+
+  /** Start the event collector with periodic flushing */
+  start(): void {
+    if (!this.config.enabled || !this.config.endpoint || !this.config.apiKey) {
+      return;
+    }
+
+    if (this.flushTimer) {
+      return;
+    }
+
+    this.flushTimer = setInterval(() => {
+      this.flush().catch((err) => {
+        this.emit("error", err);
+      });
+    }, this.config.flushIntervalMs);
+
+    // Don't prevent Node.js from exiting
+    if (
+      this.flushTimer &&
+      typeof this.flushTimer === "object" &&
+      "unref" in this.flushTimer
+    ) {
+      (this.flushTimer as { unref: () => void }).unref();
+    }
+  }
+
+  /** Stop the event collector and flush remaining data */
+  async stop(): Promise<void> {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    await this.flush();
+  }
+
+  /** Track a conversion event */
+  track(options: TrackEventOptions): void {
+    if (!this.config.enabled) {
+      return;
+    }
+
+    if (!options.flagKey || !options.eventName || !options.userId) {
+      return;
+    }
+
+    const event: BufferedConversionEvent = {
+      flagKey: options.flagKey,
+      eventName: options.eventName,
+      userId: options.userId,
+      timestamp: new Date().toISOString(),
+    };
+    if (options.variationId !== undefined)
+      event.variationId = options.variationId;
+    if (options.value !== undefined) event.value = options.value;
+    if (options.metadata !== undefined) event.metadata = options.metadata;
+
+    this.buffer.push(event);
+
+    if (this.buffer.length >= this.config.maxBufferSize) {
+      this.flush().catch((err) => {
+        this.emit("error", err);
+      });
+    }
+  }
+
+  /** Flush buffered events to the server */
+  async flush(): Promise<void> {
+    if (this.isFlushing || this.buffer.length === 0) {
+      return;
+    }
+
+    if (!this.config.endpoint || !this.config.apiKey) {
+      return;
+    }
+
+    this.isFlushing = true;
+
+    const eventsToSend = [...this.buffer];
+    this.buffer = [];
+
+    try {
+      const response = await fetch(this.config.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.config.apiKey}`,
+        },
+        body: JSON.stringify({ events: eventsToSend }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Event tracking request failed: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const result = (await response.json()) as { received: number };
+      this.emit("flush", {
+        eventsSent: eventsToSend.length,
+        received: result.received,
+      });
+    } catch (error) {
+      // Put events back in buffer on failure
+      this.buffer = [...eventsToSend, ...this.buffer];
+      throw error;
+    } finally {
+      this.isFlushing = false;
+    }
+  }
+
+  /** Get current buffer stats */
+  getBufferStats(): { eventCount: number } {
+    return { eventCount: this.buffer.length };
+  }
+
+  /** Update configuration */
+  updateConfig(config: Partial<EventCollectorConfig>): void {
+    this.config = { ...this.config, ...config };
+  }
+
+  /** Subscribe to events */
+  on(event: string, callback: EventCollectorListener): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(callback);
+  }
+
+  /** Unsubscribe from events */
+  off(event: string, callback: EventCollectorListener): void {
+    this.listeners.get(event)?.delete(callback);
+  }
+
+  private emit(event: string, ...args: unknown[]): void {
+    this.listeners.get(event)?.forEach((cb) => cb(...args));
+  }
+}

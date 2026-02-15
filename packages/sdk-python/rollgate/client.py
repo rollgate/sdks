@@ -31,6 +31,7 @@ from rollgate.errors import (
     RateLimitError,
     classify_error,
 )
+from rollgate.events import EventCollector, EventCollectorConfig, TrackEventOptions
 from rollgate.reasons import (
     EvaluationReason,
     EvaluationDetail,
@@ -120,6 +121,12 @@ class RollgateClient:
         self._poll_task: Optional[asyncio.Task] = None
         self._sse_task: Optional[asyncio.Task] = None
         self._closing = False
+        self._event_collector = EventCollector(
+            endpoint=f"{config.base_url}/api/v1/sdk/events",
+            api_key=config.api_key,
+            config=EventCollectorConfig(),
+            http_client=self._http_client,
+        )
 
         # Use provided HTTP client or create one
         if http_client:
@@ -218,6 +225,7 @@ class RollgateClient:
         elif self._config.refresh_interval_ms > 0:
             self._poll_task = asyncio.create_task(self._start_polling())
 
+        self._event_collector.start()
         self._emit("ready")
 
     async def _start_polling(self) -> None:
@@ -496,6 +504,14 @@ class RollgateClient:
         """Force refresh flags."""
         await self._fetch_flags()
 
+    def track(self, options: TrackEventOptions) -> None:
+        """Track a conversion event for A/B testing."""
+        self._event_collector.track(options)
+
+    async def flush_events(self) -> None:
+        """Flush all buffered conversion events."""
+        await self._event_collector.flush()
+
     @property
     def circuit_state(self) -> CircuitState:
         """Get current circuit breaker state."""
@@ -524,6 +540,9 @@ class RollgateClient:
     async def close(self) -> None:
         """Close the client and cleanup resources."""
         self._closing = True
+
+        # Stop event collector
+        await self._event_collector.stop()
 
         # Cancel background tasks
         if self._poll_task:

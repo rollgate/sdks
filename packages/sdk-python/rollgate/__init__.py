@@ -69,7 +69,7 @@ from rollgate.reasons import (
     unknown_reason,
 )
 
-__version__ = "0.1.0"
+__version__ = "1.1.0"
 __all__ = [
     # Client
     "RollgateClient",

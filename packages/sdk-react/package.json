@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-react",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Rollgate React SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

@@ -27,6 +27,7 @@ import type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 
 // Re-export types from sdk-browser
@@ -36,6 +37,7 @@ export type {
   MetricsSnapshot,
   EvaluationReason,
   EvaluationDetail,
+  TrackEventOptions,
 } from "@rollgate/sdk-browser";
 export {
   CircuitState,
@@ -83,6 +85,8 @@ export interface RollgateStores {
   refresh: () => Promise<void>;
   /** Get metrics snapshot */
   getMetrics: () => MetricsSnapshot;
+  /** Track a conversion event for A/B testing */
+  track: (options: TrackEventOptions) => void;
   /** Close the client */
   close: () => void;
   /** Get a reactive store for a single flag */
@@ -188,6 +192,10 @@ export function createRollgate(
     return client.getMetrics();
   };
 
+  const track = (options: TrackEventOptions): void => {
+    client.track(options);
+  };
+
   const close = (): void => {
     client.close();
   };
@@ -213,6 +221,7 @@ export function createRollgate(
     reset,
     refresh,
     getMetrics,
+    track,
     close,
     flag,
   };
