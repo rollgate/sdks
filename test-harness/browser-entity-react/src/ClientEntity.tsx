@@ -228,7 +228,9 @@ function RollgateCommandHandler({
             value: trackParams.value,
             metadata: trackParams.metadata,
           });
-          log(`[${tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`);
+          log(
+            `[${tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`,
+          );
           return undefined;
         }
 

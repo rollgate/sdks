@@ -235,11 +235,15 @@ export class ClientEntity {
           eventName: trackParams.eventName,
           userId: trackParams.userId,
         };
-        if (trackParams.variationId) trackOpts.variationId = trackParams.variationId;
-        if (trackParams.value !== undefined) trackOpts.value = trackParams.value;
+        if (trackParams.variationId)
+          trackOpts.variationId = trackParams.variationId;
+        if (trackParams.value !== undefined)
+          trackOpts.value = trackParams.value;
         if (trackParams.metadata) trackOpts.metadata = trackParams.metadata;
         this.client.track(trackOpts);
-        log(`[${this.tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`);
+        log(
+          `[${this.tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`,
+        );
         return undefined;
       }
 
