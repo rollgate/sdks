@@ -11,29 +11,33 @@ on:
       - "test-harness/internal/**"
 
 env:
+  GO_VERSION: "1.22"
+  NODE_VERSION: "20"
   SDK_NODE_PORT: 8001
 
 jobs:
   staging-contract-tests:
-    name: Contract Tests against Staging API
-    runs-on: ubuntu-latest
+    name: Contract Tests vs Staging API
+    runs-on: self-hosted
     timeout-minutes: 15
 
     steps:
+      - name: Fix workspace permissions
+        run: sudo chown -R $(id -u):$(id -g) $GITHUB_WORKSPACE || true
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: test-harness/go.sum
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: npm ci
@@ -43,30 +47,69 @@ jobs:
           npm run build --workspace=packages/sdk-core
           npm run build --workspace=packages/sdk-node
 
-      - name: Build and start test service
+      - name: Build test service
         run: |
           cd packages/sdk-node/test-service
           npx tsc
+
+      - name: Start test service
+        run: |
+          cd packages/sdk-node/test-service
           PORT=$SDK_NODE_PORT node dist/index.js &
-          sleep 3
+          echo "Waiting for test service..."
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:$SDK_NODE_PORT > /dev/null 2>&1; then
+              echo "sdk-node test service ready on port $SDK_NODE_PORT"
+              break
+            fi
+            sleep 1
+          done
 
       - name: Health check staging API
         run: |
-          curl -f ${{ secrets.ROLLGATE_STAGING_URL }}/health || \
-            (echo "Staging API not reachable" && exit 1)
+          echo "Checking staging API at ${{ secrets.ROLLGATE_STAGING_URL }}..."
+          curl -sf "${{ secrets.ROLLGATE_STAGING_URL }}/health" || {
+            echo "::error::Staging API not reachable"
+            exit 1
+          }
+          echo "Staging API healthy!"
 
       - name: Run contract tests against staging
-        run: |
-          cd test-harness
-          go test -v -timeout 5m ./internal/tests/... \
-            -count=1 \
-            -services="sdk-node=http://localhost:$SDK_NODE_PORT"
         env:
-          TEST_SERVICES: "sdk-node=http://localhost:${{ env.SDK_NODE_PORT }}"
+          TEST_SERVICES: "sdk-node=http://localhost:8001"
           EXTERNAL_SERVER_URL: ${{ secrets.ROLLGATE_STAGING_URL }}
           EXTERNAL_API_KEY: ${{ secrets.ROLLGATE_STAGING_API_KEY }}
+        run: |
+          cd test-harness
+          go test -v -timeout 5m -count=1 ./internal/tests/... 2>&1 | tee test-output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          cd test-harness
+          if [ -f test-output.txt ]; then
+            PASS=$(grep -c "^--- PASS:" test-output.txt || true)
+            FAIL=$(grep -c "^--- FAIL:" test-output.txt || true)
+            SKIP=$(grep -c "^--- SKIP:" test-output.txt || true)
+
+            echo "## Contract Tests (Staging)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Result | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| PASS | $PASS |" >> $GITHUB_STEP_SUMMARY
+            echo "| SKIP | $SKIP |" >> $GITHUB_STEP_SUMMARY
+            echo "| FAIL | $FAIL |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$FAIL" -gt 0 ]; then
+              echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep "^--- FAIL:" test-output.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
 
       - name: Stop services
         if: always()
-        run: |
-          pkill -f "sdk-node/test-service" || true
+        run: pkill -f "sdk-node/test-service" || true
