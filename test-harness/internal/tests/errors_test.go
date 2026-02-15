@@ -13,6 +13,9 @@ import (
 // TestAuthError tests 401 Unauthorized responses.
 func TestAuthError(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -40,6 +43,9 @@ func TestAuthError(t *testing.T) {
 // TestForbiddenError tests 403 Forbidden responses.
 func TestForbiddenError(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -60,6 +66,9 @@ func TestForbiddenError(t *testing.T) {
 // TestRateLimitError tests 429 Too Many Requests responses.
 func TestRateLimitError(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -81,6 +90,9 @@ func TestRateLimitError(t *testing.T) {
 // TestServerError500 tests 500 Internal Server Error responses.
 func TestServerError500(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -101,6 +113,9 @@ func TestServerError500(t *testing.T) {
 // TestServerError502 tests 502 Bad Gateway responses.
 func TestServerError502(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -121,6 +136,9 @@ func TestServerError502(t *testing.T) {
 // TestServerError503 tests 503 Service Unavailable responses.
 func TestServerError503(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -141,6 +159,9 @@ func TestServerError503(t *testing.T) {
 // TestTransientErrorRecovery tests that SDK recovers after transient errors.
 func TestTransientErrorRecovery(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -178,6 +199,9 @@ func TestTransientErrorRecovery(t *testing.T) {
 // TestErrorThenSuccess tests that flags work after error clears.
 func TestErrorThenSuccess(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -203,6 +227,9 @@ func TestErrorThenSuccess(t *testing.T) {
 // TestBadRequestError tests 400 Bad Request responses.
 func TestBadRequestError(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -224,6 +251,9 @@ func TestBadRequestError(t *testing.T) {
 // TestNetworkTimeout tests slow responses (simulating timeout).
 func TestNetworkTimeout(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

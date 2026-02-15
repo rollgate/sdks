@@ -65,6 +65,9 @@ func TestETagCacheEfficiency(t *testing.T) {
 // TestFlagChangeInvalidatesCache tests that flag changes are detected.
 func TestFlagChangeInvalidatesCache(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server to change flags dynamically")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 

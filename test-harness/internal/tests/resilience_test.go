@@ -13,6 +13,9 @@ import (
 // TestCircuitBreakerOpens tests that circuit opens after consecutive failures.
 func TestCircuitBreakerOpens(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -49,6 +52,9 @@ func TestCircuitBreakerOpens(t *testing.T) {
 // TestCircuitBreakerFallback tests that SDK uses cache when circuit is open.
 func TestCircuitBreakerFallback(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -80,6 +86,9 @@ func TestCircuitBreakerFallback(t *testing.T) {
 // TestCacheFallback tests that SDK uses cached values when server is unavailable.
 func TestCacheFallback(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -124,6 +133,9 @@ func TestCacheFallback(t *testing.T) {
 // TestRetryOnTransientFailure tests that SDK retries and succeeds after transient error.
 func TestRetryOnTransientFailure(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -163,6 +175,9 @@ func TestRetryOnTransientFailure(t *testing.T) {
 // TestServerRecovery tests that SDK recovers when server comes back.
 func TestServerRecovery(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -195,6 +210,9 @@ func TestServerRecovery(t *testing.T) {
 // TestDefaultValueOnError tests that SDK returns default when no cache and server fails.
 func TestDefaultValueOnError(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -229,6 +247,9 @@ func TestDefaultValueOnError(t *testing.T) {
 // TestGetStateReportsCircuitInfo tests that getState returns circuit breaker info.
 func TestGetStateReportsCircuitInfo(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
@@ -260,6 +281,9 @@ func TestGetStateReportsCircuitInfo(t *testing.T) {
 // TestCacheStatsTracking tests that cache hits/misses are tracked.
 func TestCacheStatsTracking(t *testing.T) {
 	h := getHarness(t)
+	if h.IsUsingExternalServer() {
+		t.Skip("requires mock server for error injection")
+	}
 	tc := Setup(t, h)
 	defer tc.Teardown()
 
