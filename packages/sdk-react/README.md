@@ -123,8 +123,20 @@ console.log(reason.kind); // "FALLTHROUGH", "TARGET_MATCH", etc.
 Access the full context:
 
 ```tsx
-const { isEnabled, isLoading, isError, identify, reset, refresh, flags } =
-  useRollgate();
+const {
+  isEnabled,
+  isLoading,
+  isError,
+  isStale,
+  circuitState,
+  flags,
+  identify,
+  reset,
+  refresh,
+  getMetrics,
+  track,
+  flush,
+} = useRollgate();
 ```
 
 ## Feature Component
@@ -154,6 +166,78 @@ await identify({ id: user.id, email: user.email });
 // After logout
 await reset();
 ```
+
+## Event Tracking
+
+Track conversion events for A/B testing:
+
+```tsx
+import { useRollgate } from "@rollgate/sdk-react";
+import { useEffect } from "react";
+
+function CheckoutButton() {
+  const { track, flush } = useRollgate();
+
+  const handlePurchase = () => {
+    track({
+      flagKey: "checkout-redesign",
+      eventName: "purchase",
+      userId: "user-123",
+      value: 29.99,
+    });
+  };
+
+  // Flush pending events on unmount (auto-flushes every 30s)
+  useEffect(() => {
+    return () => {
+      flush();
+    };
+  }, []);
+
+  return <button onClick={handlePurchase}>Buy Now</button>;
+}
+```
+
+### TrackEventOptions
+
+| Field         | Type                      | Required | Description                                 |
+| ------------- | ------------------------- | -------- | ------------------------------------------- |
+| `flagKey`     | `string`                  | Yes      | The flag key this event is associated with  |
+| `eventName`   | `string`                  | Yes      | Event name (e.g., `'purchase'`, `'signup'`) |
+| `userId`      | `string`                  | Yes      | User ID                                     |
+| `variationId` | `string`                  | No       | Variation ID the user was exposed to        |
+| `value`       | `number`                  | No       | Numeric value (e.g., revenue amount)        |
+| `metadata`    | `Record<string, unknown>` | No       | Optional metadata                           |
+
+## API Reference
+
+| Hook / Component   | Description                                |
+| ------------------ | ------------------------------------------ |
+| `useFlag`          | Check a single flag (reactive)             |
+| `useFlags`         | Check multiple flags (reactive)            |
+| `useFlagDetail`    | Flag value with evaluation reason          |
+| `useRollgate`      | Full context (flags, identify, track, etc) |
+| `useMetrics`       | SDK metrics snapshot                       |
+| `Feature`          | Declarative conditional rendering          |
+| `RollgateProvider` | Context provider                           |
+
+### useRollgate() Methods
+
+| Method / Property | Description                            |
+| ----------------- | -------------------------------------- |
+| `isEnabled()`     | Check if a flag is enabled             |
+| `isLoading`       | True while initial flags are loading   |
+| `isError`         | True if there was an error             |
+| `isStale`         | True if using cached/stale flags       |
+| `circuitState`    | Current circuit breaker state          |
+| `flags`           | All flags as key-value object          |
+| `identify(user)`  | Change user context                    |
+| `reset()`         | Clear user context                     |
+| `refresh()`       | Force refresh flags                    |
+| `getMetrics()`    | Get SDK metrics snapshot               |
+| `track(options)`  | Track a conversion event (A/B testing) |
+| `flush()`         | Flush pending events to the server     |
+| `client`          | Access the underlying browser client   |
 
 ## Documentation
 

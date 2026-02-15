@@ -34,7 +34,9 @@ import App from "./App.vue";
 const app = createApp(App);
 
 app.use(RollgatePlugin, {
-  apiKey: "your-api-key",
+  config: {
+    apiKey: "your-api-key",
+  },
   // Optional: initial user for targeting
   user: {
     id: "user-123",
@@ -56,14 +58,14 @@ import { useFlag, useRollgate } from "@rollgate/sdk-vue";
 const isNewFeatureEnabled = useFlag("new-feature");
 
 // Full access to Rollgate
-const { isReady, isLoading, error, identify, refresh } = useRollgate();
+const { isLoading, isError, identify, refresh } = useRollgate();
 </script>
 
 <template>
   <div v-if="isLoading">Loading flags...</div>
-  <div v-else-if="error">Error: {{ error.message }}</div>
+  <div v-else-if="isError">Error loading flags</div>
   <div v-else>
-    <div v-if="isNewFeatureEnabled">✨ New feature is enabled!</div>
+    <div v-if="isNewFeatureEnabled">New feature is enabled!</div>
     <div v-else>Old experience</div>
   </div>
 </template>
@@ -89,20 +91,30 @@ const enableDarkMode = useFlag("dark-mode");
 </template>
 ```
 
-### `useFlags()`
+### `useFlagDetail(flagKey, defaultValue?)`
 
-Returns all flags as a reactive computed ref.
+Returns a reactive computed ref with flag value and evaluation reason.
+
+```vue
+<script setup>
+import { useFlagDetail } from "@rollgate/sdk-vue";
+
+const detail = useFlagDetail("new-feature", false);
+// detail.value => { value: boolean, reason: { kind: '...' } }
+</script>
+```
+
+### `useFlags(flagKeys)`
+
+Returns a reactive computed ref for multiple flags.
 
 ```vue
 <script setup>
 import { useFlags } from "@rollgate/sdk-vue";
 
-const flags = useFlags();
+const flags = useFlags(["feature-a", "feature-b"]);
+// flags.value => { 'feature-a': true, 'feature-b': false }
 </script>
-
-<template>
-  <pre>{{ flags }}</pre>
-</template>
 ```
 
 ### `useRollgate()`
@@ -114,15 +126,18 @@ Full access to Rollgate client functionality.
 import { useRollgate } from "@rollgate/sdk-vue";
 
 const {
-  flags, // All flags (reactive)
-  isReady, // Client ready state
-  isLoading, // Loading state
-  error, // Current error
-  circuitState, // Circuit breaker state
+  flags, // All flags (reactive ref)
+  isLoading, // Loading state (reactive ref)
+  isError, // Error state (reactive ref)
+  isStale, // Stale state (reactive ref)
+  circuitState, // Circuit breaker state (reactive ref)
   isEnabled, // Check flag (non-reactive)
   identify, // Set user context
   reset, // Clear user context
   refresh, // Force refresh flags
+  getMetrics, // Get SDK metrics
+  track, // Track conversion event
+  flush, // Flush pending events
 } = useRollgate();
 
 // Set user after login
@@ -145,14 +160,38 @@ async function onLogout() {
 
 ```typescript
 app.use(RollgatePlugin, {
-  // Required
-  apiKey: "your-api-key",
+  config: {
+    // Required
+    apiKey: "your-api-key",
 
-  // Optional
-  baseUrl: "https://api.rollgate.io",
-  refreshInterval: 30000, // Polling interval (ms)
-  enableStreaming: false, // Use SSE for real-time updates
-  timeout: 5000, // Request timeout (ms)
+    // Optional
+    baseUrl: "https://api.rollgate.io",
+    refreshInterval: 30000, // Polling interval (ms)
+    enableStreaming: false, // Use SSE for real-time updates
+    timeout: 5000, // Request timeout (ms)
+
+    // Retry configuration
+    retry: {
+      maxRetries: 3,
+      baseDelayMs: 100,
+      maxDelayMs: 10000,
+      jitterFactor: 0.1,
+    },
+
+    // Circuit breaker configuration
+    circuitBreaker: {
+      failureThreshold: 5,
+      recoveryTimeout: 30000,
+      monitoringWindow: 60000,
+      successThreshold: 3,
+    },
+
+    // Cache configuration
+    cache: {
+      ttl: 300000, // 5 minutes
+      staleTtl: 3600000, // 1 hour
+    },
+  },
 
   // Initial user context
   user: {
@@ -160,30 +199,66 @@ app.use(RollgatePlugin, {
     email: "user@example.com",
     attributes: { plan: "pro" },
   },
-
-  // Retry configuration
-  retry: {
-    maxRetries: 3,
-    baseDelayMs: 100,
-    maxDelayMs: 10000,
-    jitterFactor: 0.1,
-  },
-
-  // Circuit breaker configuration
-  circuitBreaker: {
-    failureThreshold: 5,
-    recoveryTimeout: 30000,
-    monitoringWindow: 60000,
-    successThreshold: 3,
-  },
-
-  // Cache configuration
-  cache: {
-    ttl: 300000, // 5 minutes
-    staleTtl: 3600000, // 1 hour
-  },
 });
 ```
+
+## User Identification
+
+```vue
+<script setup>
+import { useRollgate } from "@rollgate/sdk-vue";
+
+const { identify, reset } = useRollgate();
+
+// After login
+await identify({ id: "user-123", email: "user@example.com" });
+
+// After logout
+await reset();
+</script>
+```
+
+## Event Tracking
+
+Track conversion events for A/B testing:
+
+```vue
+<script setup>
+import { useRollgate } from "@rollgate/sdk-vue";
+import { onUnmounted } from "vue";
+
+const { track, flush } = useRollgate();
+
+function handlePurchase() {
+  track({
+    flagKey: "checkout-redesign",
+    eventName: "purchase",
+    userId: "user-123",
+    value: 29.99,
+  });
+}
+
+// Flush pending events on unmount (auto-flushes every 30s)
+onUnmounted(() => {
+  flush();
+});
+</script>
+
+<template>
+  <button @click="handlePurchase">Buy Now</button>
+</template>
+```
+
+### TrackEventOptions
+
+| Field         | Type                      | Required | Description                                 |
+| ------------- | ------------------------- | -------- | ------------------------------------------- |
+| `flagKey`     | `string`                  | Yes      | The flag key this event is associated with  |
+| `eventName`   | `string`                  | Yes      | Event name (e.g., `'purchase'`, `'signup'`) |
+| `userId`      | `string`                  | Yes      | User ID                                     |
+| `variationId` | `string`                  | No       | Variation ID the user was exposed to        |
+| `value`       | `number`                  | No       | Numeric value (e.g., revenue amount)        |
+| `metadata`    | `Record<string, unknown>` | No       | Optional metadata                           |
 
 ## TypeScript Support
 
@@ -194,17 +269,8 @@ import type {
   RollgateConfig,
   UserContext,
   CircuitState,
+  TrackEventOptions,
 } from "@rollgate/sdk-vue";
-
-const config: RollgateConfig = {
-  apiKey: "your-api-key",
-};
-
-const user: UserContext = {
-  id: "user-123",
-  email: "user@example.com",
-  attributes: { plan: "pro", country: "IT" },
-};
 ```
 
 ## SSR / Nuxt
@@ -217,10 +283,41 @@ import { RollgatePlugin } from "@rollgate/sdk-vue";
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(RollgatePlugin, {
-    apiKey: useRuntimeConfig().public.rollgateApiKey,
+    config: {
+      apiKey: useRuntimeConfig().public.rollgateApiKey,
+    },
   });
 });
 ```
+
+## API Reference
+
+### Composables
+
+| Composable      | Description                                |
+| --------------- | ------------------------------------------ |
+| `useFlag`       | Reactive computed ref for a single flag    |
+| `useFlagDetail` | Flag value with evaluation reason          |
+| `useFlags`      | Reactive computed ref for multiple flags   |
+| `useRollgate`   | Full context (flags, identify, track, etc) |
+
+### useRollgate() Properties and Methods
+
+| Property / Method | Description                            |
+| ----------------- | -------------------------------------- |
+| `isEnabled()`     | Check if a flag is enabled             |
+| `isLoading`       | Reactive loading state                 |
+| `isError`         | Reactive error state                   |
+| `isStale`         | Reactive stale state                   |
+| `circuitState`    | Reactive circuit breaker state         |
+| `flags`           | Reactive flags object                  |
+| `identify(user)`  | Change user context                    |
+| `reset()`         | Clear user context                     |
+| `refresh()`       | Force refresh flags                    |
+| `getMetrics()`    | Get SDK metrics snapshot               |
+| `track(options)`  | Track a conversion event (A/B testing) |
+| `flush()`         | Flush pending events to the server     |
+| `client`          | Access the underlying browser client   |
 
 ## Documentation
 

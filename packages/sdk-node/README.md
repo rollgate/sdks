@@ -40,6 +40,10 @@ const client = new RollgateClient({
   baseUrl: "https://api.rollgate.io", // Optional
   refreshInterval: 60000, // Polling interval in ms (0 to disable)
   enableStreaming: false, // Enable SSE for real-time updates
+  events: {
+    flushIntervalMs: 30000, // Event flush interval (default: 30s)
+    maxBufferSize: 100, // Max buffered events before flush (default: 100)
+  },
 });
 ```
 
@@ -62,16 +66,24 @@ await client.identify({
 
 ## API
 
-| Method                           | Description                       |
-| -------------------------------- | --------------------------------- |
-| `init(user?)`                    | Initialize client and fetch flags |
-| `isEnabled(key, default?)`       | Check if a flag is enabled        |
-| `isEnabledDetail(key, default?)` | Check flag with evaluation reason |
-| `getAllFlags()`                  | Get all flags as object           |
-| `identify(user)`                 | Update user context               |
-| `reset()`                        | Clear user context                |
-| `refresh()`                      | Force refresh flags               |
-| `close()`                        | Clean up resources                |
+| Method                           | Description                                 |
+| -------------------------------- | ------------------------------------------- |
+| `init(user?)`                    | Initialize client and fetch flags           |
+| `isEnabled(key, default?)`       | Check if a flag is enabled                  |
+| `isEnabledDetail(key, default?)` | Check flag with evaluation reason           |
+| `getValue(key, default)`         | Get typed flag value                        |
+| `getString(key, default?)`       | Get string flag value                       |
+| `getNumber(key, default?)`       | Get number flag value                       |
+| `getJSON(key, default)`          | Get JSON flag value                         |
+| `getValueDetail(key, default)`   | Get typed flag value with evaluation reason |
+| `getAllFlags()`                  | Get all flags as object                     |
+| `identify(user)`                 | Update user context                         |
+| `reset()`                        | Clear user context                          |
+| `refresh()`                      | Force refresh flags                         |
+| `track(options)`                 | Track a conversion event for A/B testing    |
+| `flushEvents()`                  | Force flush buffered conversion events      |
+| `getEventStats()`                | Get event buffer stats                      |
+| `close()`                        | Clean up resources                          |
 
 ## Evaluation Reasons
 
@@ -109,7 +121,49 @@ client.on("flags-updated", (flags) => {
 client.on("error", (error) => {
   /* Error occurred */
 });
+client.on("events-flush", (data) => {
+  /* Conversion events flushed */
+});
+client.on("events-error", (err) => {
+  /* Event tracking error */
+});
 ```
+
+## Event Tracking
+
+Track conversion events for A/B testing experiments:
+
+```typescript
+// Track a conversion event
+client.track({
+  flagKey: "checkout-redesign",
+  eventName: "purchase",
+  userId: "user-123",
+  variationId: "variant-b",
+  value: 29.99,
+  metadata: { currency: "EUR" },
+});
+
+// Force flush pending events (events auto-flush every 30s)
+await client.flushEvents();
+
+// Get event buffer stats
+const stats = client.getEventStats();
+console.log(stats.eventCount); // number of buffered events
+```
+
+### TrackEventOptions
+
+| Property      | Type                      | Required | Description                                |
+| ------------- | ------------------------- | -------- | ------------------------------------------ |
+| `flagKey`     | `string`                  | Yes      | The flag key this event is associated with |
+| `eventName`   | `string`                  | Yes      | Event name (e.g., `purchase`, `signup`)    |
+| `userId`      | `string`                  | Yes      | User ID                                    |
+| `variationId` | `string`                  | No       | Variation ID the user was exposed to       |
+| `value`       | `number`                  | No       | Numeric value (e.g., revenue amount)       |
+| `metadata`    | `Record<string, unknown>` | No       | Additional event metadata                  |
+
+Events are buffered in memory and sent in batches. The buffer auto-flushes every 30 seconds (configurable via `events.flushIntervalMs`) or when the buffer reaches 100 events (configurable via `events.maxBufferSize`). On `close()`, remaining events are flushed automatically.
 
 ## Documentation
 

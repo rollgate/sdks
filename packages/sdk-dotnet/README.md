@@ -117,6 +117,8 @@ await client.ResetAsync();
 | `GetMetrics()`                  | Get SDK metrics                   |
 | `GetCacheStats()`               | Get cache statistics              |
 | `GetCircuitState()`             | Get circuit breaker state         |
+| `Track(options)`                | Track a conversion event          |
+| `FlushEventsAsync(ct)`          | Flush buffered events             |
 | `IsReady`                       | Check if client is initialized    |
 | `Dispose()`                     | Stop polling and cleanup          |
 
@@ -148,6 +150,25 @@ Reason kinds:
 | `Closed`   | Normal operation, requests allowed  |
 | `Open`     | Too many failures, requests blocked |
 | `HalfOpen` | Testing recovery, limited requests  |
+
+## Event Tracking
+
+Track conversion events for A/B testing:
+
+```csharp
+client.Track(new TrackEventOptions
+{
+    FlagKey = "checkout-redesign",
+    EventName = "purchase",
+    UserId = "user-123",
+    Value = 29.99,
+});
+
+// Flush pending events immediately
+await client.FlushEventsAsync();
+```
+
+Events are buffered and sent in batches automatically (every 30 seconds or when the buffer reaches 100 events). Use `FlushEventsAsync()` to send pending events immediately, for example before the application shuts down.
 
 ## Resilience Features
 
