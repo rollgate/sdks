@@ -10,6 +10,7 @@ export enum CommandType {
   CustomEvent = "customEvent",
   FlushEvents = "flushEvents",
   Reset = "reset",
+  Track = "track",
 }
 
 export enum ValueType {
@@ -20,12 +21,22 @@ export enum ValueType {
   Any = "any",
 }
 
+export interface TrackParams {
+  flagKey: string;
+  eventName: string;
+  userId: string;
+  variationId?: string;
+  value?: number;
+  metadata?: Record<string, unknown>;
+}
+
 export interface CommandParams {
   command: CommandType;
   evaluate?: EvaluateFlagParams;
   evaluateAll?: EvaluateAllFlagsParams;
   customEvent?: CustomEventParams;
   identifyEvent?: IdentifyEventParams;
+  track?: TrackParams;
 }
 
 export interface EvaluateFlagParams {

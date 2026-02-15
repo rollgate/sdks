@@ -15,6 +15,16 @@ export enum CommandType {
   CustomEvent = "customEvent",
   FlushEvents = "flushEvents",
   Reset = "reset",
+  Track = "track",
+}
+
+export interface TrackParams {
+  flagKey: string;
+  eventName: string;
+  userId: string;
+  variationId?: string;
+  value?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export enum ValueType {
@@ -54,6 +64,7 @@ export interface CommandParams {
     data?: unknown;
     metricValue?: number;
   };
+  track?: TrackParams;
 }
 
 export interface SDKConfigParams {

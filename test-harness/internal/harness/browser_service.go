@@ -312,6 +312,31 @@ func (bs *BrowserTestService) convertToLDCommand(cmd protocol.Command) map[strin
 			"command": "evaluateAll",
 		}
 
+	case protocol.CommandTrack:
+		trackData := map[string]interface{}{
+			"flagKey":   cmd.FlagKey,
+			"eventName": cmd.EventName,
+			"userId":    cmd.UserID,
+		}
+		if cmd.VariationID != "" {
+			trackData["variationId"] = cmd.VariationID
+		}
+		if cmd.EventValue != nil {
+			trackData["value"] = *cmd.EventValue
+		}
+		if cmd.EventMetadata != nil {
+			trackData["metadata"] = cmd.EventMetadata
+		}
+		return map[string]interface{}{
+			"command": "track",
+			"track":   trackData,
+		}
+
+	case protocol.CommandFlushEvents:
+		return map[string]interface{}{
+			"command": "flushEvents",
+		}
+
 	case protocol.CommandClose:
 		// Close is handled by DeleteClient
 		return map[string]interface{}{

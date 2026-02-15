@@ -84,6 +84,8 @@ export interface RollgateContext {
   getMetrics: () => MetricsSnapshot;
   /** Track a conversion event for A/B testing */
   track: (options: TrackEventOptions) => void;
+  /** Flush pending events to the server */
+  flush: () => Promise<void>;
   /** Underlying browser client */
   client: RollgateBrowserClient | null;
 }
@@ -217,6 +219,12 @@ function createRollgateContext(
     }
   };
 
+  const flush = async (): Promise<void> => {
+    if (client) {
+      await client.flush();
+    }
+  };
+
   return {
     isEnabled,
     isLoading,
@@ -229,6 +237,7 @@ function createRollgateContext(
     refresh,
     getMetrics,
     track,
+    flush,
     client,
   };
 }
