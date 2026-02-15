@@ -13,8 +13,9 @@ type EvaluationReason struct {
 
 // EvaluationResult contains the value and reason for an evaluation.
 type EvaluationResult struct {
-	Value  bool             `json:"value"`
-	Reason EvaluationReason `json:"reason"`
+	Value     bool             `json:"value"`
+	Variation string           `json:"variation,omitempty"` // Variation key from matched rule
+	Reason    EvaluationReason `json:"reason"`
 }
 
 // FlagState represents a flag's configuration.
@@ -108,6 +109,8 @@ func (fs *FlagStore) LoadScenario(scenario string) {
 		fs.loadTargetingScenario()
 	case "rollout":
 		fs.loadRolloutScenario()
+	case "segments":
+		fs.loadSegmentsScenario()
 	case "empty":
 		// Leave empty
 	default:
@@ -119,6 +122,29 @@ func (fs *FlagStore) loadBasicScenario() {
 	fs.Set(&FlagState{Key: "enabled-flag", Enabled: true, RolloutPercentage: 100})
 	fs.Set(&FlagState{Key: "disabled-flag", Enabled: false})
 	fs.Set(&FlagState{Key: "rollout-50", Enabled: true, RolloutPercentage: 50})
+
+	// Typed flags
+	fs.Set(&FlagState{
+		Key:              "banner-text",
+		Enabled:          true,
+		RolloutPercentage: 100,
+		Variations:       map[string]any{"default": "Welcome"},
+		DefaultVariation: "default",
+	})
+	fs.Set(&FlagState{
+		Key:              "max-items",
+		Enabled:          true,
+		RolloutPercentage: 100,
+		Variations:       map[string]any{"default": 10},
+		DefaultVariation: "default",
+	})
+	fs.Set(&FlagState{
+		Key:              "config",
+		Enabled:          true,
+		RolloutPercentage: 100,
+		Variations:       map[string]any{"default": map[string]interface{}{"theme": "dark"}},
+		DefaultVariation: "default",
+	})
 }
 
 func (fs *FlagStore) loadTargetingScenario() {
@@ -161,6 +187,27 @@ func (fs *FlagStore) loadTargetingScenario() {
 		Key:         "vip-feature",
 		Enabled:     true,
 		TargetUsers: []string{"user-vip-1", "user-vip-2"},
+	})
+}
+
+func (fs *FlagStore) loadSegmentsScenario() {
+	fs.loadBasicScenario()
+
+	// Flag that uses a segment reference — segment conditions will be set via Server.SetSegment()
+	fs.Set(&FlagState{
+		Key:     "pro-feature",
+		Enabled: true,
+		Rules: []Rule{
+			{
+				ID:      "segment-rule",
+				Enabled: true,
+				Conditions: []Condition{
+					{Attribute: "segment", Operator: "in", Value: "pro-users"},
+				},
+				RolloutPercentage: 100,
+			},
+		},
+		RolloutPercentage: 0, // Disabled by default, only enabled via segment rule
 	})
 }
 

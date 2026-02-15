@@ -1,0 +1,72 @@
+name: Contract Tests (Staging)
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 6:00 UTC
+  workflow_dispatch: # Manual trigger
+  push:
+    branches: [main]
+    paths:
+      - "packages/*/src/**"
+      - "test-harness/internal/**"
+
+env:
+  SDK_NODE_PORT: 8001
+
+jobs:
+  staging-contract-tests:
+    name: Contract Tests against Staging API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache-dependency-path: test-harness/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SDKs
+        run: |
+          npm run build --workspace=packages/sdk-core
+          npm run build --workspace=packages/sdk-node
+
+      - name: Build and start test service
+        run: |
+          cd packages/sdk-node/test-service
+          npx tsc
+          PORT=$SDK_NODE_PORT node dist/index.js &
+          sleep 3
+
+      - name: Health check staging API
+        run: |
+          curl -f ${{ secrets.ROLLGATE_STAGING_URL }}/health || \
+            (echo "Staging API not reachable" && exit 1)
+
+      - name: Run contract tests against staging
+        run: |
+          cd test-harness
+          go test -v -timeout 5m ./internal/tests/... \
+            -count=1 \
+            -services="sdk-node=http://localhost:$SDK_NODE_PORT"
+        env:
+          TEST_SERVICES: "sdk-node=http://localhost:${{ env.SDK_NODE_PORT }}"
+          EXTERNAL_SERVER_URL: ${{ secrets.ROLLGATE_STAGING_URL }}
+          EXTERNAL_API_KEY: ${{ secrets.ROLLGATE_STAGING_API_KEY }}
+
+      - name: Stop services
+        if: always()
+        run: |
+          pkill -f "sdk-node/test-service" || true
