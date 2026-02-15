@@ -97,6 +97,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/api/v1/sdk/flags", s.handleFlags)
+	s.mux.HandleFunc("/api/v1/sdk/v2/flags", s.handleFlagsV2)
 	s.mux.HandleFunc("/api/v1/sdk/stream", s.handleSSE)
 	s.mux.HandleFunc("/api/v1/sdk/identify", s.handleIdentify)
 	s.mux.HandleFunc("/api/v1/sdk/events", s.handleEvents)
@@ -288,14 +289,14 @@ func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 	userID, userAttrs := s.extractUserContext(r)
 	includeReasons := r.URL.Query().Get("withReasons") == "true"
 
-	// Build response
+	// Build V1 response: map[string]bool (enabled/disabled only)
 	allFlags := s.flags.GetAll()
-	evaluated := make(map[string]interface{}, len(allFlags))
+	evaluated := make(map[string]bool, len(allFlags))
 	reasons := make(map[string]EvaluationReason, len(allFlags))
 
 	for key, flag := range allFlags {
 		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
-		evaluated[key] = s.resolveTypedValueFromResult(flag, result)
+		evaluated[key] = result.Value
 		reasons[key] = result.Reason
 	}
 
@@ -318,6 +319,65 @@ func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 		response["reasons"] = reasons
 	}
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleFlagsV2 returns flags with typed values (V2 format).
+// Matches production: /api/v1/sdk/v2/flags
+func (s *Server) handleFlagsV2(w http.ResponseWriter, r *http.Request) {
+	if s.checkErrorSimulation(w) {
+		return
+	}
+
+	if !s.authenticate(r) {
+		http.Error(w, `{"error":"AuthenticationError","message":"Invalid API key"}`, http.StatusUnauthorized)
+		return
+	}
+
+	userID, userAttrs := s.extractUserContext(r)
+
+	allFlags := s.flags.GetAll()
+
+	type V2FlagValue struct {
+		Key     string              `json:"key"`
+		Type    string              `json:"type"`
+		Value   interface{}         `json:"value"`
+		Enabled bool                `json:"enabled"`
+		Reason  *EvaluationReason   `json:"reason,omitempty"`
+	}
+
+	evaluated := make(map[string]V2FlagValue, len(allFlags))
+
+	for key, flag := range allFlags {
+		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
+		typedValue := s.resolveTypedValueFromResult(flag, result)
+
+		// Determine flag type
+		flagType := "boolean"
+		if flag.DefaultVariation != "" && len(flag.Variations) > 0 {
+			switch flag.Variations[flag.DefaultVariation].(type) {
+			case string:
+				flagType = "string"
+			case float64, int, int64:
+				flagType = "number"
+			case map[string]interface{}:
+				flagType = "json"
+			}
+		}
+
+		reason := result.Reason
+		evaluated[key] = V2FlagValue{
+			Key:     key,
+			Type:    flagType,
+			Value:   typedValue,
+			Enabled: result.Value,
+			Reason:  &reason,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"flags": evaluated,
+	})
 }
 
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
@@ -358,7 +418,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Send initial flags
+	// Send initial flags (V1 format: map[string]bool)
 	userID := r.URL.Query().Get("user_id")
 	var userAttrs map[string]interface{}
 	if userID != "" {
@@ -367,9 +427,10 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		s.userMu.RUnlock()
 	}
 	allFlags := s.flags.GetAll()
-	evaluated := make(map[string]interface{}, len(allFlags))
+	evaluated := make(map[string]bool, len(allFlags))
 	for key, flag := range allFlags {
-		evaluated[key] = s.evaluateFlagValue(flag, userID, userAttrs)
+		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
+		evaluated[key] = result.Value
 	}
 
 	initData, _ := json.Marshal(map[string]interface{}{"flags": evaluated})
@@ -686,7 +747,7 @@ func (s *Server) evaluateRollout(percentage int, userID, flagKey string) bool {
 	return bucket < percentage
 }
 
-func (s *Server) generateETag(flags map[string]interface{}) string {
+func (s *Server) generateETag(flags interface{}) string {
 	data, _ := json.Marshal(flags)
 	hash := sha256.Sum256(data)
 	return `"` + hex.EncodeToString(hash[:8]) + `"`
