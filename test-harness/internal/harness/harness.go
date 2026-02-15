@@ -413,6 +413,22 @@ func (h *Harness) ClearReceivedEvents() {
 	h.mockServer.ClearReceivedEvents()
 }
 
+// SetSegment registers a segment on the mock server.
+func (h *Harness) SetSegment(id string, conditions []mock.Condition) {
+	if h.mockServer == nil {
+		return
+	}
+	h.mockServer.SetSegment(id, conditions)
+}
+
+// ClearSegments removes all segments from the mock server.
+func (h *Harness) ClearSegments() {
+	if h.mockServer == nil {
+		return
+	}
+	h.mockServer.ClearSegments()
+}
+
 // IsUsingExternalServer returns true if using an external server instead of mock.
 func (h *Harness) IsUsingExternalServer() bool {
 	return h.externalServerURL != ""

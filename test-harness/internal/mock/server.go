@@ -3,6 +3,7 @@ package mock
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -33,7 +34,7 @@ type TrackEventItem struct {
 	VariationID string                 `json:"variationId,omitempty"`
 	Value       *float64               `json:"value,omitempty"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	Timestamp   string                 `json:"timestamp,omitempty"`
+	Timestamp   *time.Time             `json:"timestamp,omitempty"`
 }
 
 // Server is a mock Rollgate API server.
@@ -46,6 +47,9 @@ type Server struct {
 	// User sessions - stores user context by user_id for remote evaluation
 	userSessions map[string]map[string]interface{}
 	userMu       sync.RWMutex
+	// Segments - reusable conditions referenced by rules
+	segments   map[string][]Condition
+	segmentsMu sync.RWMutex
 	// Error simulation
 	errorSim   *ErrorSimulation
 	errorCount int
@@ -63,6 +67,7 @@ func NewServer(apiKey string) *Server {
 		apiKey:       apiKey,
 		sseClients:   make(map[chan []byte]struct{}),
 		userSessions: make(map[string]map[string]interface{}),
+		segments:     make(map[string][]Condition),
 	}
 	s.setupRoutes()
 	return s
@@ -101,6 +106,7 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/api/v1/test/sse/disconnect", s.handleSSEDisconnect)
 	s.mux.HandleFunc("/api/v1/test/sse/clients", s.handleSSEClients)
 	s.mux.HandleFunc("/api/v1/test/events", s.handleTestEvents)
+	s.mux.HandleFunc("/api/v1/test/set-segment", s.handleSetSegment)
 	s.mux.HandleFunc("/health", s.handleHealth)
 }
 
@@ -211,6 +217,63 @@ func (s *Server) checkErrorSimulation(w http.ResponseWriter) bool {
 	return true
 }
 
+// extractUserContext extracts user context from request headers and query params.
+// Priority: 1) X-User-Context header (base64 JSON), 2) X-User-ID/Email/Attributes headers, 3) query param user_id + session
+func (s *Server) extractUserContext(r *http.Request) (string, map[string]interface{}) {
+	// 1. Try X-User-Context header (base64-encoded JSON)
+	if xuc := r.Header.Get("X-User-Context"); xuc != "" {
+		decoded, err := base64.StdEncoding.DecodeString(xuc)
+		if err != nil {
+			// Try URL-safe base64
+			decoded, err = base64.URLEncoding.DecodeString(xuc)
+		}
+		if err == nil {
+			var ctx struct {
+				ID         string                 `json:"id"`
+				Email      string                 `json:"email"`
+				Attributes map[string]interface{} `json:"attributes"`
+			}
+			if json.Unmarshal(decoded, &ctx) == nil && ctx.ID != "" {
+				attrs := make(map[string]interface{})
+				if ctx.Email != "" {
+					attrs["email"] = ctx.Email
+				}
+				for k, v := range ctx.Attributes {
+					attrs[k] = v
+				}
+				return ctx.ID, attrs
+			}
+		}
+	}
+
+	// 2. Try individual X-User-* headers
+	if xuID := r.Header.Get("X-User-ID"); xuID != "" {
+		attrs := make(map[string]interface{})
+		if email := r.Header.Get("X-User-Email"); email != "" {
+			attrs["email"] = email
+		}
+		if xAttrs := r.Header.Get("X-User-Attributes"); xAttrs != "" {
+			var parsed map[string]interface{}
+			if json.Unmarshal([]byte(xAttrs), &parsed) == nil {
+				for k, v := range parsed {
+					attrs[k] = v
+				}
+			}
+		}
+		return xuID, attrs
+	}
+
+	// 3. Fallback to query param user_id + session
+	userID := r.URL.Query().Get("user_id")
+	var userAttrs map[string]interface{}
+	if userID != "" {
+		s.userMu.RLock()
+		userAttrs = s.userSessions[userID]
+		s.userMu.RUnlock()
+	}
+	return userID, userAttrs
+}
+
 func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 	// Check for simulated errors first
 	if s.checkErrorSimulation(w) {
@@ -222,25 +285,17 @@ func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
+	userID, userAttrs := s.extractUserContext(r)
 	includeReasons := r.URL.Query().Get("withReasons") == "true"
-
-	// Get user attributes from session (set via identify)
-	var userAttrs map[string]interface{}
-	if userID != "" {
-		s.userMu.RLock()
-		userAttrs = s.userSessions[userID]
-		s.userMu.RUnlock()
-	}
 
 	// Build response
 	allFlags := s.flags.GetAll()
-	evaluated := make(map[string]bool, len(allFlags))
+	evaluated := make(map[string]interface{}, len(allFlags))
 	reasons := make(map[string]EvaluationReason, len(allFlags))
 
 	for key, flag := range allFlags {
 		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
-		evaluated[key] = result.Value
+		evaluated[key] = s.resolveTypedValueFromResult(flag, result)
 		reasons[key] = result.Reason
 	}
 
@@ -305,10 +360,16 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 	// Send initial flags
 	userID := r.URL.Query().Get("user_id")
+	var userAttrs map[string]interface{}
+	if userID != "" {
+		s.userMu.RLock()
+		userAttrs = s.userSessions[userID]
+		s.userMu.RUnlock()
+	}
 	allFlags := s.flags.GetAll()
-	evaluated := make(map[string]bool, len(allFlags))
+	evaluated := make(map[string]interface{}, len(allFlags))
 	for key, flag := range allFlags {
-		evaluated[key] = s.evaluateFlag(flag, userID, nil)
+		evaluated[key] = s.evaluateFlagValue(flag, userID, userAttrs)
 	}
 
 	initData, _ := json.Marshal(map[string]interface{}{"flags": evaluated})
@@ -388,6 +449,31 @@ func (s *Server) evaluateFlag(flag *FlagState, userID string, attrs map[string]i
 	return result.Value
 }
 
+// evaluateFlagValue returns the typed value (or bool for simple flags).
+func (s *Server) evaluateFlagValue(flag *FlagState, userID string, attrs map[string]interface{}) interface{} {
+	result := s.evaluateFlagWithReason(flag, userID, attrs)
+	return s.resolveTypedValueFromResult(flag, result)
+}
+
+// resolveTypedValueFromResult returns the typed variation value based on evaluation result.
+func (s *Server) resolveTypedValueFromResult(flag *FlagState, result EvaluationResult) interface{} {
+	if len(flag.Variations) == 0 || flag.DefaultVariation == "" {
+		return result.Value
+	}
+	if !result.Value {
+		return result.Value
+	}
+	// If a rule matched with a specific variation, use that
+	variation := flag.DefaultVariation
+	if result.Variation != "" {
+		variation = result.Variation
+	}
+	if val, ok := flag.Variations[variation]; ok {
+		return val
+	}
+	return result.Value
+}
+
 // evaluateFlagWithReason evaluates a flag and returns both value and reason.
 func (s *Server) evaluateFlagWithReason(flag *FlagState, userID string, attrs map[string]interface{}) EvaluationResult {
 	if !flag.Enabled {
@@ -410,7 +496,8 @@ func (s *Server) evaluateFlagWithReason(flag *FlagState, userID string, attrs ma
 			if s.evaluateConditions(rule.Conditions, userID, attrs) {
 				inRollout := s.evaluateRollout(rule.RolloutPercentage, userID, flag.Key)
 				return EvaluationResult{
-					Value: inRollout,
+					Value:     inRollout,
+					Variation: rule.Variation,
 					Reason: EvaluationReason{
 						Kind:      "RULE_MATCH",
 						RuleID:    rule.ID,
@@ -438,6 +525,9 @@ func (s *Server) evaluateConditions(conditions []Condition, userID string, attrs
 
 	// Add userID as implicit attribute
 	attrs["id"] = userID
+
+	// Expand segment references
+	conditions = s.expandSegmentConditions(conditions)
 
 	for _, cond := range conditions {
 		attrValue, ok := attrs[cond.Attribute]
@@ -596,7 +686,7 @@ func (s *Server) evaluateRollout(percentage int, userID, flagKey string) bool {
 	return bucket < percentage
 }
 
-func (s *Server) generateETag(flags map[string]bool) string {
+func (s *Server) generateETag(flags map[string]interface{}) string {
 	data, _ := json.Marshal(flags)
 	hash := sha256.Sum256(data)
 	return `"` + hex.EncodeToString(hash[:8]) + `"`
@@ -856,4 +946,74 @@ func (s *Server) DisconnectSSEClients() int {
 		delete(s.sseClients, ch)
 	}
 	return count
+}
+
+// SetSegment registers a segment with the given ID and conditions.
+func (s *Server) SetSegment(id string, conditions []Condition) {
+	s.segmentsMu.Lock()
+	defer s.segmentsMu.Unlock()
+	s.segments[id] = conditions
+}
+
+// ClearSegments removes all segments.
+func (s *Server) ClearSegments() {
+	s.segmentsMu.Lock()
+	defer s.segmentsMu.Unlock()
+	s.segments = make(map[string][]Condition)
+}
+
+// handleSetSegment is the test control endpoint for setting segments.
+func (s *Server) handleSetSegment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body struct {
+		ID         string      `json:"id"`
+		Conditions []Condition `json:"conditions"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.SetSegment(body.ID, body.Conditions)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// expandSegmentConditions replaces segment references in conditions with actual segment conditions.
+// A segment reference is a condition with Attribute=="segment" and Operator=="in".
+func (s *Server) expandSegmentConditions(conditions []Condition) []Condition {
+	s.segmentsMu.RLock()
+	defer s.segmentsMu.RUnlock()
+
+	var expanded []Condition
+	for _, cond := range conditions {
+		if cond.Attribute == "segment" && cond.Operator == "in" {
+			// Value is the segment ID (string)
+			if segID, ok := cond.Value.(string); ok {
+				if segConds, exists := s.segments[segID]; exists {
+					expanded = append(expanded, segConds...)
+					continue
+				}
+			}
+			// Value could also be an array of segment IDs
+			if segIDs, ok := cond.Value.([]interface{}); ok {
+				for _, id := range segIDs {
+					if segID, ok := id.(string); ok {
+						if segConds, exists := s.segments[segID]; exists {
+							expanded = append(expanded, segConds...)
+						}
+					}
+				}
+				continue
+			}
+		}
+		expanded = append(expanded, cond)
+	}
+	return expanded
 }
