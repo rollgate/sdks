@@ -85,6 +85,10 @@ Future<Map<String, dynamic>> handleCommand(
       return handleGetAllFlags();
     case 'getState':
       return handleGetState();
+    case 'track':
+      return handleTrack(body);
+    case 'flushEvents':
+      return await handleFlushEvents();
     case 'close':
       return handleClose();
     default:
@@ -332,6 +336,58 @@ Map<String, dynamic> handleGetState() {
       'misses': m.cacheMisses,
     },
   };
+}
+
+Map<String, dynamic> handleTrack(Map<String, dynamic> body) {
+  if (client == null) {
+    return {
+      'error': 'NotInitializedError',
+      'message': 'Client not initialized'
+    };
+  }
+
+  final flagKey = body['flagKey'] as String? ?? '';
+  final eventName = body['eventName'] as String? ?? '';
+  final userId = body['userId'] as String? ?? '';
+
+  if (flagKey.isEmpty || eventName.isEmpty || userId.isEmpty) {
+    return {
+      'error': 'ValidationError',
+      'message': 'flagKey, eventName, and userId are required'
+    };
+  }
+
+  final opts = TrackEventOptions(
+    flagKey: flagKey,
+    eventName: eventName,
+    userId: userId,
+    variationId: (body['variationId'] as String?)?.isNotEmpty == true
+        ? body['variationId'] as String
+        : null,
+    value: (body['eventValue'] as num?)?.toDouble(),
+    metadata: body['eventMetadata'] != null
+        ? Map<String, dynamic>.from(body['eventMetadata'] as Map)
+        : null,
+  );
+
+  client!.track(opts);
+  return {'success': true};
+}
+
+Future<Map<String, dynamic>> handleFlushEvents() async {
+  if (client == null) {
+    return {
+      'error': 'NotInitializedError',
+      'message': 'Client not initialized'
+    };
+  }
+
+  try {
+    await client!.flushEvents();
+    return {'success': true};
+  } catch (e) {
+    return {'error': 'FlushError', 'message': e.toString()};
+  }
 }
 
 Map<String, dynamic> handleClose() {

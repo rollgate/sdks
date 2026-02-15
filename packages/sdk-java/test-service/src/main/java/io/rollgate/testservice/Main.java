@@ -12,6 +12,7 @@ import io.rollgate.FlagCache;
 import io.rollgate.UserContext;
 import io.rollgate.EvaluationDetail;
 import io.rollgate.EvaluationReason;
+import io.rollgate.EventCollector;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -160,6 +161,10 @@ public class Main {
                     return handleGetAllFlags(cmd);
                 case "getState":
                     return handleGetState(cmd);
+                case "track":
+                    return handleTrack(cmd);
+                case "flushEvents":
+                    return handleFlushEvents(cmd);
                 case "close":
                     return handleClose(cmd);
                 default:
@@ -492,6 +497,80 @@ public class Main {
             stats.addProperty("hits", cacheStats.getHits());
             stats.addProperty("misses", cacheStats.getMisses());
             response.add("cacheStats", stats);
+
+            return response;
+        }
+
+        private JsonObject handleTrack(JsonObject cmd) {
+            JsonObject response = new JsonObject();
+
+            if (client == null) {
+                response.addProperty("error", "NotInitializedError");
+                response.addProperty("message", "Client not initialized");
+                return response;
+            }
+
+            String flagKey = cmd.has("flagKey") ? cmd.get("flagKey").getAsString() : "";
+            String eventName = cmd.has("eventName") ? cmd.get("eventName").getAsString() : "";
+            String userId = cmd.has("userId") ? cmd.get("userId").getAsString() : "";
+
+            if (flagKey.isEmpty() || eventName.isEmpty() || userId.isEmpty()) {
+                response.addProperty("error", "ValidationError");
+                response.addProperty("message", "flagKey, eventName, and userId are required");
+                return response;
+            }
+
+            EventCollector.TrackEventOptions opts = new EventCollector.TrackEventOptions(flagKey, eventName, userId);
+
+            if (cmd.has("variationId") && !cmd.get("variationId").isJsonNull()) {
+                String variationId = cmd.get("variationId").getAsString();
+                if (!variationId.isEmpty()) {
+                    opts.variationId(variationId);
+                }
+            }
+
+            if (cmd.has("eventValue") && !cmd.get("eventValue").isJsonNull()) {
+                opts.value(cmd.get("eventValue").getAsDouble());
+            }
+
+            if (cmd.has("eventMetadata") && !cmd.get("eventMetadata").isJsonNull()) {
+                JsonObject meta = cmd.getAsJsonObject("eventMetadata");
+                java.util.HashMap<String, Object> metaMap = new java.util.HashMap<>();
+                for (String key : meta.keySet()) {
+                    var val = meta.get(key);
+                    if (val.isJsonPrimitive()) {
+                        var prim = val.getAsJsonPrimitive();
+                        if (prim.isBoolean()) metaMap.put(key, prim.getAsBoolean());
+                        else if (prim.isNumber()) metaMap.put(key, prim.getAsNumber());
+                        else metaMap.put(key, prim.getAsString());
+                    } else {
+                        metaMap.put(key, val.toString());
+                    }
+                }
+                opts.metadata(metaMap);
+            }
+
+            client.track(opts);
+            response.addProperty("success", true);
+            return response;
+        }
+
+        private JsonObject handleFlushEvents(JsonObject cmd) {
+            JsonObject response = new JsonObject();
+
+            if (client == null) {
+                response.addProperty("error", "NotInitializedError");
+                response.addProperty("message", "Client not initialized");
+                return response;
+            }
+
+            try {
+                client.flushEvents();
+                response.addProperty("success", true);
+            } catch (Exception e) {
+                response.addProperty("error", e.getClass().getSimpleName());
+                response.addProperty("message", e.getMessage());
+            }
 
             return response;
         }

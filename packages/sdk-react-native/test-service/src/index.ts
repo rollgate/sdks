@@ -556,6 +556,11 @@ interface Command {
   defaultStringValue?: string;
   defaultNumberValue?: number;
   defaultJsonValue?: unknown;
+  eventName?: string;
+  userId?: string;
+  variationId?: string;
+  eventValue?: number;
+  eventMetadata?: Record<string, unknown>;
 }
 
 interface Response {
@@ -783,6 +788,70 @@ async function handleCommand(cmd: Command): Promise<Response> {
       };
     }
 
+    case "track": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+      if (!cmd.flagKey || !cmd.eventName || !cmd.userId) {
+        return {
+          error: "ValidationError",
+          message: "flagKey, eventName, and userId are required",
+        };
+      }
+
+      // React Native SDK uses custom client without event tracking.
+      // Send events directly to the mock server's events endpoint.
+      if (currentBaseUrl && currentApiKey) {
+        const event: Record<string, unknown> = {
+          flagKey: cmd.flagKey,
+          eventName: cmd.eventName,
+          userId: cmd.userId,
+          timestamp: new Date().toISOString(),
+        };
+        if (cmd.variationId) event.variationId = cmd.variationId;
+        if (cmd.eventValue !== undefined) event.value = cmd.eventValue;
+        if (cmd.eventMetadata) event.metadata = cmd.eventMetadata;
+
+        // Buffer events in memory for flush
+        if (!(globalThis as any).__rnEventBuffer) {
+          (globalThis as any).__rnEventBuffer = [];
+        }
+        (globalThis as any).__rnEventBuffer.push(event);
+      }
+      return { success: true };
+    }
+
+    case "flushEvents": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+
+      try {
+        const buffer = (globalThis as any).__rnEventBuffer || [];
+        if (buffer.length > 0 && currentBaseUrl && currentApiKey) {
+          await fetch(`${currentBaseUrl}/api/v1/sdk/events`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${currentApiKey}`,
+            },
+            body: JSON.stringify({ events: buffer }),
+          });
+          (globalThis as any).__rnEventBuffer = [];
+        }
+        return { success: true };
+      } catch (err) {
+        const error = err as Error;
+        return { error: error.name || "Error", message: error.message };
+      }
+    }
+
     case "close": {
       if (client) {
         try {
@@ -793,6 +862,7 @@ async function handleCommand(cmd: Command): Promise<Response> {
         client = null;
       }
       memoryStorage.clear();
+      (globalThis as any).__rnEventBuffer = [];
       return { success: true };
     }
 

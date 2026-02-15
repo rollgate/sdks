@@ -49,6 +49,8 @@ app.MapPost("/", async (HttpContext ctx) =>
         "reset" => await HandleReset(),
         "getAllFlags" => HandleGetAllFlags(),
         "getState" => HandleGetState(),
+        "track" => HandleTrack(body),
+        "flushEvents" => await HandleFlushEvents(),
         "close" => HandleClose(),
         _ => new { error = "UnknownCommand", message = $"Unknown command: {command}" }
     };
@@ -279,6 +281,73 @@ object HandleGetState()
         circuitState = c.GetCircuitState(),
         cacheStats = new { hits = metrics.CacheHits, misses = metrics.CacheMisses }
     };
+}
+
+object HandleTrack(JsonElement body)
+{
+    RollgateClient? c;
+    lock (clientLock) { c = client; }
+    if (c == null) return new { error = "NotInitializedError", message = "Client not initialized" };
+
+    var flagKey = body.TryGetProperty("flagKey", out var fk) ? fk.GetString() ?? "" : "";
+    var eventName = body.TryGetProperty("eventName", out var en) ? en.GetString() ?? "" : "";
+    var userId = body.TryGetProperty("userId", out var ui) ? ui.GetString() ?? "" : "";
+
+    if (flagKey == "" || eventName == "" || userId == "")
+        return new { error = "ValidationError", message = "flagKey, eventName, and userId are required" };
+
+    var opts = new TrackEventOptions
+    {
+        FlagKey = flagKey,
+        EventName = eventName,
+        UserId = userId
+    };
+
+    if (body.TryGetProperty("variationId", out var vi) && vi.ValueKind == JsonValueKind.String)
+    {
+        var vid = vi.GetString();
+        if (!string.IsNullOrEmpty(vid)) opts.VariationId = vid;
+    }
+
+    if (body.TryGetProperty("eventValue", out var ev) && ev.ValueKind == JsonValueKind.Number)
+        opts.Value = ev.GetDouble();
+
+    if (body.TryGetProperty("eventMetadata", out var em) && em.ValueKind == JsonValueKind.Object)
+    {
+        opts.Metadata = new Dictionary<string, object>();
+        foreach (var prop in em.EnumerateObject())
+        {
+            opts.Metadata[prop.Name] = prop.Value.ValueKind switch
+            {
+                JsonValueKind.String => prop.Value.GetString()!,
+                JsonValueKind.Number => prop.Value.GetDouble(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => prop.Value.ToString()
+            };
+        }
+    }
+
+    c.Track(opts);
+    return new { success = true };
+}
+
+async Task<object> HandleFlushEvents()
+{
+    RollgateClient? c;
+    lock (clientLock) { c = client; }
+    if (c == null) return new { error = "NotInitializedError", message = "Client not initialized" };
+
+    try
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await c.FlushEventsAsync(cts.Token);
+        return new { success = true };
+    }
+    catch (Exception ex)
+    {
+        return new { error = "FlushError", message = ex.Message };
+    }
 }
 
 object HandleClose()
