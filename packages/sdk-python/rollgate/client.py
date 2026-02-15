@@ -121,12 +121,6 @@ class RollgateClient:
         self._poll_task: Optional[asyncio.Task] = None
         self._sse_task: Optional[asyncio.Task] = None
         self._closing = False
-        self._event_collector = EventCollector(
-            endpoint=f"{config.base_url}/api/v1/sdk/events",
-            api_key=config.api_key,
-            config=EventCollectorConfig(),
-            http_client=self._http_client,
-        )
 
         # Use provided HTTP client or create one
         if http_client:
@@ -142,6 +136,13 @@ class RollgateClient:
                 ),
             )
             self._owns_http_client = True
+
+        self._event_collector = EventCollector(
+            endpoint=f"{config.base_url}/api/v1/sdk/events",
+            api_key=config.api_key,
+            config=EventCollectorConfig(),
+            http_client=self._http_client,
+        )
 
         # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
