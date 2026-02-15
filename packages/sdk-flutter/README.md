@@ -119,6 +119,8 @@ await client.reset();
 | `identify(user)`                  | Set user context                  |
 | `reset()`                         | Clear user context                |
 | `refresh()`                       | Force refresh flags               |
+| `track(options)`                  | Track a conversion event          |
+| `flushEvents()`                   | Flush buffered events             |
 | `close()`                         | Stop polling and cleanup          |
 
 ### Properties
@@ -158,6 +160,24 @@ Reason kinds:
 | `closed`   | Normal operation, requests allowed  |
 | `open`     | Too many failures, requests blocked |
 | `halfOpen` | Testing recovery, limited requests  |
+
+## Event Tracking
+
+Track conversion events for A/B testing:
+
+```dart
+client.track(TrackEventOptions(
+  flagKey: 'checkout-redesign',
+  eventName: 'purchase',
+  userId: 'user-123',
+  value: 29.99,
+));
+
+// Flush pending events immediately
+await client.flushEvents();
+```
+
+Events are buffered and sent in batches automatically (every 30 seconds or when the buffer reaches 100 events). Use `flushEvents()` to send pending events immediately, for example before the app is closed.
 
 ## Resilience Features
 

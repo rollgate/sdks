@@ -119,6 +119,47 @@ client.on("circuit_closed", lambda: print("Circuit breaker closed"))
 await client.init()
 ```
 
+## Event Tracking
+
+Track conversion events for A/B testing experiments:
+
+```python
+from rollgate import TrackEventOptions
+
+# Track a conversion event
+client.track(TrackEventOptions(
+    flag_key="checkout-redesign",
+    event_name="purchase",
+    user_id="user-123",
+))
+
+# Track with all options
+client.track(TrackEventOptions(
+    flag_key="checkout-redesign",
+    event_name="purchase",
+    user_id="user-123",
+    variation_id="variant-b",
+    value=29.99,
+    metadata={"currency": "EUR", "item_count": 3},
+))
+
+# Manually flush pending events
+await client.flush_events()
+```
+
+Events are buffered in memory and flushed automatically every 30 seconds or when the buffer reaches 100 events. A final flush is attempted when the client is closed.
+
+### TrackEventOptions
+
+| Field          | Type              | Required | Description                      |
+| -------------- | ----------------- | -------- | -------------------------------- |
+| `flag_key`     | `str`             | Yes      | The flag key for the experiment  |
+| `event_name`   | `str`             | Yes      | Name of the conversion event     |
+| `user_id`      | `str`             | Yes      | The user who triggered the event |
+| `variation_id` | `Optional[str]`   | No       | The variation the user saw       |
+| `value`        | `Optional[float]` | No       | Numeric value (e.g. revenue)     |
+| `metadata`     | `Optional[Dict]`  | No       | Additional event metadata        |
+
 ## Features
 
 ### Polling (Default)
@@ -206,6 +247,8 @@ except RollgateError as e:
 | `identify(user)`                        | Set user context and refresh flags |
 | `reset()`                               | Clear user context                 |
 | `refresh()`                             | Force refresh flags                |
+| `track(options)`                        | Track a conversion event           |
+| `flush_events()`                        | Flush pending conversion events    |
 | `close()`                               | Cleanup resources                  |
 
 ### Evaluation Reasons

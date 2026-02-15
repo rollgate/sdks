@@ -18,14 +18,14 @@ Official Java SDK for [Rollgate](https://rollgate.io) - Feature flags made simpl
 <dependency>
     <groupId>io.rollgate</groupId>
     <artifactId>rollgate-sdk</artifactId>
-    <version>0.1.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.rollgate:rollgate-sdk:0.1.0'
+implementation 'io.rollgate:rollgate-sdk:1.1.0'
 ```
 
 ## Quick Start
@@ -105,6 +105,41 @@ boolean enabled = client.isEnabled("premium-feature", false);
 client.reset();
 ```
 
+## Event Tracking
+
+Track conversion events for A/B testing experiments:
+
+```java
+import io.rollgate.EventCollector.TrackEventOptions;
+
+// Track a conversion event
+client.track(new TrackEventOptions("checkout-redesign", "purchase", "user-123"));
+
+// Track with variation and value
+client.track(new TrackEventOptions("checkout-redesign", "purchase", "user-123")
+    .variationId("variant-b")
+    .value(29.99)
+    .metadata(Map.of("currency", "EUR", "item_count", 3)));
+
+// Manually flush pending events
+client.flushEvents();
+```
+
+Events are buffered in memory and flushed automatically every 30 seconds or when the buffer reaches 100 events. A final flush is attempted when the client is closed.
+
+### TrackEventOptions
+
+| Field         | Type                  | Required | Description                      |
+| ------------- | --------------------- | -------- | -------------------------------- |
+| `flagKey`     | `String`              | Yes      | The flag key for the experiment  |
+| `eventName`   | `String`              | Yes      | Name of the conversion event     |
+| `userId`      | `String`              | Yes      | The user who triggered the event |
+| `variationId` | `String`              | No       | The variation the user saw       |
+| `value`       | `Double`              | No       | Numeric value (e.g. revenue)     |
+| `metadata`    | `Map<String, Object>` | No       | Additional event metadata        |
+
+The builder-style API uses fluent methods: `.variationId(id)`, `.value(v)`, `.metadata(map)`.
+
 ## API Reference
 
 ### RollgateClient Methods
@@ -118,6 +153,8 @@ client.reset();
 | `identify(user)`                | Set user context                  |
 | `reset()`                       | Clear user context                |
 | `refresh()`                     | Force refresh flags               |
+| `track(options)`                | Track a conversion event          |
+| `flushEvents()`                 | Flush pending conversion events   |
 | `isReady()`                     | Check if client is initialized    |
 | `getCircuitState()`             | Get circuit breaker state         |
 | `getCacheStats()`               | Get cache statistics              |

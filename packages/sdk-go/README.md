@@ -82,6 +82,13 @@ config := rollgate.Config{
         Enabled:  true,
     },
 
+    // Event collector configuration
+    Events: rollgate.EventCollectorConfig{
+        FlushIntervalMs: 30000,  // Flush every 30s (default)
+        MaxBufferSize:   100,    // Max events before auto-flush (default)
+        Enabled:         true,   // Enable event tracking (default)
+    },
+
     // Optional logger
     Logger: rollgate.NewDefaultLogger(),
 }
@@ -107,6 +114,46 @@ enabled := client.IsEnabled("premium-feature", false)
 err = client.Reset(ctx)
 ```
 
+## Event Tracking
+
+Track conversion events for A/B testing experiments:
+
+```go
+// Track a conversion event
+client.Track(rollgate.TrackEventOptions{
+    FlagKey:   "checkout-redesign",
+    EventName: "purchase",
+    UserID:    "user-123",
+})
+
+// Track with variation and value
+value := 29.99
+client.Track(rollgate.TrackEventOptions{
+    FlagKey:     "checkout-redesign",
+    EventName:   "purchase",
+    UserID:      "user-123",
+    VariationID: "variant-b",
+    Value:       &value,
+    Metadata:    map[string]any{"currency": "EUR", "item_count": 3},
+})
+
+// Manually flush pending events
+err := client.FlushEvents()
+```
+
+Events are buffered in memory and flushed automatically every 30 seconds or when the buffer reaches 100 events. A final flush is attempted when the client is closed.
+
+### TrackEventOptions
+
+| Field         | Type             | Required | Description                      |
+| ------------- | ---------------- | -------- | -------------------------------- |
+| `FlagKey`     | `string`         | Yes      | The flag key for the experiment  |
+| `EventName`   | `string`         | Yes      | Name of the conversion event     |
+| `UserID`      | `string`         | Yes      | The user who triggered the event |
+| `VariationID` | `string`         | No       | The variation the user saw       |
+| `Value`       | `*float64`       | No       | Numeric value (e.g. revenue)     |
+| `Metadata`    | `map[string]any` | No       | Additional event metadata        |
+
 ## API Reference
 
 ### Client Methods
@@ -121,6 +168,8 @@ err = client.Reset(ctx)
 | `Identify(ctx, user)`           | Set user context                  |
 | `Reset(ctx)`                    | Clear user context                |
 | `Refresh(ctx)`                  | Force refresh flags               |
+| `Track(options)`                | Track a conversion event          |
+| `FlushEvents()`                 | Flush pending events              |
 | `GetMetrics()`                  | Get SDK metrics                   |
 | `GetCircuitState()`             | Get circuit breaker state         |
 | `IsReady()`                     | Check if client is initialized    |

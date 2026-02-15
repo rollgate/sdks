@@ -153,28 +153,22 @@ export class FeatureComponent {
 }
 ```
 
-### FlagDirective
+### FeatureDirective
 
 Structural directive for conditional rendering:
 
-```typescript
-import { Component } from "@angular/core";
-import { FlagDirective } from "@rollgate/sdk-angular";
+```html
+<!-- Basic usage -->
+<div *rollgateFeature="'new-feature'">New feature is enabled!</div>
 
-@Component({
-  selector: "app-feature",
-  standalone: true,
-  imports: [FlagDirective],
-  template: `
-    <div *rollgateFlag="'new-feature'">New feature is enabled!</div>
-
-    <ng-container *rollgateFlag="'premium'; else standardTpl">
-      Premium content
-    </ng-container>
-    <ng-template #standardTpl>Standard content</ng-template>
-  `,
-})
-export class FeatureComponent {}
+<!-- With else template -->
+<ng-template
+  [rollgateFeature]="'premium-feature'"
+  [rollgateFeatureElse]="freeTpl"
+>
+  Premium content
+</ng-template>
+<ng-template #freeTpl>Free content</ng-template>
 ```
 
 ## Configuration
@@ -221,32 +215,88 @@ RollgateModule.forRoot({
 });
 ```
 
+## Event Tracking
+
+Track conversion events for A/B testing:
+
+```typescript
+import { Component, OnDestroy } from "@angular/core";
+import { RollgateService } from "@rollgate/sdk-angular";
+
+@Component({
+  selector: "app-checkout",
+  template: `<button (click)="handlePurchase()">Buy Now</button>`,
+})
+export class CheckoutComponent implements OnDestroy {
+  constructor(private rollgate: RollgateService) {}
+
+  handlePurchase() {
+    this.rollgate.track({
+      flagKey: "checkout-redesign",
+      eventName: "purchase",
+      userId: "user-123",
+      value: 29.99,
+    });
+  }
+
+  // Flush pending events on destroy (auto-flushes every 30s)
+  ngOnDestroy() {
+    this.rollgate.flush();
+  }
+}
+```
+
+### TrackEventOptions
+
+| Field         | Type                      | Required | Description                                 |
+| ------------- | ------------------------- | -------- | ------------------------------------------- |
+| `flagKey`     | `string`                  | Yes      | The flag key this event is associated with  |
+| `eventName`   | `string`                  | Yes      | Event name (e.g., `'purchase'`, `'signup'`) |
+| `userId`      | `string`                  | Yes      | User ID                                     |
+| `variationId` | `string`                  | No       | Variation ID the user was exposed to        |
+| `value`       | `number`                  | No       | Numeric value (e.g., revenue amount)        |
+| `metadata`    | `Record<string, unknown>` | No       | Optional metadata                           |
+
 ## API Reference
 
 ### RollgateService
 
-| Property/Method                | Description                         |
-| ------------------------------ | ----------------------------------- |
-| `flags$`                       | Observable of all flags             |
-| `isReady$`                     | Observable of ready state           |
-| `isLoading$`                   | Observable of loading state         |
-| `error$`                       | Observable of error state           |
-| `circuitState$`                | Observable of circuit breaker state |
-| `isEnabled(flagKey, default?)` | Check if flag is enabled            |
-| `getFlag$(flagKey, default?)`  | Get observable for single flag      |
-| `getAllFlags()`                | Get all flags synchronously         |
-| `identify(user)`               | Set user context                    |
-| `reset()`                      | Clear user context                  |
-| `refresh()`                    | Force refresh flags                 |
+| Property/Method                      | Description                             |
+| ------------------------------------ | --------------------------------------- |
+| `flags$`                             | Observable of all flags                 |
+| `isReady$`                           | Observable of ready state               |
+| `isLoading$`                         | Observable of loading state             |
+| `isError$`                           | Observable of error state               |
+| `isStale$`                           | Observable of stale state               |
+| `circuitState$`                      | Observable of circuit breaker state     |
+| `isEnabled(flagKey, default?)`       | Check if flag is enabled                |
+| `isEnabledDetail(flagKey, default?)` | Flag value with evaluation reason       |
+| `flags`                              | Get all flags synchronously             |
+| `isLoading`                          | Get loading state synchronously         |
+| `isError`                            | Get error state synchronously           |
+| `isStale`                            | Get stale state synchronously           |
+| `circuitState`                       | Get circuit breaker state synchronously |
+| `isReady`                            | Get ready state synchronously           |
+| `identify(user)`                     | Set user context                        |
+| `reset()`                            | Clear user context                      |
+| `refresh()`                          | Force refresh flags                     |
+| `getMetrics()`                       | Get SDK metrics snapshot                |
+| `track(options)`                     | Track a conversion event (A/B testing)  |
+| `flush()`                            | Flush pending events to the server      |
 
-### FlagDirective
+### FeatureDirective
 
 ```html
 <!-- Basic usage -->
-<div *rollgateFlag="'feature-name'">Content</div>
+<div *rollgateFeature="'feature-name'">Content</div>
 
 <!-- With else template -->
-<div *rollgateFlag="'feature-name'; else fallback">Feature enabled</div>
+<ng-template
+  [rollgateFeature]="'feature-name'"
+  [rollgateFeatureElse]="fallback"
+>
+  Feature enabled
+</ng-template>
 <ng-template #fallback>Feature disabled</ng-template>
 ```
 

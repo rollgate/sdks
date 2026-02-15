@@ -1,3 +1,9 @@
+## 1.1.0
+
+- Event tracking: `track()` for A/B testing conversion events
+- Event batching with automatic flush (30s default, 100 max buffer)
+- Manual `flushEvents()` to send pending events immediately
+
 ## 1.0.0
 
 - Initial stable release

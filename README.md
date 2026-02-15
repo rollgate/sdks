@@ -22,6 +22,8 @@ Official SDKs for [Rollgate](https://rollgate.io) - Feature flags made simple.
 | **Go**      | [sdk-go](./packages/sdk-go)                     | `go get github.com/rollgate/sdks/packages/sdk-go` | [README](./packages/sdk-go/README.md)      |
 | **Java**    | [sdk-java](./packages/sdk-java)                 | Maven/Gradle                                      | [README](./packages/sdk-java/README.md)    |
 | **Python**  | [rollgate](./packages/sdk-python)               | `pip install rollgate`                            | [README](./packages/sdk-python/README.md)  |
+| **Flutter** | [rollgate](./packages/sdk-flutter)              | `dart pub add rollgate`                           | [README](./packages/sdk-flutter/README.md) |
+| **.NET**    | [Rollgate.SDK](./packages/sdk-dotnet)           | `dotnet add package Rollgate.SDK`                 | [README](./packages/sdk-dotnet/README.md)  |
 
 ## Supported Versions
 
@@ -35,6 +37,8 @@ Official SDKs for [Rollgate](https://rollgate.io) - Feature flags made simple.
 | Go      | Go 1.21+                     |
 | Java    | Java 11+                     |
 | Python  | Python 3.9+                  |
+| Flutter | Dart 3.0+ / Flutter 3.0+     |
+| .NET    | .NET 8.0+                    |
 
 ## Browser Compatibility
 
@@ -86,7 +90,24 @@ function MyComponent() {
 }
 ```
 
-For other SDKs (Vue, Go, Java, Python), see the [Getting Started Guide](./docs/GETTING-STARTED.md).
+### Event Tracking
+
+All SDKs support tracking conversion events for A/B testing:
+
+```typescript
+// Track a conversion event
+client.track({
+  flagKey: "checkout-redesign",
+  eventName: "purchase",
+  userId: "user-123",
+  value: 29.99,
+});
+
+// Flush pending events
+await client.flushEvents();
+```
+
+For other SDKs (Vue, Go, Java, Python, Flutter, .NET), see the [Getting Started Guide](./docs/GETTING-STARTED.md).
 
 ## Features
 
@@ -97,6 +118,7 @@ All SDKs include:
 - **Caching** - Built-in caching with stale-while-revalidate
 - **Circuit breaker** - Automatic fallback on API failures
 - **Retry with backoff** - Exponential backoff with jitter
+- **Event tracking** - Track conversion events for A/B testing
 - **TypeScript support** - Full type definitions (TypeScript SDKs)
 
 ## Learn More

@@ -28,22 +28,20 @@ pnpm add @rollgate/sdk-svelte
 ```svelte
 <!-- +layout.svelte -->
 <script>
-  import { createRollgate } from '@rollgate/sdk-svelte';
-  import { setContext } from 'svelte';
+  import { createRollgate, setRollgateContext } from '@rollgate/sdk-svelte';
+  import { onDestroy } from 'svelte';
 
   const rollgate = createRollgate({
     apiKey: 'your-api-key',
-    user: {
-      id: 'user-123',
-      email: 'user@example.com',
-    },
+  }, {
+    id: 'user-123',
+    email: 'user@example.com',
   });
 
-  setContext('rollgate', rollgate);
+  setRollgateContext(rollgate);
 
   // Cleanup on destroy
-  import { onDestroy } from 'svelte';
-  onDestroy(() => rollgate.destroy());
+  onDestroy(() => rollgate.close());
 </script>
 
 <slot />
@@ -60,17 +58,15 @@ pnpm add @rollgate/sdk-svelte
   const newFeature = getFlag('new-feature');
 
   // Or get full access
-  const { isReady, isLoading, error, identify } = getRollgate();
+  const { isLoading, isError, identify } = getRollgate();
 </script>
 
 {#if $isLoading}
   <p>Loading flags...</p>
-{:else if $error}
-  <p>Error: {$error.message}</p>
+{:else if $isError}
+  <p>Error loading flags</p>
 {:else if $newFeature}
-  <div class="new-feature">
-    ✨ New feature is enabled!
-  </div>
+  <div>New feature is enabled!</div>
 {:else}
   <div>Old experience</div>
 {/if}
@@ -78,24 +74,23 @@ pnpm add @rollgate/sdk-svelte
 
 ## Usage
 
-### `createRollgate(options)`
+### `createRollgate(config, user?)`
 
 Creates Rollgate stores. Call in root layout and provide via context.
 
 ```svelte
 <script>
-  import { createRollgate } from '@rollgate/sdk-svelte';
-  import { setContext, onDestroy } from 'svelte';
+  import { createRollgate, setRollgateContext } from '@rollgate/sdk-svelte';
+  import { onDestroy } from 'svelte';
 
   const rollgate = createRollgate({
     apiKey: 'your-api-key',
     baseUrl: 'https://api.rollgate.io',
     refreshInterval: 30000,
-    user: { id: 'user-123' },
-  });
+  }, { id: 'user-123' });
 
-  setContext('rollgate', rollgate);
-  onDestroy(() => rollgate.destroy());
+  setRollgateContext(rollgate);
+  onDestroy(() => rollgate.close());
 </script>
 ```
 
@@ -120,22 +115,20 @@ Get a reactive store for a single flag.
 </div>
 ```
 
-### `getFlags()`
+### `getFlags(flagKeys)`
 
-Get all flags as a reactive store.
+Get a reactive store for multiple flags.
 
 ```svelte
 <script>
   import { getFlags } from '@rollgate/sdk-svelte';
 
-  const flags = getFlags();
+  const flags = getFlags(['feature-a', 'feature-b']);
 </script>
 
-<ul>
-  {#each Object.entries($flags) as [key, value]}
-    <li>{key}: {value ? 'enabled' : 'disabled'}</li>
-  {/each}
-</ul>
+{#if $flags['feature-a']}
+  <FeatureA />
+{/if}
 ```
 
 ### `getRollgate()`
@@ -147,18 +140,22 @@ Get full access to Rollgate functionality.
   import { getRollgate } from '@rollgate/sdk-svelte';
 
   const {
-    flags,           // All flags store
-    isReady,         // Ready state store
-    isLoading,       // Loading state store
-    error,           // Error store
-    circuitState,    // Circuit breaker state store
-    client,          // Underlying RollgateClient
+    flags,           // All flags store (Readable)
+    isReady,         // Ready state store (Readable)
+    isLoading,       // Loading state store (Readable)
+    isError,         // Error state store (Readable)
+    isStale,         // Stale state store (Readable)
+    circuitState,    // Circuit breaker state store (Readable)
     isEnabled,       // Non-reactive flag check
-    getFlag,         // Get single flag store
+    isEnabledDetail, // Flag with evaluation reason
     identify,        // Set user context
     reset,           // Clear user context
     refresh,         // Force refresh flags
-    destroy,         // Cleanup
+    getMetrics,      // Get SDK metrics
+    track,           // Track conversion event
+    flush,           // Flush pending events
+    close,           // Close the client
+    flag,            // Get reactive store for single flag
   } = getRollgate();
 
   async function onLogin(user) {
@@ -175,52 +172,6 @@ Get full access to Rollgate functionality.
 </script>
 ```
 
-## SvelteKit
-
-### Server-Side Rendering
-
-For SSR, initialize on the client only:
-
-```svelte
-<!-- +layout.svelte -->
-<script>
-  import { browser } from '$app/environment';
-  import { createRollgate } from '@rollgate/sdk-svelte';
-  import { setContext, onDestroy } from 'svelte';
-
-  let rollgate;
-
-  if (browser) {
-    rollgate = createRollgate({
-      apiKey: import.meta.env.VITE_ROLLGATE_API_KEY,
-    });
-    setContext('rollgate', rollgate);
-  }
-
-  onDestroy(() => {
-    if (rollgate) rollgate.destroy();
-  });
-</script>
-
-<slot />
-```
-
-### With Stores in +page.svelte
-
-```svelte
-<script>
-  import { browser } from '$app/environment';
-  import { getFlag } from '@rollgate/sdk-svelte';
-
-  // Only access on client
-  $: newFeature = browser ? getFlag('new-feature') : null;
-</script>
-
-{#if browser && $newFeature}
-  <NewFeature />
-{/if}
-```
-
 ## Configuration
 
 ```typescript
@@ -233,13 +184,6 @@ createRollgate({
   refreshInterval: 30000, // Polling interval (ms)
   enableStreaming: false, // Use SSE for real-time updates
   timeout: 5000, // Request timeout (ms)
-
-  // Initial user context
-  user: {
-    id: "user-123",
-    email: "user@example.com",
-    attributes: { plan: "pro" },
-  },
 
   // Retry configuration
   retry: {
@@ -264,6 +208,110 @@ createRollgate({
   },
 });
 ```
+
+## Event Tracking
+
+Track conversion events for A/B testing:
+
+```svelte
+<script>
+  import { getRollgate } from '@rollgate/sdk-svelte';
+  import { onDestroy } from 'svelte';
+
+  const { track, flush } = getRollgate();
+
+  function handlePurchase() {
+    track({
+      flagKey: 'checkout-redesign',
+      eventName: 'purchase',
+      userId: 'user-123',
+      value: 29.99,
+    });
+  }
+
+  // Flush pending events on destroy (auto-flushes every 30s)
+  onDestroy(() => {
+    flush();
+  });
+</script>
+
+<button on:click={handlePurchase}>Buy Now</button>
+```
+
+### TrackEventOptions
+
+| Field         | Type                      | Required | Description                                 |
+| ------------- | ------------------------- | -------- | ------------------------------------------- |
+| `flagKey`     | `string`                  | Yes      | The flag key this event is associated with  |
+| `eventName`   | `string`                  | Yes      | Event name (e.g., `'purchase'`, `'signup'`) |
+| `userId`      | `string`                  | Yes      | User ID                                     |
+| `variationId` | `string`                  | No       | Variation ID the user was exposed to        |
+| `value`       | `number`                  | No       | Numeric value (e.g., revenue amount)        |
+| `metadata`    | `Record<string, unknown>` | No       | Optional metadata                           |
+
+## SvelteKit
+
+### Server-Side Rendering
+
+For SSR, initialize on the client only:
+
+```svelte
+<!-- +layout.svelte -->
+<script>
+  import { browser } from '$app/environment';
+  import { createRollgate, setRollgateContext } from '@rollgate/sdk-svelte';
+  import { onDestroy } from 'svelte';
+
+  let rollgate;
+
+  if (browser) {
+    rollgate = createRollgate({
+      apiKey: import.meta.env.VITE_ROLLGATE_API_KEY,
+    });
+    setRollgateContext(rollgate);
+  }
+
+  onDestroy(() => {
+    if (rollgate) rollgate.close();
+  });
+</script>
+
+<slot />
+```
+
+## API Reference
+
+### Context Helpers
+
+| Function             | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| `createRollgate`     | Create Rollgate stores from config              |
+| `setRollgateContext` | Provide stores to child components via context  |
+| `getRollgateContext` | Inject stores from parent context               |
+| `getFlag`            | Reactive store for a single flag (via context)  |
+| `getFlags`           | Reactive store for multiple flags (via context) |
+| `getRollgate`        | Full context access (via context)               |
+
+### RollgateStores (from `createRollgate` / `getRollgate`)
+
+| Property / Method   | Type       | Description                            |
+| ------------------- | ---------- | -------------------------------------- |
+| `flags`             | `Readable` | Reactive store of all flags            |
+| `isLoading`         | `Readable` | Reactive loading state                 |
+| `isError`           | `Readable` | Reactive error state                   |
+| `isStale`           | `Readable` | Reactive stale state                   |
+| `isReady`           | `Readable` | Reactive ready state                   |
+| `circuitState`      | `Readable` | Reactive circuit breaker state         |
+| `isEnabled()`       | Function   | Check if a flag is enabled             |
+| `isEnabledDetail()` | Function   | Flag value with evaluation reason      |
+| `identify(user)`    | Function   | Change user context                    |
+| `reset()`           | Function   | Clear user context                     |
+| `refresh()`         | Function   | Force refresh flags                    |
+| `getMetrics()`      | Function   | Get SDK metrics snapshot               |
+| `track(options)`    | Function   | Track a conversion event (A/B testing) |
+| `flush()`           | Function   | Flush pending events to the server     |
+| `close()`           | Function   | Close the client and cleanup           |
+| `flag(key, def?)`   | Function   | Get reactive store for a single flag   |
 
 ## Documentation
 
