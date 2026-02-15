@@ -52,7 +52,7 @@ function makeSdkConfig(options: SDKConfigParams, tag: string): RollgateConfig {
     baseUrl,
     sseUrl,
     streaming,
-    timeout: 5000,
+    timeout: options.startWaitTimeMs ?? 5000,
     refreshInterval: options.polling?.pollIntervalMs,
   };
 
@@ -215,12 +215,30 @@ function RollgateCommandHandler({
           return undefined;
         }
 
+        case CommandType.Track: {
+          const trackParams = params.track;
+          if (!trackParams) {
+            throw malformedCommand;
+          }
+          rollgate.track({
+            flagKey: trackParams.flagKey,
+            eventName: trackParams.eventName,
+            userId: trackParams.userId,
+            variationId: trackParams.variationId,
+            value: trackParams.value,
+            metadata: trackParams.metadata,
+          });
+          log(`[${tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`);
+          return undefined;
+        }
+
         case CommandType.CustomEvent:
           log(`[${tag}] customEvent (no-op)`);
           return undefined;
 
         case CommandType.FlushEvents:
-          log(`[${tag}] flush (no-op for React SDK)`);
+          await rollgate.flush();
+          log(`[${tag}] flush`);
           return undefined;
 
         default:

@@ -11,6 +11,7 @@ import {
   type RollgateOptions,
   type UserContext,
   type EvaluationDetail,
+  type TrackEventOptions,
 } from "@rollgate/sdk-browser";
 
 import {
@@ -30,7 +31,7 @@ export const malformedCommand = new Error("command was malformed");
  */
 function makeSdkConfig(options: SDKConfigParams, tag: string): RollgateOptions {
   const config: RollgateOptions = {
-    timeout: 5000,
+    timeout: options.startWaitTimeMs ?? 5000,
     startWaitTimeMs: options.startWaitTimeMs ?? 5000,
     initCanFail: options.initCanFail ?? false,
   };
@@ -224,6 +225,24 @@ export class ClientEntity {
         return undefined;
       }
 
+      case CommandType.Track: {
+        const trackParams = params.track;
+        if (!trackParams) {
+          throw malformedCommand;
+        }
+        const trackOpts: TrackEventOptions = {
+          flagKey: trackParams.flagKey,
+          eventName: trackParams.eventName,
+          userId: trackParams.userId,
+        };
+        if (trackParams.variationId) trackOpts.variationId = trackParams.variationId;
+        if (trackParams.value !== undefined) trackOpts.value = trackParams.value;
+        if (trackParams.metadata) trackOpts.metadata = trackParams.metadata;
+        this.client.track(trackOpts);
+        log(`[${this.tag}] track: ${trackParams.eventName} for ${trackParams.flagKey}`);
+        return undefined;
+      }
+
       case CommandType.CustomEvent: {
         // SDK doesn't support custom events yet
         log(`[${this.tag}] customEvent (no-op)`);
@@ -231,7 +250,7 @@ export class ClientEntity {
       }
 
       case CommandType.FlushEvents:
-        this.client.flush();
+        await this.client.flush();
         log(`[${this.tag}] flush`);
         return undefined;
 

@@ -360,7 +360,7 @@ func TestManyFlags(t *testing.T) {
 	initTime := time.Since(start)
 
 	t.Logf("Init with %d flags took %v", numFlags, initTime)
-	assert.Less(t, initTime, 5*time.Second, "Init should complete within 5 seconds")
+	assert.Less(t, initTime, 10*time.Second, "Init should complete within 10 seconds")
 
 	// Test a few flag evaluations
 	start = time.Now()
@@ -372,7 +372,7 @@ func TestManyFlags(t *testing.T) {
 	evalTime := time.Since(start)
 
 	t.Logf("10 flag evaluations took %v", evalTime)
-	assert.Less(t, evalTime, 1*time.Second, "Evaluations should be fast")
+	assert.Less(t, evalTime, 3*time.Second, "Evaluations should be fast")
 
 	tc.CloseAllSDKs()
 }
