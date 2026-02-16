@@ -38,6 +38,9 @@ type Config struct {
 
 	// Events configuration for conversion tracking
 	Events EventCollectorConfig
+
+	// Telemetry configuration for client-side evaluation stats
+	Telemetry TelemetryConfig
 }
 
 // RetryConfig holds retry settings.

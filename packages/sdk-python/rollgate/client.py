@@ -144,6 +144,14 @@ class RollgateClient:
             http_client=self._http_client,
         )
 
+        from .telemetry import TelemetryCollector, TelemetryConfig as TelemetryConfigClass
+        self._telemetry_collector = TelemetryCollector(
+            endpoint=f"{config.base_url}/api/v1/sdk/telemetry",
+            api_key=config.api_key,
+            config=TelemetryConfigClass(),
+            http_client=self._http_client,
+        )
+
         # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
             "ready": [],
@@ -227,6 +235,7 @@ class RollgateClient:
             self._poll_task = asyncio.create_task(self._start_polling())
 
         self._event_collector.start()
+        self._telemetry_collector.start()
         self._emit("ready")
 
     async def _start_polling(self) -> None:
@@ -458,6 +467,7 @@ class RollgateClient:
             )
 
         value = self._flags[flag_key]
+        self._telemetry_collector.record_evaluation(flag_key, value)
         # Use stored reason from server, or FALLTHROUGH as default
         stored_reason = self._flag_reasons.get(flag_key)
         return EvaluationDetail(
@@ -516,6 +526,14 @@ class RollgateClient:
         """Flush all buffered conversion events."""
         await self._event_collector.flush()
 
+    async def flush_telemetry(self) -> None:
+        """Flush all buffered telemetry data."""
+        await self._telemetry_collector.flush()
+
+    def get_telemetry_stats(self) -> dict:
+        """Get current telemetry buffer statistics."""
+        return self._telemetry_collector.get_buffer_stats()
+
     @property
     def circuit_state(self) -> CircuitState:
         """Get current circuit breaker state."""
@@ -545,8 +563,9 @@ class RollgateClient:
         """Close the client and cleanup resources."""
         self._closing = True
 
-        # Stop event collector
+        # Stop event collector and telemetry
         await self._event_collector.stop()
+        await self._telemetry_collector.stop()
 
         # Cancel background tasks
         if self._poll_task:

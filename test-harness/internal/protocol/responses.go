@@ -37,6 +37,9 @@ type Response struct {
 	// For event tracking
 	EventsReceived *int `json:"eventsReceived,omitempty"`
 
+	// For telemetry
+	TelemetryStats *TelemetryStats `json:"telemetryStats,omitempty"`
+
 	// For errors
 	Error   string `json:"error,omitempty"`
 	Message string `json:"message,omitempty"`
@@ -46,6 +49,12 @@ type Response struct {
 type CacheStats struct {
 	Hits   int64 `json:"hits"`
 	Misses int64 `json:"misses"`
+}
+
+// TelemetryStats represents telemetry buffer statistics.
+type TelemetryStats struct {
+	FlagCount       int `json:"flagCount"`
+	EvaluationCount int `json:"evaluationCount"`
 }
 
 // ErrorResponse creates an error response.

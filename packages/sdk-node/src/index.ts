@@ -77,9 +77,9 @@ import type { EvaluationReason, EvaluationDetail } from "@rollgate/sdk-core";
 import { unknownReason, errorReason } from "@rollgate/sdk-core";
 import {
   TelemetryCollector,
-  TelemetryConfig,
   DEFAULT_TELEMETRY_CONFIG,
-} from "./telemetry";
+} from "@rollgate/sdk-core";
+import type { TelemetryConfig } from "@rollgate/sdk-core";
 import {
   EventCollector,
   DEFAULT_EVENT_COLLECTOR_CONFIG,
@@ -180,11 +180,14 @@ export type {
 } from "@rollgate/sdk-core";
 export {
   TelemetryCollector,
+  DEFAULT_TELEMETRY_CONFIG,
+} from "@rollgate/sdk-core";
+export type {
   TelemetryConfig,
   TelemetryPayload,
-  EvaluationStats,
-  DEFAULT_TELEMETRY_CONFIG,
-} from "./telemetry";
+  TelemetryEvaluationStats,
+  TelemetryEvaluationStats as EvaluationStats,
+} from "@rollgate/sdk-core";
 export {
   EventCollector,
   DEFAULT_EVENT_COLLECTOR_CONFIG,
@@ -289,7 +292,10 @@ export class RollgateClient extends EventEmitter {
     this.metrics = createMetrics();
 
     // Initialize telemetry collector
-    this.telemetry = new TelemetryCollector(this.config.telemetry);
+    this.telemetry = new TelemetryCollector(this.config.telemetry, {
+      onFlush: (data) => this.emit("telemetry-flush", data),
+      onError: (err) => this.emit("telemetry-error", err),
+    });
 
     // Initialize event collector for conversion tracking
     this.eventCollector = new EventCollector(this.config.events);
@@ -315,10 +321,6 @@ export class RollgateClient extends EventEmitter {
     this.cache.on("cache-hit", (data) => this.emit("cache-hit", data));
     this.cache.on("cache-miss", (data) => this.emit("cache-miss", data));
     this.cache.on("cache-stale", (data) => this.emit("cache-stale", data));
-
-    // Forward telemetry events
-    this.telemetry.on("flush", (data) => this.emit("telemetry-flush", data));
-    this.telemetry.on("error", (err) => this.emit("telemetry-error", err));
 
     // Forward event collector events
     this.eventCollector.on("flush", (data) => this.emit("events-flush", data));
@@ -816,10 +818,8 @@ export class RollgateClient extends EventEmitter {
     const evaluationTime = performance.now() - startTime;
     this.metrics.recordEvaluation(flagKey, result, evaluationTime);
 
-    // Record telemetry for client-side evaluations
-    if (isClientSide) {
-      this.telemetry.recordEvaluation(flagKey, result);
-    }
+    // Record telemetry for all evaluations
+    this.telemetry.recordEvaluation(flagKey, result);
 
     return result;
   }
@@ -939,6 +939,7 @@ export class RollgateClient extends EventEmitter {
 
     if (value === undefined) {
       this.metrics.recordEvaluation(flagKey, defaultValue, evaluationTime);
+      this.telemetry.recordEvaluation(flagKey, defaultValue);
       return {
         value: defaultValue,
         reason: unknownReason(),
@@ -946,8 +947,7 @@ export class RollgateClient extends EventEmitter {
     }
 
     this.metrics.recordEvaluation(flagKey, value, evaluationTime);
-    // Server-evaluated flags don't have client-side reasons
-    // The reason would need to come from the server
+    this.telemetry.recordEvaluation(flagKey, value);
     return {
       value,
       reason: this.flagReasons?.get(flagKey) ?? { kind: "UNKNOWN" },

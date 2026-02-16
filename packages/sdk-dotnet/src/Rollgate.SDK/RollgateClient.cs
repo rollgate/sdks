@@ -18,6 +18,7 @@ public class RollgateClient : IDisposable
     private readonly RequestDeduplicator _dedup;
     private readonly SDKMetrics _metrics;
     private readonly EventCollector _eventCollector;
+    private readonly TelemetryCollector _telemetryCollector;
     private readonly object _lock = new();
 
     private Dictionary<string, bool> _flags = new();
@@ -71,6 +72,13 @@ public class RollgateClient : IDisposable
             config.ApiKey,
             _httpClient
         );
+        _telemetryCollector = new TelemetryCollector(
+            $"{config.BaseUrl}/api/v1/sdk/telemetry",
+            config.ApiKey,
+            60000,
+            1000,
+            _httpClient
+        );
     }
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -103,6 +111,7 @@ public class RollgateClient : IDisposable
         lock (_lock) { _ready = true; }
 
         _eventCollector.Start();
+        _telemetryCollector.Start();
 
         if (_config.RefreshInterval > TimeSpan.Zero)
             StartPolling();
@@ -165,6 +174,8 @@ public class RollgateClient : IDisposable
                     Value = defaultValue,
                     Reason = EvaluationReason.Unknown()
                 };
+
+            _telemetryCollector.RecordEvaluation(flagKey, value);
 
             if (_flagReasons.TryGetValue(flagKey, out var reason))
                 return new EvaluationDetail<bool> { Value = value, Reason = reason };
@@ -245,9 +256,20 @@ public class RollgateClient : IDisposable
     /// </summary>
     public Task FlushEventsAsync(CancellationToken ct = default) => _eventCollector.FlushAsync(ct);
 
+    /// <summary>
+    /// Flush all buffered telemetry data.
+    /// </summary>
+    public Task FlushTelemetryAsync(CancellationToken ct = default) => _telemetryCollector.FlushAsync(ct);
+
+    /// <summary>
+    /// Get current telemetry buffer statistics.
+    /// </summary>
+    public (int flagCount, int evaluationCount) GetTelemetryStats() => _telemetryCollector.GetBufferStats();
+
     public void Dispose()
     {
         _eventCollector.Dispose();
+        _telemetryCollector.Dispose();
         _pollingCts?.Cancel();
         _sseClient?.Dispose();
         _httpClient.Dispose();

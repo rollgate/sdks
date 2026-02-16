@@ -13,6 +13,7 @@ import 'retry.dart';
 import 'dedup.dart';
 import 'events.dart';
 import 'metrics.dart';
+import 'telemetry.dart';
 
 class RollgateClient {
   final RollgateConfig _config;
@@ -23,6 +24,7 @@ class RollgateClient {
   final RequestDeduplicator _dedup;
   final SDKMetrics _metrics;
   final EventCollector _eventCollector;
+  final TelemetryCollector _telemetryCollector;
 
   Map<String, bool> _flags = {};
   Map<String, EvaluationReason> _flagReasons = {};
@@ -40,6 +42,11 @@ class RollgateClient {
         _metrics = SDKMetrics(),
         _eventCollector = EventCollector(
           endpoint: '${_config.baseUrl}/api/v1/sdk/events',
+          apiKey: _config.apiKey,
+          httpClient: http.Client(),
+        ),
+        _telemetryCollector = TelemetryCollector(
+          endpoint: '${_config.baseUrl}/api/v1/sdk/telemetry',
           apiKey: _config.apiKey,
           httpClient: http.Client(),
         ) {
@@ -65,6 +72,7 @@ class RollgateClient {
 
     _ready = true;
     _eventCollector.start();
+    _telemetryCollector.start();
 
     if (_config.refreshInterval > Duration.zero) {
       _startPolling();
@@ -93,6 +101,7 @@ class RollgateClient {
     }
 
     final value = _flags[flagKey]!;
+    _telemetryCollector.recordEvaluation(flagKey, value);
     final reason = _flagReasons[flagKey];
     return EvaluationDetail(
       value: value,
@@ -150,8 +159,15 @@ class RollgateClient {
   /// Flush all buffered conversion events.
   Future<void> flushEvents() => _eventCollector.flush();
 
+  /// Flush all buffered telemetry data.
+  Future<void> flushTelemetry() => _telemetryCollector.flush();
+
+  /// Get telemetry buffer statistics.
+  Map<String, int> getTelemetryStats() => _telemetryCollector.getBufferStats();
+
   void close() {
     _eventCollector.stop();
+    _telemetryCollector.stop();
     _pollingTimer?.cancel();
     _httpClient.close();
     _dedup.clear();

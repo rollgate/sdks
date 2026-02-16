@@ -76,6 +76,8 @@ kill_and_wait() {
 # Funzione per killare tutti i processi sulle porte usate
 kill_all_ports() {
     echo -e "${YELLOW}Killing processes on required ports...${NC}"
+    # Mock server port
+    kill_and_wait 9000
     # Backend ports (node, go, python, java, react-native, dotnet, flutter)
     for port in 8001 8003 8004 8005 8006 8007 8008; do
         kill_and_wait $port

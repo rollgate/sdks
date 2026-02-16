@@ -25,10 +25,14 @@ import {
   unknownReason,
   EventCollector,
   DEFAULT_EVENT_COLLECTOR_CONFIG,
+  TelemetryCollector,
+  DEFAULT_TELEMETRY_CONFIG,
 } from "@rollgate/sdk-core";
 import type {
   TrackEventOptions,
   EventCollectorConfig,
+  TelemetryConfig,
+  TelemetryFlushResult,
 } from "@rollgate/sdk-core";
 import type {
   RetryConfig,
@@ -86,6 +90,8 @@ export interface RollgateOptions {
   initCanFail?: boolean;
   /** Event collector configuration for conversion tracking */
   events?: Partial<EventCollectorConfig>;
+  /** Telemetry configuration for client-side evaluation stats */
+  telemetry?: Partial<TelemetryConfig>;
 }
 
 interface FlagsResponse {
@@ -116,7 +122,10 @@ export class RollgateReactNativeClient {
   private apiKey: string;
   private userContext: UserContext | null;
   private options: Required<
-    Omit<RollgateOptions, "retry" | "circuitBreaker" | "cache" | "events">
+    Omit<
+      RollgateOptions,
+      "retry" | "circuitBreaker" | "cache" | "events" | "telemetry"
+    >
   > & {
     retry: RetryConfig;
     circuitBreaker: CircuitBreakerConfig;
@@ -135,6 +144,7 @@ export class RollgateReactNativeClient {
   private circuitBreaker: CircuitBreaker;
   private dedup: RequestDeduplicator;
   private eventCollector: EventCollector;
+  private telemetry: TelemetryCollector;
   private lastETag: string | null = null;
   private metrics: SDKMetrics;
   private cacheTimestamp: number = 0;
@@ -175,6 +185,21 @@ export class RollgateReactNativeClient {
       apiKey,
     });
 
+    // Initialize telemetry collector for evaluation stats
+    this.telemetry = new TelemetryCollector(
+      {
+        ...DEFAULT_TELEMETRY_CONFIG,
+        endpoint: `${baseUrl}/api/v1/sdk/telemetry`,
+        apiKey,
+        ...options.telemetry,
+      },
+      {
+        onFlush: (data: TelemetryFlushResult) =>
+          this.emit("telemetry-flush", data),
+        onError: (err: Error) => this.emit("telemetry-error", err),
+      },
+    );
+
     // Setup circuit breaker event forwarding
     this.circuitBreaker.on("state-change", (data) => {
       this.emit("circuit-state-change", data);
@@ -209,11 +234,13 @@ export class RollgateReactNativeClient {
       this.initialized = true;
       this.initResolver?.();
       this.eventCollector.start();
+      this.telemetry.start();
       this.emit("ready");
     } catch (error) {
       if (this.options.initCanFail) {
         this.initialized = true;
         this.initResolver?.();
+        this.telemetry.start();
         this.emit("ready");
       } else {
         this.initRejecter?.(
@@ -329,6 +356,7 @@ export class RollgateReactNativeClient {
     const result = this.flags.get(flagKey)!;
     const evaluationTime = Date.now() - startTime;
     this.metrics.recordEvaluation(flagKey, result, evaluationTime);
+    this.telemetry.recordEvaluation(flagKey, result);
 
     // Use stored reason from server, or FALLTHROUGH as default
     const storedReason = this.flagReasons.get(flagKey);
@@ -433,6 +461,20 @@ export class RollgateReactNativeClient {
   }
 
   /**
+   * Flush pending telemetry data
+   */
+  async flushTelemetry(): Promise<void> {
+    await this.telemetry.flush();
+  }
+
+  /**
+   * Get telemetry buffer stats
+   */
+  getTelemetryStats(): { flagCount: number; evaluationCount: number } {
+    return this.telemetry.getBufferStats();
+  }
+
+  /**
    * Get circuit breaker state
    */
   getCircuitState(): CircuitState {
@@ -450,8 +492,9 @@ export class RollgateReactNativeClient {
    * Close the client and clean up resources
    */
   close(): void {
-    // Best-effort flush events
+    // Best-effort flush events and telemetry
     this.eventCollector.stop().catch(() => {});
+    this.telemetry.stop().catch(() => {});
 
     if (this.pollInterval) {
       clearInterval(this.pollInterval);

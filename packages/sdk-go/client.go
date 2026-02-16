@@ -38,7 +38,8 @@ type Client struct {
 	metrics        *SDKMetrics
 	sseClient      *SSEClient
 
-	eventCollector *EventCollector
+	eventCollector     *EventCollector
+	telemetryCollector *TelemetryCollector
 
 	stopPolling chan struct{}
 	ready       bool
@@ -82,6 +83,11 @@ func NewClient(config Config) (*Client, error) {
 		config.Events = DefaultEventCollectorConfig()
 	}
 
+	// Apply telemetry defaults
+	if config.Telemetry.FlushIntervalMs == 0 && config.Telemetry.MaxBufferSize == 0 {
+		config.Telemetry = DefaultTelemetryConfig()
+	}
+
 	httpClient := &http.Client{Timeout: config.Timeout}
 
 	c := &Client{
@@ -98,6 +104,12 @@ func NewClient(config Config) (*Client, error) {
 			config.BaseURL+"/api/v1/sdk/events",
 			config.APIKey,
 			config.Events,
+			httpClient,
+		),
+		telemetryCollector: NewTelemetryCollector(
+			config.BaseURL+"/api/v1/sdk/telemetry",
+			config.APIKey,
+			config.Telemetry,
 			httpClient,
 		),
 		stopPolling: make(chan struct{}),
@@ -148,8 +160,9 @@ func (c *Client) Initialize(ctx context.Context) error {
 	c.ready = true
 	c.mu.Unlock()
 
-	// Start event collector
+	// Start event collector and telemetry
 	c.eventCollector.Start()
+	c.telemetryCollector.Start()
 
 	// Start background polling if interval > 0
 	if c.config.RefreshInterval > 0 {
@@ -253,6 +266,9 @@ func (c *Client) IsEnabledDetail(flagKey string, defaultValue bool) BoolEvaluati
 			Reason: UnknownReason(),
 		}
 	}
+
+	// Record telemetry for this evaluation
+	c.telemetryCollector.RecordEvaluation(flagKey, value)
 
 	// Use stored reason from server, or FALLTHROUGH as default
 	if storedReason, ok := c.flagReasons[flagKey]; ok {
@@ -433,9 +449,20 @@ func (c *Client) FlushEvents() error {
 	return c.eventCollector.Flush()
 }
 
+// FlushTelemetry flushes all buffered telemetry data.
+func (c *Client) FlushTelemetry() error {
+	return c.telemetryCollector.Flush()
+}
+
+// GetTelemetryStats returns current telemetry buffer statistics.
+func (c *Client) GetTelemetryStats() (flagCount, evaluationCount int) {
+	return c.telemetryCollector.GetBufferStats()
+}
+
 // Close stops background polling/streaming and releases resources.
 func (c *Client) Close() {
 	c.eventCollector.Stop()
+	c.telemetryCollector.Stop()
 	close(c.stopPolling)
 	if c.sseClient != nil {
 		c.sseClient.Close()

@@ -92,6 +92,8 @@ interface Response {
   success?: boolean;
   error?: string;
   message?: string;
+  flagCount?: number;
+  evaluationCount?: number;
 }
 
 function getRequestBody(req: IncomingMessage): Promise<string> {
@@ -386,6 +388,38 @@ async function handleCommand(cmd: Command): Promise<Response> {
         const error = err as Error;
         return { error: error.name || "Error", message: error.message };
       }
+    }
+
+    case "flushTelemetry": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+
+      try {
+        await client.flushTelemetry();
+        return { success: true };
+      } catch (err) {
+        const error = err as Error;
+        return { error: error.name || "Error", message: error.message };
+      }
+    }
+
+    case "getTelemetryStats": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+
+      const stats = client.getTelemetryStats();
+      return {
+        flagCount: stats.flagCount,
+        evaluationCount: stats.evaluationCount,
+      };
     }
 
     case "close": {
