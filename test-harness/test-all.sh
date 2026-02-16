@@ -30,7 +30,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║       Rollgate SDK Contract Test Suite - All SDKs          ║${NC}"
-echo -e "${BLUE}║                  12 SDK × 95 tests = 1140                    ║${NC}"
+echo -e "${BLUE}║                  12 SDK × 102 tests = 1224                   ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
