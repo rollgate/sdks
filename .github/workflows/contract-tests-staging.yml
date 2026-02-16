@@ -32,7 +32,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: test-harness/go.sum
+          cache: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
