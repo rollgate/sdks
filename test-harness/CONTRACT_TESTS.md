@@ -116,6 +116,36 @@
 - `TestSSEWithPollingDisabled` - SSE senza polling
 - `TestMultipleSSEClients` - Client SSE multipli
 
+### Evaluation Reasons Tests
+
+- `TestReasonFallthrough` - Reason kind = FALLTHROUGH
+- `TestReasonUnknown` - Reason kind = UNKNOWN per flag inesistenti
+- `TestReasonOff` - Reason kind = OFF per flag disabilitati
+- `TestReasonTargetMatch` - Reason kind = TARGET_MATCH
+- `TestReasonValueConsistency` - isEnabledDetail ritorna sempre reason
+- `TestReasonHasKind` - Reason ha sempre kind
+
+### Segments Tests
+
+- `TestSegmentBasicMatch` - Match segmento base
+- `TestSegmentNoMatch` - Nessun match segmento
+- `TestSegmentMultipleConditions` - Segmento con condizioni multiple
+
+### Event Tracking Tests
+
+- `TestTrackBasicEvent` - Evento base
+- `TestTrackEventWithVariation` - Evento con variation
+- `TestTrackEventWithValue` - Evento con valore
+- `TestTrackEventWithMetadata` - Evento con metadata
+- `TestTrackMultipleEvents` - Eventi multipli
+
+### Telemetry Tests
+
+- `TestTelemetryBasicFlush` - Flush telemetry base
+- `TestTelemetryAggregation` - Aggregazione conteggi evaluation
+- `TestTelemetryMultipleFlags` - Telemetry con flag multipli
+- `TestTelemetryPeriodMs` - period_ms >= 0
+
 ---
 
 ## Esecuzione Tests

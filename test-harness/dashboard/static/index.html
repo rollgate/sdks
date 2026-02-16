@@ -25,8 +25,8 @@
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
     .sdk { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
     .sdk h2 { font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .progress { background: #21262d; border-radius: 4px; height: 8px; margin: 12px 0; }
-    .progress-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .progress { background: #21262d; border-radius: 4px; height: 8px; margin: 12px 0; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 4px; transition: width 0.3s; max-width: 100%; }
     .stats { display: flex; gap: 16px; font-size: 14px; align-items: center; }
     .time { color: #8b949e; font-size: 12px; margin-left: auto; }
     .pass { color: #3fb950; }
@@ -133,7 +133,10 @@
       'Operators': ['OperatorEq', 'OperatorNeq', 'OperatorContains', 'OperatorStartsWith', 'OperatorEndsWith', 'OperatorGt', 'OperatorLte', 'OperatorIn', 'OperatorNotIn', 'OperatorRegex', 'OperatorSemverGt', 'OperatorSemverEq', 'CombinedOperators', 'MissingAttribute'],
       'Resilience': ['CircuitBreakerOpens', 'CircuitBreakerFallback', 'CacheFallback', 'RetryOnTransientFailure', 'ServerRecovery', 'DefaultValueOnError', 'GetStateReportsCircuitInfo', 'CacheStatsTracking'],
       'SSE Streaming': ['SSEConnectionEstablished', 'SSEInitialFlags', 'SSEFlagUpdate', 'SSEFallbackToPolling', 'SSEDisconnectRecovery', 'SSEWithPollingDisabled', 'MultipleSSEClients'],
+      'Segments': ['SegmentBasicMatch', 'SegmentNoMatch', 'SegmentMultipleConditions'],
       'Evaluation Reasons': ['ReasonFallthrough', 'ReasonUnknown', 'ReasonOff', 'ReasonTargetMatch', 'ReasonValueConsistency', 'ReasonHasKind'],
+      'Event Tracking': ['TrackBasicEvent', 'TrackEventWithVariation', 'TrackEventWithValue', 'TrackEventWithMetadata', 'TrackMultipleEvents'],
+      'Telemetry': ['TelemetryBasicFlush', 'TelemetryAggregation', 'TelemetryMultipleFlags', 'TelemetryPeriodMs'],
       'Typed Flags': ['GetStringFlag', 'GetStringFlagDefault', 'GetNumberFlag', 'GetNumberFlagDefault', 'GetJSONFlag', 'GetJSONFlagDefault', 'TypeMismatch', 'AllTypedFlagsNotSupported']
     };
 
