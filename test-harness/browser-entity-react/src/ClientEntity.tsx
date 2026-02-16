@@ -243,6 +243,25 @@ function RollgateCommandHandler({
           log(`[${tag}] flush`);
           return undefined;
 
+        case CommandType.FlushTelemetry:
+          await rollgate.client?.flushTelemetry();
+          log(`[${tag}] flushTelemetry`);
+          return undefined;
+
+        case CommandType.GetTelemetryStats: {
+          const stats = rollgate.client?.getTelemetryStats() ?? {
+            flagCount: 0,
+            evaluationCount: 0,
+          };
+          log(
+            `[${tag}] getTelemetryStats: ${stats.flagCount} flags, ${stats.evaluationCount} evals`,
+          );
+          return {
+            flagCount: stats.flagCount,
+            evaluationCount: stats.evaluationCount,
+          };
+        }
+
         default:
           throw badCommandError;
       }

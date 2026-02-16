@@ -89,6 +89,10 @@ export interface RollgateStores {
   track: (options: TrackEventOptions) => void;
   /** Flush pending conversion events */
   flush: () => Promise<void>;
+  /** Flush pending telemetry data */
+  flushTelemetry: () => Promise<void>;
+  /** Get telemetry buffer stats */
+  getTelemetryStats: () => { flagCount: number; evaluationCount: number };
   /** Close the client */
   close: () => void;
   /** Get a reactive store for a single flag */
@@ -202,6 +206,17 @@ export function createRollgate(
     await client.flush();
   };
 
+  const flushTelemetry = async (): Promise<void> => {
+    await client.flushTelemetry();
+  };
+
+  const getTelemetryStats = (): {
+    flagCount: number;
+    evaluationCount: number;
+  } => {
+    return client.getTelemetryStats();
+  };
+
   const close = (): void => {
     client.close();
   };
@@ -229,6 +244,8 @@ export function createRollgate(
     getMetrics,
     track,
     flush,
+    flushTelemetry,
+    getTelemetryStats,
     close,
     flag,
   };

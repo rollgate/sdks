@@ -342,6 +342,23 @@ async def handle_command(cmd: dict) -> dict:
         except Exception as e:
             return make_response(error=type(e).__name__, message=str(e))
 
+    elif command == "flushTelemetry":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        try:
+            await client.flush_telemetry()
+            return make_response(success=True)
+        except Exception as e:
+            return make_response(error=type(e).__name__, message=str(e))
+
+    elif command == "getTelemetryStats":
+        if not client:
+            return make_response(error="NotInitializedError", message="Client not initialized")
+
+        stats = client.get_telemetry_stats()
+        return {"flagCount": stats["flagCount"], "evaluationCount": stats["evaluationCount"]}
+
     elif command == "close":
         if client:
             await client.close()

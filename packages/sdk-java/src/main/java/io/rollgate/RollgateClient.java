@@ -28,6 +28,7 @@ public class RollgateClient implements AutoCloseable {
     private final FlagCache cache;
     private final Retry retry;
     private final EventCollector eventCollector;
+    private final TelemetryCollector telemetryCollector;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private Map<String, Boolean> flags = new HashMap<>();
@@ -60,6 +61,12 @@ public class RollgateClient implements AutoCloseable {
             config.getApiKey(),
             this.httpClient,
             30000, 100, true
+        );
+
+        this.telemetryCollector = new TelemetryCollector(
+            config.getBaseUrl() + "/api/v1/sdk/telemetry",
+            config.getApiKey(),
+            60000, 1000, this.httpClient
         );
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -97,6 +104,9 @@ public class RollgateClient implements AutoCloseable {
         }
 
         ready.set(true);
+
+        // Start telemetry collector
+        telemetryCollector.start();
 
         // Start polling
         if (config.getRefreshInterval().toMillis() > 0) {
@@ -138,6 +148,10 @@ public class RollgateClient implements AutoCloseable {
             if (reason == null) {
                 reason = EvaluationReason.fallthrough(value);
             }
+
+            // Record telemetry
+            telemetryCollector.recordEvaluation(flagKey, value);
+
             return new EvaluationDetail<>(value, reason);
         } finally {
             lock.readLock().unlock();
@@ -245,6 +259,22 @@ public class RollgateClient implements AutoCloseable {
     }
 
     /**
+     * Flush all buffered telemetry data.
+     */
+    public void flushTelemetry() throws java.io.IOException {
+        telemetryCollector.flush();
+    }
+
+    /**
+     * Get telemetry buffer statistics.
+     *
+     * @return int array where [0] = number of distinct flags, [1] = total evaluation count
+     */
+    public int[] getTelemetryStats() {
+        return telemetryCollector.getBufferStats();
+    }
+
+    /**
      * Check if client is ready.
      */
     public boolean isReady() {
@@ -267,6 +297,7 @@ public class RollgateClient implements AutoCloseable {
 
     @Override
     public void close() {
+        telemetryCollector.stop();
         eventCollector.close();
 
         if (pollingTask != null) {

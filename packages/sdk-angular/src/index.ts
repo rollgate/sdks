@@ -308,6 +308,19 @@ export class RollgateService implements OnDestroy {
     }
   }
 
+  async flushTelemetry(): Promise<void> {
+    if (this.client) {
+      await this.client.flushTelemetry();
+    }
+  }
+
+  getTelemetryStats(): { flagCount: number; evaluationCount: number } {
+    if (this.client) {
+      return this.client.getTelemetryStats();
+    }
+    return { flagCount: 0, evaluationCount: 0 };
+  }
+
   ngOnDestroy(): void {
     if (this.client) {
       this.client.close();

@@ -29,6 +29,8 @@ import {
   fallthroughReason,
   errorReason,
   unknownReason,
+  TelemetryCollector,
+  DEFAULT_TELEMETRY_CONFIG,
 } from "@rollgate/sdk-core";
 import type {
   RetryConfig,
@@ -111,6 +113,7 @@ class TestReactNativeClient {
   private lastETag: string | null = null;
   private metrics: SDKMetrics;
   private cacheTimestamp: number = 0;
+  private telemetry: TelemetryCollector;
 
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
@@ -141,6 +144,12 @@ class TestReactNativeClient {
     this.circuitBreaker = new CircuitBreaker(this.options.circuitBreaker);
     this.dedup = new RequestDeduplicator();
     this.metrics = createMetrics();
+    this.telemetry = new TelemetryCollector({
+      ...DEFAULT_TELEMETRY_CONFIG,
+      endpoint: `${baseUrl}/api/v1/sdk/telemetry`,
+      apiKey,
+      flushIntervalMs: 0,
+    });
 
     this.circuitBreaker.on("state-change", (data) => {
       this.emit("circuit-state-change", data);
@@ -263,6 +272,7 @@ class TestReactNativeClient {
     const result = this.flags.get(flagKey)!;
     const evaluationTime = Date.now() - startTime;
     this.metrics.recordEvaluation(flagKey, result, evaluationTime);
+    this.telemetry.recordEvaluation(flagKey, result);
 
     // Use stored reason from server, or FALLTHROUGH as default
     const storedReason = this.flagReasons.get(flagKey);
@@ -334,7 +344,16 @@ class TestReactNativeClient {
     };
   }
 
+  async flushTelemetry(): Promise<void> {
+    await this.telemetry.flush();
+  }
+
+  getTelemetryStats(): { flagCount: number; evaluationCount: number } {
+    return this.telemetry.getBufferStats();
+  }
+
   close(): void {
+    this.telemetry.stop();
     if (this.pollInterval) {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
@@ -577,6 +596,8 @@ interface Response {
   message?: string;
   reason?: EvaluationReason;
   variationId?: string;
+  flagCount?: number;
+  evaluationCount?: number;
 }
 
 function getRequestBody(req: IncomingMessage): Promise<string> {
@@ -850,6 +871,38 @@ async function handleCommand(cmd: Command): Promise<Response> {
         const error = err as Error;
         return { error: error.name || "Error", message: error.message };
       }
+    }
+
+    case "flushTelemetry": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+
+      try {
+        await client.flushTelemetry();
+        return { success: true };
+      } catch (err) {
+        const error = err as Error;
+        return { error: error.name || "Error", message: error.message };
+      }
+    }
+
+    case "getTelemetryStats": {
+      if (!client) {
+        return {
+          error: "NotInitializedError",
+          message: "Client not initialized",
+        };
+      }
+
+      const stats = client.getTelemetryStats();
+      return {
+        flagCount: stats.flagCount,
+        evaluationCount: stats.evaluationCount,
+      };
     }
 
     case "close": {

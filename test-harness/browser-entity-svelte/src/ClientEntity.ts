@@ -246,6 +246,22 @@ export class ClientEntity {
         log(`[${this.tag}] flush`);
         return undefined;
 
+      case CommandType.FlushTelemetry:
+        await this.stores.flushTelemetry();
+        log(`[${this.tag}] flushTelemetry`);
+        return undefined;
+
+      case CommandType.GetTelemetryStats: {
+        const stats = this.stores.getTelemetryStats();
+        log(
+          `[${this.tag}] getTelemetryStats: ${stats.flagCount} flags, ${stats.evaluationCount} evals`,
+        );
+        return {
+          flagCount: stats.flagCount,
+          evaluationCount: stats.evaluationCount,
+        };
+      }
+
       default:
         throw badCommandError;
     }

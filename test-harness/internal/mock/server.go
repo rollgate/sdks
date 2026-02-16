@@ -37,6 +37,19 @@ type TrackEventItem struct {
 	Timestamp   *time.Time             `json:"timestamp,omitempty"`
 }
 
+// EvalStats represents evaluation statistics for a single flag.
+type EvalStats struct {
+	Total int `json:"total"`
+	True  int `json:"true"`
+	False int `json:"false"`
+}
+
+// TelemetryPayload represents a telemetry batch payload.
+type TelemetryPayload struct {
+	Evaluations map[string]EvalStats `json:"evaluations"`
+	PeriodMs    int                  `json:"period_ms"`
+}
+
 // Server is a mock Rollgate API server.
 type Server struct {
 	mux        *http.ServeMux
@@ -57,6 +70,9 @@ type Server struct {
 	// Received events for testing
 	receivedEvents []TrackEventItem
 	eventsMu       sync.Mutex
+	// Received telemetry for testing
+	receivedTelemetry []TelemetryPayload
+	telemetryMu       sync.Mutex
 }
 
 // NewServer creates a new mock server.
@@ -108,6 +124,8 @@ func (s *Server) setupRoutes() {
 	s.mux.HandleFunc("/api/v1/test/sse/clients", s.handleSSEClients)
 	s.mux.HandleFunc("/api/v1/test/events", s.handleTestEvents)
 	s.mux.HandleFunc("/api/v1/test/set-segment", s.handleSetSegment)
+	s.mux.HandleFunc("/api/v1/sdk/telemetry", s.handleTelemetry)
+	s.mux.HandleFunc("/api/v1/test/telemetry", s.handleTestTelemetry)
 	s.mux.HandleFunc("/health", s.handleHealth)
 }
 
@@ -1044,6 +1062,83 @@ func (s *Server) handleSetSegment(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// handleTelemetry receives telemetry data from SDKs (POST /api/v1/sdk/telemetry).
+func (s *Server) handleTelemetry(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !s.authenticate(r) {
+		http.Error(w, `{"error":"AuthenticationError","message":"Invalid API key"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var payload TelemetryPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	totalReceived := 0
+	for _, stats := range payload.Evaluations {
+		totalReceived += stats.Total
+	}
+
+	s.telemetryMu.Lock()
+	s.receivedTelemetry = append(s.receivedTelemetry, payload)
+	s.telemetryMu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"received": totalReceived,
+	})
+}
+
+// handleTestTelemetry is the test control endpoint for telemetry (GET/DELETE /api/v1/test/telemetry).
+func (s *Server) handleTestTelemetry(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.telemetryMu.Lock()
+		telemetry := make([]TelemetryPayload, len(s.receivedTelemetry))
+		copy(telemetry, s.receivedTelemetry)
+		s.telemetryMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"telemetry": telemetry,
+			"count":     len(telemetry),
+		})
+
+	case http.MethodDelete:
+		s.telemetryMu.Lock()
+		s.receivedTelemetry = nil
+		s.telemetryMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// GetReceivedTelemetry returns all telemetry received by the mock server.
+func (s *Server) GetReceivedTelemetry() []TelemetryPayload {
+	s.telemetryMu.Lock()
+	defer s.telemetryMu.Unlock()
+	telemetry := make([]TelemetryPayload, len(s.receivedTelemetry))
+	copy(telemetry, s.receivedTelemetry)
+	return telemetry
+}
+
+// ClearReceivedTelemetry clears all received telemetry.
+func (s *Server) ClearReceivedTelemetry() {
+	s.telemetryMu.Lock()
+	defer s.telemetryMu.Unlock()
+	s.receivedTelemetry = nil
 }
 
 // expandSegmentConditions replaces segment references in conditions with actual segment conditions.

@@ -52,6 +52,8 @@ const (
 	CommandGetValueDetail    = "getValueDetail"
 	CommandTrack             = "track"
 	CommandFlushEvents       = "flushEvents"
+	CommandFlushTelemetry    = "flushTelemetry"
+	CommandGetTelemetryStats = "getTelemetryStats"
 )
 
 // NewInitCommand creates an init command.
@@ -171,4 +173,14 @@ func NewTrackCommandFull(flagKey, eventName, userID, variationID string, value *
 // NewFlushEventsCommand creates a flushEvents command.
 func NewFlushEventsCommand() Command {
 	return Command{Command: CommandFlushEvents}
+}
+
+// NewFlushTelemetryCommand creates a flushTelemetry command.
+func NewFlushTelemetryCommand() Command {
+	return Command{Command: CommandFlushTelemetry}
+}
+
+// NewGetTelemetryStatsCommand creates a getTelemetryStats command.
+func NewGetTelemetryStatsCommand() Command {
+	return Command{Command: CommandGetTelemetryStats}
 }

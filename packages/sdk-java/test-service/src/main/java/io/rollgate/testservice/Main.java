@@ -165,6 +165,10 @@ public class Main {
                     return handleTrack(cmd);
                 case "flushEvents":
                     return handleFlushEvents(cmd);
+                case "flushTelemetry":
+                    return handleFlushTelemetry(cmd);
+                case "getTelemetryStats":
+                    return handleGetTelemetryStats(cmd);
                 case "close":
                     return handleClose(cmd);
                 default:
@@ -572,6 +576,41 @@ public class Main {
                 response.addProperty("message", e.getMessage());
             }
 
+            return response;
+        }
+
+        private JsonObject handleFlushTelemetry(JsonObject cmd) {
+            JsonObject response = new JsonObject();
+
+            if (client == null) {
+                response.addProperty("error", "NotInitializedError");
+                response.addProperty("message", "Client not initialized");
+                return response;
+            }
+
+            try {
+                client.flushTelemetry();
+                response.addProperty("success", true);
+            } catch (Exception e) {
+                response.addProperty("error", e.getClass().getSimpleName());
+                response.addProperty("message", e.getMessage());
+            }
+
+            return response;
+        }
+
+        private JsonObject handleGetTelemetryStats(JsonObject cmd) {
+            JsonObject response = new JsonObject();
+
+            if (client == null) {
+                response.addProperty("error", "NotInitializedError");
+                response.addProperty("message", "Client not initialized");
+                return response;
+            }
+
+            int[] stats = client.getTelemetryStats();
+            response.addProperty("flagCount", stats[0]);
+            response.addProperty("evaluationCount", stats[1]);
             return response;
         }
 

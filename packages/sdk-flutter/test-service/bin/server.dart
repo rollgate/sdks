@@ -89,6 +89,10 @@ Future<Map<String, dynamic>> handleCommand(
       return handleTrack(body);
     case 'flushEvents':
       return await handleFlushEvents();
+    case 'flushTelemetry':
+      return await handleFlushTelemetry();
+    case 'getTelemetryStats':
+      return handleGetTelemetryStats();
     case 'close':
       return handleClose();
     default:
@@ -388,6 +392,37 @@ Future<Map<String, dynamic>> handleFlushEvents() async {
   } catch (e) {
     return {'error': 'FlushError', 'message': e.toString()};
   }
+}
+
+Future<Map<String, dynamic>> handleFlushTelemetry() async {
+  if (client == null) {
+    return {
+      'error': 'NotInitializedError',
+      'message': 'Client not initialized'
+    };
+  }
+
+  try {
+    await client!.flushTelemetry();
+    return {'success': true};
+  } catch (e) {
+    return {'error': 'FlushError', 'message': e.toString()};
+  }
+}
+
+Map<String, dynamic> handleGetTelemetryStats() {
+  if (client == null) {
+    return {
+      'error': 'NotInitializedError',
+      'message': 'Client not initialized'
+    };
+  }
+
+  final stats = client!.getTelemetryStats();
+  return {
+    'flagCount': stats['flagCount'],
+    'evaluationCount': stats['evaluationCount'],
+  };
 }
 
 Map<String, dynamic> handleClose() {

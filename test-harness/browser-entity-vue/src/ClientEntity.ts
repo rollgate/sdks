@@ -240,6 +240,25 @@ export class ClientEntity {
         log(`[${this.tag}] flush`);
         return undefined;
 
+      case CommandType.FlushTelemetry:
+        await globalContext.client?.flushTelemetry();
+        log(`[${this.tag}] flushTelemetry`);
+        return undefined;
+
+      case CommandType.GetTelemetryStats: {
+        const stats = globalContext.client?.getTelemetryStats() ?? {
+          flagCount: 0,
+          evaluationCount: 0,
+        };
+        log(
+          `[${this.tag}] getTelemetryStats: ${stats.flagCount} flags, ${stats.evaluationCount} evals`,
+        );
+        return {
+          flagCount: stats.flagCount,
+          evaluationCount: stats.evaluationCount,
+        };
+      }
+
       default:
         throw badCommandError;
     }

@@ -337,6 +337,16 @@ func (bs *BrowserTestService) convertToLDCommand(cmd protocol.Command) map[strin
 			"command": "flushEvents",
 		}
 
+	case protocol.CommandFlushTelemetry:
+		return map[string]interface{}{
+			"command": "flushTelemetry",
+		}
+
+	case protocol.CommandGetTelemetryStats:
+		return map[string]interface{}{
+			"command": "getTelemetryStats",
+		}
+
 	case protocol.CommandClose:
 		// Close is handled by DeleteClient
 		return map[string]interface{}{
@@ -431,6 +441,23 @@ func (bs *BrowserTestService) convertFromLDResponse(cmdType string, body []byte)
 
 	case protocol.CommandIdentify, protocol.CommandReset, protocol.CommandClose:
 		response.Success = &trueVal
+
+	case protocol.CommandFlushTelemetry:
+		response.Success = &trueVal
+
+	case protocol.CommandGetTelemetryStats:
+		stats := &protocol.TelemetryStats{}
+		if fc, ok := rawResp["flagCount"]; ok {
+			if fcNum, ok := fc.(float64); ok {
+				stats.FlagCount = int(fcNum)
+			}
+		}
+		if ec, ok := rawResp["evaluationCount"]; ok {
+			if ecNum, ok := ec.(float64); ok {
+				stats.EvaluationCount = int(ecNum)
+			}
+		}
+		response.TelemetryStats = stats
 	}
 
 	// Check for errors

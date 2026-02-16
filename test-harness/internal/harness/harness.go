@@ -413,6 +413,22 @@ func (h *Harness) ClearReceivedEvents() {
 	h.mockServer.ClearReceivedEvents()
 }
 
+// GetReceivedTelemetry returns all telemetry payloads received by the mock server.
+func (h *Harness) GetReceivedTelemetry() []mock.TelemetryPayload {
+	if h.mockServer == nil {
+		return nil
+	}
+	return h.mockServer.GetReceivedTelemetry()
+}
+
+// ClearReceivedTelemetry clears all received telemetry from the mock server.
+func (h *Harness) ClearReceivedTelemetry() {
+	if h.mockServer == nil {
+		return
+	}
+	h.mockServer.ClearReceivedTelemetry()
+}
+
 // SetSegment registers a segment on the mock server.
 func (h *Harness) SetSegment(id string, conditions []mock.Condition) {
 	if h.mockServer == nil {

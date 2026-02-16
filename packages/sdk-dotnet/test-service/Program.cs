@@ -51,6 +51,8 @@ app.MapPost("/", async (HttpContext ctx) =>
         "getState" => HandleGetState(),
         "track" => HandleTrack(body),
         "flushEvents" => await HandleFlushEvents(),
+        "flushTelemetry" => await HandleFlushTelemetry(),
+        "getTelemetryStats" => HandleGetTelemetryStats(),
         "close" => HandleClose(),
         _ => new { error = "UnknownCommand", message = $"Unknown command: {command}" }
     };
@@ -348,6 +350,34 @@ async Task<object> HandleFlushEvents()
     {
         return new { error = "FlushError", message = ex.Message };
     }
+}
+
+async Task<object> HandleFlushTelemetry()
+{
+    RollgateClient? c;
+    lock (clientLock) { c = client; }
+    if (c == null) return new { error = "NotInitializedError", message = "Client not initialized" };
+
+    try
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await c.FlushTelemetryAsync(cts.Token);
+        return new { success = true };
+    }
+    catch (Exception ex)
+    {
+        return new { error = "FlushError", message = ex.Message };
+    }
+}
+
+object HandleGetTelemetryStats()
+{
+    RollgateClient? c;
+    lock (clientLock) { c = client; }
+    if (c == null) return new { error = "NotInitializedError", message = "Client not initialized" };
+
+    var stats = c.GetTelemetryStats();
+    return new { flagCount = stats.flagCount, evaluationCount = stats.evaluationCount };
 }
 
 object HandleClose()

@@ -86,8 +86,10 @@ type Response struct {
 	Success      *bool             `json:"success,omitempty"`
 	Error        string            `json:"error,omitempty"`
 	Message      string            `json:"message,omitempty"`
-	Reason       *EvaluationReason `json:"reason,omitempty"`
-	VariationID  string            `json:"variationId,omitempty"`
+	Reason          *EvaluationReason `json:"reason,omitempty"`
+	VariationID     string            `json:"variationId,omitempty"`
+	FlagCount       *int              `json:"flagCount,omitempty"`
+	EvaluationCount *int              `json:"evaluationCount,omitempty"`
 }
 
 // CacheStats represents cache statistics.
@@ -208,6 +210,10 @@ func handleCommand(cmd Command) Response {
 		return handleTrack(cmd)
 	case "flushEvents":
 		return handleFlushEvents(cmd)
+	case "flushTelemetry":
+		return handleFlushTelemetry(cmd)
+	case "getTelemetryStats":
+		return handleGetTelemetryStats(cmd)
 	case "close":
 		return handleClose(cmd)
 	default:
@@ -574,6 +580,35 @@ func handleFlushEvents(cmd Command) Response {
 	}
 
 	return Response{Success: boolPtr(true)}
+}
+
+func handleFlushTelemetry(cmd Command) Response {
+	clientMu.Lock()
+	c := client
+	clientMu.Unlock()
+
+	if c == nil {
+		return Response{Error: "NotInitializedError", Message: "Client not initialized"}
+	}
+
+	if err := c.FlushTelemetry(); err != nil {
+		return Response{Error: "FlushError", Message: err.Error()}
+	}
+
+	return Response{Success: boolPtr(true)}
+}
+
+func handleGetTelemetryStats(cmd Command) Response {
+	clientMu.Lock()
+	c := client
+	clientMu.Unlock()
+
+	if c == nil {
+		return Response{Error: "NotInitializedError", Message: "Client not initialized"}
+	}
+
+	flagCount, evaluationCount := c.GetTelemetryStats()
+	return Response{FlagCount: &flagCount, EvaluationCount: &evaluationCount}
 }
 
 func handleClose(cmd Command) Response {

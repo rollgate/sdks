@@ -117,6 +117,16 @@ export type {
   EvaluationDetail,
 } from "./reasons";
 
+// Telemetry
+export { TelemetryCollector, DEFAULT_TELEMETRY_CONFIG } from "./telemetry";
+export type {
+  TelemetryConfig,
+  TelemetryEvaluationStats,
+  TelemetryPayload,
+  TelemetryFlushResult,
+  TelemetryCallbacks,
+} from "./telemetry";
+
 // Analytics Events
 export {
   createFeatureEvent,

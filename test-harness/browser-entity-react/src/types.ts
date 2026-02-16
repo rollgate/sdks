@@ -14,6 +14,8 @@ export enum CommandType {
   IdentifyEvent = "identifyEvent",
   CustomEvent = "customEvent",
   FlushEvents = "flushEvents",
+  FlushTelemetry = "flushTelemetry",
+  GetTelemetryStats = "getTelemetryStats",
   Reset = "reset",
   Track = "track",
 }
