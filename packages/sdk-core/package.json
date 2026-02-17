@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-core",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Core utilities for Rollgate SDKs - cache, circuit breaker, retry, metrics, tracing",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

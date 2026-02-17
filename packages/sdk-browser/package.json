@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-browser",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Rollgate Browser SDK - Feature flags for web applications",
   "type": "module",
   "main": "dist/index.js",
@@ -23,7 +23,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@rollgate/sdk-core": "*"
+    "@rollgate/sdk-core": "^1.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

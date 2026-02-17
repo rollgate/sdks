@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-svelte",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Svelte SDK for Rollgate feature flags",
   "svelte": "dist/index.mjs",
   "main": "dist/index.mjs",
@@ -43,7 +43,7 @@
     "svelte": "^4.0.0 || ^5.0.0"
   },
   "dependencies": {
-    "@rollgate/sdk-browser": "*"
+    "@rollgate/sdk-browser": "^1.2.0"
   },
   "devDependencies": {
     "@sveltejs/kit": "^2.0.0",

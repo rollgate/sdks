@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Rollgate.SDK</RootNamespace>
     <PackageId>Rollgate.SDK</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Description>Rollgate Feature Flag SDK for .NET</Description>
   </PropertyGroup>
 
