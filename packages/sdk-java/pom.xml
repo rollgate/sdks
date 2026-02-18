@@ -30,9 +30,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/thejord-it/rollgate.git</connection>
-        <developerConnection>scm:git:ssh://github.com:thejord-it/rollgate.git</developerConnection>
-        <url>https://github.com/thejord-it/rollgate/tree/main</url>
+        <connection>scm:git:git://github.com/rollgate/sdks.git</connection>
+        <developerConnection>scm:git:ssh://github.com:rollgate/sdks.git</developerConnection>
+        <url>https://github.com/rollgate/sdks/tree/main</url>
     </scm>
 
     <properties>

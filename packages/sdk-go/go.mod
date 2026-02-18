@@ -1,3 +1,3 @@
-module github.com/thejord-it/rollgate/packages/sdk-go
+module github.com/rollgate/sdks/packages/sdk-go
 
 go 1.21

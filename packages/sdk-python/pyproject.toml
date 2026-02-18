@@ -45,7 +45,7 @@ dev = [
 [project.urls]
 Homepage = "https://rollgate.io"
 Documentation = "https://rollgate.io/docs/sdk/python"
-Repository = "https://github.com/thejord-it/rollgate"
+Repository = "https://github.com/rollgate/sdks"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rollgate"]

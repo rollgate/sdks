@@ -35,12 +35,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thejord-it/rollgate.git",
+    "url": "https://github.com/rollgate/sdks.git",
     "directory": "packages/sdk-node"
   },
   "homepage": "https://rollgate.io/docs/sdk/node",
   "bugs": {
-    "url": "https://github.com/thejord-it/rollgate/issues"
+    "url": "https://github.com/rollgate/sdks/issues"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
