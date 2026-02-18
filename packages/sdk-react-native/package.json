@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-react-native",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Rollgate React Native SDK - Feature flags for React Native apps",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -52,7 +52,7 @@
     "url": "https://github.com/rollgate/sdks/issues"
   },
   "dependencies": {
-    "@rollgate/sdk-core": "^1.2.0"
+    "@rollgate/sdk-core": "^1.2.1"
   },
   "devDependencies": {
     "@react-native-async-storage/async-storage": "^1.23.0",

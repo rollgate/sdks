@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-angular",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Angular SDK for Rollgate feature flags",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -44,7 +44,7 @@
     "rxjs": "^7.0.0"
   },
   "dependencies": {
-    "@rollgate/sdk-browser": "^1.2.0"
+    "@rollgate/sdk-browser": "^1.2.1"
   },
   "devDependencies": {
     "@angular/common": "^18.0.0",
