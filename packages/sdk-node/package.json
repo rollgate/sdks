@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-node",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Rollgate Node.js SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -51,7 +51,7 @@
     "typescript": "^5.4.0"
   },
   "dependencies": {
-    "@rollgate/sdk-core": "^1.2.0",
+    "@rollgate/sdk-core": "^1.2.1",
     "eventsource": "^4.1.0"
   }
 }

@@ -6,7 +6,7 @@
 
     <groupId>io.rollgate</groupId>
     <artifactId>rollgate-sdk</artifactId>
-    <version>1.2.0</version>
+    <version>1.2.1</version>
     <packaging>jar</packaging>
 
     <name>Rollgate Java SDK</name>

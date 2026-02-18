@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-react",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Rollgate React SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -47,7 +47,7 @@
     "url": "https://github.com/rollgate/sdks/issues"
   },
   "dependencies": {
-    "@rollgate/sdk-browser": "^1.2.0"
+    "@rollgate/sdk-browser": "^1.2.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
