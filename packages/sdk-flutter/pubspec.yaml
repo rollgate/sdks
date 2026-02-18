@@ -1,6 +1,6 @@
 name: rollgate
 description: Rollgate Feature Flag SDK for Dart/Flutter. Evaluate feature flags with targeting, rollout, and caching.
-version: 1.2.0
+version: 1.2.1
 homepage: https://rollgate.io
 repository: https://github.com/rollgate/sdks/tree/main/packages/sdk-flutter
 topics:
