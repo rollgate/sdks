@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"time"
 
-	rollgate "github.com/thejord-it/rollgate/packages/sdk-go"
+	rollgate "github.com/rollgate/sdks/packages/sdk-go"
 )
 
 var (

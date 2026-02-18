@@ -34,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thejord-it/rollgate.git",
+    "url": "https://github.com/rollgate/sdks.git",
     "directory": "packages/sdk-angular"
   },
   "homepage": "https://rollgate.io/docs/sdk/angular",

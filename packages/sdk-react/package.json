@@ -39,12 +39,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thejord-it/rollgate.git",
+    "url": "https://github.com/rollgate/sdks.git",
     "directory": "packages/sdk-react"
   },
   "homepage": "https://rollgate.io/docs/sdk/react",
   "bugs": {
-    "url": "https://github.com/thejord-it/rollgate/issues"
+    "url": "https://github.com/rollgate/sdks/issues"
   },
   "dependencies": {
     "@rollgate/sdk-browser": "^1.2.0"
