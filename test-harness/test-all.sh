@@ -185,7 +185,7 @@ PORT=8006 node dist/index.js > /tmp/sdk-react-native.log 2>&1 &
 # sdk-dotnet (porta 8007)
 echo -e "  Building and starting sdk-dotnet on port 8007..."
 cd "$ROOT_DIR/packages/sdk-dotnet/test-service"
-dotnet build -c Debug -q > /dev/null 2>&1
+dotnet build -c Debug > /dev/null 2>&1
 PORT=8007 dotnet run --no-build > /tmp/sdk-dotnet.log 2>&1 &
 
 # sdk-flutter (porta 8008)
