@@ -1,4 +1,9 @@
-import { RollgateClient, RollgateConfig, UserContext } from "./index";
+import {
+  RollgateClient,
+  RollgateConfig,
+  UserContext,
+  EvalContext,
+} from "./index";
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -616,6 +621,154 @@ describe("RollgateClient", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       jest.useRealTimers();
+    });
+  });
+
+  describe("per-request context", () => {
+    it("should accept context parameter on isEnabled", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ flags: { "test-flag": true } }),
+      );
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init();
+
+      // isEnabled with context should work
+      const result = client.isEnabled("test-flag", false, {
+        userId: "user-456",
+        attributes: { plan: "pro" },
+      });
+
+      expect(typeof result).toBe("boolean");
+      await client.close();
+    });
+
+    it("should accept context parameter on isEnabledDetail", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ flags: { "test-flag": true } }),
+      );
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init();
+
+      const detail = client.isEnabledDetail("test-flag", false, {
+        userId: "user-789",
+      });
+
+      expect(detail).toHaveProperty("value");
+      expect(detail).toHaveProperty("reason");
+      await client.close();
+    });
+
+    it("should accept context parameter on getValue", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ flags: { "test-flag": true } }),
+      );
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init();
+
+      const value = client.getValue("test-flag", false, {
+        userId: "user-999",
+      });
+
+      expect(typeof value).toBe("boolean");
+      await client.close();
+    });
+
+    it("should accept context parameter on getString", async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({ flags: {} }));
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init();
+
+      const value = client.getString("theme", "light", {
+        userId: "user-123",
+      });
+
+      expect(value).toBe("light");
+      await client.close();
+    });
+
+    it("should accept context parameter on getNumber", async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({ flags: {} }));
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init();
+
+      const value = client.getNumber("max-items", 10, {
+        userId: "user-123",
+      });
+
+      expect(value).toBe(10);
+      await client.close();
+    });
+
+    it("should accept context parameter on getJSON", async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({ flags: {} }));
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init();
+
+      const value = client.getJSON(
+        "config",
+        { enabled: false },
+        {
+          userId: "user-123",
+        },
+      );
+
+      expect(value).toEqual({ enabled: false });
+      await client.close();
+    });
+
+    it("should not mutate client user context when context is provided", async () => {
+      mockFetch.mockResolvedValue(
+        createMockResponse({ flags: { "test-flag": true } }),
+      );
+
+      const client = new RollgateClient({
+        apiKey: "test-key",
+        refreshInterval: 0,
+      });
+
+      await client.init({ id: "original-user" });
+
+      // Evaluate with per-request context
+      client.isEnabled("test-flag", false, {
+        userId: "different-user",
+        attributes: { plan: "enterprise" },
+      });
+
+      // Verify getAllFlags still works (client state unchanged)
+      const flags = client.getAllFlags();
+      expect(flags).toHaveProperty("test-flag", true);
+
+      await client.close();
     });
   });
 });

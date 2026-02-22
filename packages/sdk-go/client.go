@@ -44,6 +44,10 @@ type Client struct {
 	stopPolling chan struct{}
 	ready       bool
 	streaming   bool
+
+	// Circuit breaker callbacks
+	onCircuitOpenCallbacks  []func()
+	onCircuitClosedCallbacks []func()
 }
 
 // flagsResponse represents the API response for flags.
@@ -121,12 +125,32 @@ func NewClient(config Config) (*Client, error) {
 		if c.config.Logger != nil {
 			c.config.Logger.Info("circuit breaker state changed", "from", from, "to", to)
 		}
+		// Invoke user-registered callbacks
+		c.mu.RLock()
+		if to == CircuitStateOpen {
+			for _, cb := range c.onCircuitOpenCallbacks {
+				go cb()
+			}
+		}
+		if to == CircuitStateClosed {
+			for _, cb := range c.onCircuitClosedCallbacks {
+				go cb()
+			}
+		}
+		c.mu.RUnlock()
 	})
 
 	return c, nil
 }
 
+// Init initializes the client. This is the primary initialization method.
+// It fetches initial flags and starts background polling or streaming.
+func (c *Client) Init(ctx context.Context) error {
+	return c.Initialize(ctx)
+}
+
 // Initialize fetches the initial flags and starts background polling.
+// Deprecated: Use Init instead.
 func (c *Client) Initialize(ctx context.Context) error {
 	// Try to load from cache first
 	if c.config.Cache.Enabled {
@@ -235,13 +259,38 @@ func (c *Client) initializeWithSSE(ctx context.Context) error {
 	return c.sseClient.Connect(ctx)
 }
 
-// IsEnabled checks if a flag is enabled for the current user.
-func (c *Client) IsEnabled(flagKey string, defaultValue bool) bool {
-	return c.IsEnabledDetail(flagKey, defaultValue).Value
+// evalOptions holds per-evaluation override options.
+type evalOptions struct {
+	userID     string
+	attributes map[string]any
+}
+
+// EvalOption is a functional option for flag evaluation.
+type EvalOption func(*evalOptions)
+
+// WithUser sets the user ID for a single evaluation without changing client state.
+func WithUser(userID string) EvalOption {
+	return func(o *evalOptions) {
+		o.userID = userID
+	}
+}
+
+// WithAttributes sets attributes for a single evaluation without changing client state.
+func WithAttributes(attrs map[string]any) EvalOption {
+	return func(o *evalOptions) {
+		o.attributes = attrs
+	}
+}
+
+// IsEnabled checks if a flag is enabled.
+// Accepts optional EvalOption to override user context for this evaluation.
+func (c *Client) IsEnabled(flagKey string, defaultValue bool, opts ...EvalOption) bool {
+	return c.IsEnabledDetail(flagKey, defaultValue, opts...).Value
 }
 
 // IsEnabledDetail returns the flag value along with the evaluation reason.
-func (c *Client) IsEnabledDetail(flagKey string, defaultValue bool) BoolEvaluationDetail {
+// Accepts optional EvalOption to override user context for this evaluation.
+func (c *Client) IsEnabledDetail(flagKey string, defaultValue bool, opts ...EvalOption) BoolEvaluationDetail {
 	start := time.Now()
 	defer func() {
 		c.metrics.RecordEvaluation(time.Since(start).Nanoseconds())
@@ -284,8 +333,8 @@ func (c *Client) IsEnabledDetail(flagKey string, defaultValue bool) BoolEvaluati
 }
 
 // BoolVariationDetail is an alias for IsEnabledDetail for LaunchDarkly compatibility.
-func (c *Client) BoolVariationDetail(flagKey string, defaultValue bool) BoolEvaluationDetail {
-	return c.IsEnabledDetail(flagKey, defaultValue)
+func (c *Client) BoolVariationDetail(flagKey string, defaultValue bool, opts ...EvalOption) BoolEvaluationDetail {
+	return c.IsEnabledDetail(flagKey, defaultValue, opts...)
 }
 
 // GetAllFlags returns all current flag values.
@@ -467,6 +516,20 @@ func (c *Client) Close() {
 	if c.sseClient != nil {
 		c.sseClient.Close()
 	}
+}
+
+// OnCircuitOpen registers a callback that fires when the circuit breaker opens.
+func (c *Client) OnCircuitOpen(callback func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onCircuitOpenCallbacks = append(c.onCircuitOpenCallbacks, callback)
+}
+
+// OnCircuitClosed registers a callback that fires when the circuit breaker closes.
+func (c *Client) OnCircuitClosed(callback func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.onCircuitClosedCallbacks = append(c.onCircuitClosedCallbacks, callback)
 }
 
 // IsStreaming returns true if the client is using SSE streaming.

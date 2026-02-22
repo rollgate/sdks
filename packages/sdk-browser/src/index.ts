@@ -102,6 +102,16 @@ export interface RollgateOptions {
   telemetry?: Partial<TelemetryConfig>;
 }
 
+/**
+ * Config object for RollgateClient constructor (documented API)
+ */
+export interface RollgateClientConfig extends RollgateOptions {
+  /** Your Rollgate API key */
+  apiKey: string;
+  /** Initial user context for targeting */
+  user?: UserContext;
+}
+
 interface FlagsResponse {
   flags: Record<string, boolean>;
   reasons?: Record<string, EvaluationReason>;
@@ -147,13 +157,39 @@ export class RollgateBrowserClient {
 
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
 
+  /**
+   * Create a new Rollgate browser client.
+   *
+   * Config object (recommended):
+   * ```ts
+   * const client = new RollgateBrowserClient({ apiKey: 'rg_...', baseUrl: '...' });
+   * ```
+   *
+   * Positional args (legacy):
+   * ```ts
+   * const client = new RollgateBrowserClient('rg_...', { id: 'user-1' }, { baseUrl: '...' });
+   * ```
+   */
+  constructor(config: RollgateClientConfig);
   constructor(
     apiKey: string,
-    initialContext: UserContext | null,
+    initialContext?: UserContext | null,
+    options?: RollgateOptions,
+  );
+  constructor(
+    configOrApiKey: RollgateClientConfig | string,
+    initialContext?: UserContext | null,
     options: RollgateOptions = {},
   ) {
-    this.apiKey = apiKey;
-    this.userContext = initialContext;
+    if (typeof configOrApiKey === "object") {
+      const { apiKey, user, ...rest } = configOrApiKey;
+      this.apiKey = apiKey;
+      this.userContext = user || null;
+      options = rest;
+    } else {
+      this.apiKey = configOrApiKey;
+      this.userContext = initialContext ?? null;
+    }
 
     const baseUrl = options.baseUrl || "https://api.rollgate.io";
 
@@ -182,7 +218,7 @@ export class RollgateBrowserClient {
     this.eventCollector = new EventCollector({
       ...DEFAULT_EVENT_COLLECTOR_CONFIG,
       endpoint: `${baseUrl}/api/v1/sdk/events`,
-      apiKey,
+      apiKey: this.apiKey,
       ...options.events,
     });
 
@@ -191,7 +227,7 @@ export class RollgateBrowserClient {
       {
         ...DEFAULT_TELEMETRY_CONFIG,
         endpoint: `${baseUrl}/api/v1/sdk/telemetry`,
-        apiKey,
+        apiKey: this.apiKey,
         ...options.telemetry,
       },
       {
@@ -276,6 +312,15 @@ export class RollgateBrowserClient {
         }, timeout);
       }),
     ]);
+  }
+
+  /**
+   * Initialize the client. Alias for waitForInitialization().
+   * The browser client auto-initializes on construction, so this
+   * simply waits for that initialization to complete.
+   */
+  async init(): Promise<void> {
+    return this.waitForInitialization();
   }
 
   /**
@@ -683,12 +728,30 @@ export class RollgateBrowserClient {
  * ```
  */
 export function createClient(
+  config: RollgateClientConfig,
+): RollgateBrowserClient;
+export function createClient(
   apiKey: string,
-  initialContext: UserContext | null = null,
+  initialContext?: UserContext | null,
+  options?: RollgateOptions,
+): RollgateBrowserClient;
+export function createClient(
+  configOrApiKey: RollgateClientConfig | string,
+  initialContext?: UserContext | null,
   options: RollgateOptions = {},
 ): RollgateBrowserClient {
-  return new RollgateBrowserClient(apiKey, initialContext, options);
+  if (typeof configOrApiKey === "object") {
+    return new RollgateBrowserClient(configOrApiKey);
+  }
+  return new RollgateBrowserClient(
+    configOrApiKey,
+    initialContext ?? null,
+    options,
+  );
 }
+
+/** Alias for RollgateBrowserClient (matches documentation) */
+export { RollgateBrowserClient as RollgateClient };
 
 // Default export
 export default createClient;

@@ -95,7 +95,21 @@ interface RollgateContextValue {
 const RollgateContext = createContext<RollgateContextValue | null>(null);
 
 interface RollgateProviderProps {
-  config: RollgateConfig;
+  /** @deprecated Use flat props (apiKey, baseUrl, etc.) instead */
+  config?: RollgateConfig;
+  /** Your Rollgate API key (flat prop) */
+  apiKey?: string;
+  /** API base URL (flat prop) */
+  baseUrl?: string;
+  /** Polling interval in ms (flat prop) */
+  refreshInterval?: number;
+  /** Enable SSE streaming (flat prop) */
+  enableStreaming?: boolean;
+  /** Alias for enableStreaming (flat prop) */
+  streaming?: boolean;
+  /** Request timeout in ms (flat prop) */
+  timeout?: number;
+  /** User context for targeting */
   user?: UserContext;
   children: ReactNode;
 }
@@ -107,13 +121,19 @@ interface RollgateProviderProps {
  *
  * @example
  * ```tsx
- * <RollgateProvider config={{ apiKey: 'your-api-key' }} user={{ id: 'user-1' }}>
+ * <RollgateProvider apiKey="your-api-key" user={{ id: 'user-1' }}>
  *   <App />
  * </RollgateProvider>
  * ```
  */
 export function RollgateProvider({
-  config,
+  config: configProp,
+  apiKey: apiKeyProp,
+  baseUrl,
+  refreshInterval,
+  enableStreaming,
+  streaming,
+  timeout,
   user,
   children,
 }: RollgateProviderProps) {
@@ -126,6 +146,33 @@ export function RollgateProvider({
   );
 
   const clientRef = useRef<RollgateBrowserClient | null>(null);
+
+  // Resolve config: flat props take precedence over config object
+  const config = React.useMemo(() => {
+    if (configProp && !apiKeyProp) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          '[Rollgate] The \'config\' prop is deprecated. Use flat props instead: <RollgateProvider apiKey="..." baseUrl="...">',
+        );
+      }
+      return configProp;
+    }
+    return {
+      apiKey: apiKeyProp || configProp?.apiKey || "",
+      baseUrl: baseUrl ?? configProp?.baseUrl,
+      refreshInterval: refreshInterval ?? configProp?.refreshInterval,
+      streaming: enableStreaming ?? streaming ?? configProp?.streaming,
+      timeout: timeout ?? configProp?.timeout,
+    } as RollgateConfig;
+  }, [
+    apiKeyProp,
+    baseUrl,
+    refreshInterval,
+    enableStreaming,
+    streaming,
+    timeout,
+    configProp,
+  ]);
 
   // Create client on mount
   useEffect(() => {
