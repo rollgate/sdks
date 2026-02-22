@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -54,8 +55,15 @@ func main() {
 	// Build command: use pre-compiled binary if TEST_BINARY is set, otherwise go test -v
 	var cmd *exec.Cmd
 	if bin := os.Getenv("TEST_BINARY"); bin != "" {
+		// Resolve binary to absolute path before setting cmd.Dir,
+		// because Go resolves relative binary paths against cmd.Dir (not cwd).
+		absBin, err := filepath.Abs(bin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error resolving binary path: %v\n", err)
+			os.Exit(1)
+		}
 		args := []string{"-test.v", "-test.count=1"}
-		cmd = exec.Command(bin, args...)
+		cmd = exec.Command(absBin, args...)
 		cmd.Dir = "../"
 	} else {
 		args := append([]string{"test", "-v"}, os.Args[2:]...)
@@ -64,9 +72,16 @@ func main() {
 	}
 	// Pass environment through (TEST_SERVICES, etc.)
 	cmd.Env = os.Environ()
-	stdout, _ := cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating stdout pipe: %v\n", err)
+		os.Exit(1)
+	}
 	cmd.Stderr = os.Stderr
-	cmd.Start()
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting test binary: %v\n", err)
+		os.Exit(1)
+	}
 
 	passed, failed, skipped := 0, 0, 0
 	scanner := bufio.NewScanner(stdout)
