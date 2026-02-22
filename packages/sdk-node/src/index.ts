@@ -203,6 +203,15 @@ export interface UserContext {
   attributes?: Record<string, string | number | boolean>;
 }
 
+/**
+ * Per-request evaluation context for server-side use.
+ * Allows evaluating flags for different users without mutating client state.
+ */
+export interface EvalContext {
+  userId: string;
+  attributes?: Record<string, string | number | boolean>;
+}
+
 interface FlagsResponse {
   flags: Record<string, boolean>;
   reasons?: Record<string, EvaluationReason>;
@@ -790,7 +799,11 @@ export class RollgateClient extends EventEmitter {
    * When rules are available (client-side evaluation mode), evaluates locally.
    * Otherwise, returns the server-evaluated value from flags map.
    */
-  isEnabled(flagKey: string, defaultValue: boolean = false): boolean {
+  isEnabled(
+    flagKey: string,
+    defaultValue: boolean = false,
+    context?: EvalContext,
+  ): boolean {
     const startTime = performance.now();
 
     if (!this.initialized) {
@@ -806,9 +819,14 @@ export class RollgateClient extends EventEmitter {
     let result: boolean;
     let isClientSide = false;
 
+    // Resolve user context: per-request context overrides client-level
+    const effectiveUser = context
+      ? { id: context.userId, attributes: context.attributes }
+      : this.userContext;
+
     // If we have rules, use client-side evaluation
     if (this.rules && this.rules[flagKey]) {
-      result = evaluateFlag(this.rules[flagKey], this.userContext);
+      result = evaluateFlag(this.rules[flagKey], effectiveUser);
       isClientSide = true;
     } else {
       // Fallback to server-evaluated flags or default
@@ -832,7 +850,7 @@ export class RollgateClient extends EventEmitter {
    * Note: This method requires V2 rules to work properly. In V1 mode, it will
    * fall back to isEnabled() for boolean flags or return defaultValue.
    */
-  getValue<T>(flagKey: string, defaultValue: T): T {
+  getValue<T>(flagKey: string, defaultValue: T, context?: EvalContext): T {
     if (!this.initialized) {
       console.warn(
         "[Rollgate] Client not initialized. Call init() first. Returning default value.",
@@ -840,12 +858,14 @@ export class RollgateClient extends EventEmitter {
       return defaultValue;
     }
 
+    // Resolve user context: per-request context overrides client-level
+    const effectiveUser = context
+      ? { id: context.userId, attributes: context.attributes }
+      : this.userContext;
+
     // V2 rules support typed values
     if (this.rulesV2 && this.rulesV2[flagKey]) {
-      const result = evaluateFlagValue<T>(
-        this.rulesV2[flagKey],
-        this.userContext,
-      );
+      const result = evaluateFlagValue<T>(this.rulesV2[flagKey], effectiveUser);
       if (!result.enabled) {
         return defaultValue;
       }
@@ -854,7 +874,7 @@ export class RollgateClient extends EventEmitter {
 
     // Fallback: try boolean flags for backward compatibility
     if (this.rules && this.rules[flagKey]) {
-      const enabled = evaluateFlag(this.rules[flagKey], this.userContext);
+      const enabled = evaluateFlag(this.rules[flagKey], effectiveUser);
       // If T is boolean, return enabled state; otherwise return default
       if (typeof defaultValue === "boolean") {
         return enabled as unknown as T;
@@ -882,24 +902,32 @@ export class RollgateClient extends EventEmitter {
    * Get a string flag value.
    * Convenience method for getValue<string>.
    */
-  getString(flagKey: string, defaultValue: string = ""): string {
-    return this.getValue<string>(flagKey, defaultValue);
+  getString(
+    flagKey: string,
+    defaultValue: string = "",
+    context?: EvalContext,
+  ): string {
+    return this.getValue<string>(flagKey, defaultValue, context);
   }
 
   /**
    * Get a number flag value.
    * Convenience method for getValue<number>.
    */
-  getNumber(flagKey: string, defaultValue: number = 0): number {
-    return this.getValue<number>(flagKey, defaultValue);
+  getNumber(
+    flagKey: string,
+    defaultValue: number = 0,
+    context?: EvalContext,
+  ): number {
+    return this.getValue<number>(flagKey, defaultValue, context);
   }
 
   /**
    * Get a JSON flag value.
    * Convenience method for getValue with type parameter.
    */
-  getJSON<T>(flagKey: string, defaultValue: T): T {
-    return this.getValue<T>(flagKey, defaultValue);
+  getJSON<T>(flagKey: string, defaultValue: T, context?: EvalContext): T {
+    return this.getValue<T>(flagKey, defaultValue, context);
   }
 
   /**
@@ -909,6 +937,7 @@ export class RollgateClient extends EventEmitter {
   isEnabledDetail(
     flagKey: string,
     defaultValue: boolean = false,
+    context?: EvalContext,
   ): EvaluationDetail<boolean> {
     const startTime = performance.now();
 
@@ -921,12 +950,14 @@ export class RollgateClient extends EventEmitter {
       };
     }
 
+    // Resolve user context: per-request context overrides client-level
+    const effectiveUser = context
+      ? { id: context.userId, attributes: context.attributes }
+      : this.userContext;
+
     // If we have rules, use client-side evaluation with reason
     if (this.rules && this.rules[flagKey]) {
-      const detail = evaluateFlagWithReason(
-        this.rules[flagKey],
-        this.userContext,
-      );
+      const detail = evaluateFlagWithReason(this.rules[flagKey], effectiveUser);
       const evaluationTime = performance.now() - startTime;
       this.metrics.recordEvaluation(flagKey, detail.value, evaluationTime);
       this.telemetry.recordEvaluation(flagKey, detail.value);
@@ -958,7 +989,11 @@ export class RollgateClient extends EventEmitter {
    * Get a flag's value with type support and detailed evaluation reason.
    * Returns both the value and the reason why it evaluated that way.
    */
-  getValueDetail<T>(flagKey: string, defaultValue: T): EvaluationDetail<T> {
+  getValueDetail<T>(
+    flagKey: string,
+    defaultValue: T,
+    context?: EvalContext,
+  ): EvaluationDetail<T> {
     if (!this.initialized) {
       return {
         value: defaultValue,
@@ -966,12 +1001,14 @@ export class RollgateClient extends EventEmitter {
       };
     }
 
+    // Resolve user context: per-request context overrides client-level
+    const effectiveUser = context
+      ? { id: context.userId, attributes: context.attributes }
+      : this.userContext;
+
     // V2 rules support typed values with reasons
     if (this.rulesV2 && this.rulesV2[flagKey]) {
-      const result = evaluateFlagValue<T>(
-        this.rulesV2[flagKey],
-        this.userContext,
-      );
+      const result = evaluateFlagValue<T>(this.rulesV2[flagKey], effectiveUser);
       if (!result.enabled) {
         return {
           value: defaultValue,
@@ -988,10 +1025,7 @@ export class RollgateClient extends EventEmitter {
 
     // Fallback: try boolean rules
     if (this.rules && this.rules[flagKey]) {
-      const detail = evaluateFlagWithReason(
-        this.rules[flagKey],
-        this.userContext,
-      );
+      const detail = evaluateFlagWithReason(this.rules[flagKey], effectiveUser);
       if (typeof defaultValue === "boolean") {
         return detail as unknown as EvaluationDetail<T>;
       }

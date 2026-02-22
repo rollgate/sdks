@@ -345,3 +345,84 @@ describe("Feature", () => {
     });
   });
 });
+
+describe("RollgateProvider flat props", () => {
+  it("accepts apiKey as direct prop", async () => {
+    function TestComponent() {
+      const { flags } = useRollgate();
+      return <div data-testid="flags">{JSON.stringify(flags)}</div>;
+    }
+
+    render(
+      <RollgateProvider apiKey="test-key">
+        <TestComponent />
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("flags")).toBeInTheDocument();
+    });
+  });
+
+  it("accepts apiKey and baseUrl as direct props", async () => {
+    render(
+      <RollgateProvider apiKey="test-key" baseUrl="http://localhost:8080">
+        <div data-testid="child">Hello</div>
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("child")).toHaveTextContent("Hello");
+    });
+  });
+
+  it("accepts all flat props", async () => {
+    render(
+      <RollgateProvider
+        apiKey="test-key"
+        baseUrl="http://localhost:8080"
+        refreshInterval={60000}
+        enableStreaming={false}
+        timeout={10000}
+      >
+        <div data-testid="child">Hello</div>
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("child")).toHaveTextContent("Hello");
+    });
+  });
+
+  it("still works with deprecated config prop (backward compat)", async () => {
+    render(
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <div data-testid="child">Hello</div>
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("child")).toHaveTextContent("Hello");
+    });
+  });
+
+  it("warns when using deprecated config prop", async () => {
+    const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(
+      <RollgateProvider config={{ apiKey: "test-key" }}>
+        <div data-testid="child">Hello</div>
+      </RollgateProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("child")).toBeInTheDocument();
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("deprecated"),
+    );
+
+    consoleSpy.mockRestore();
+  });
+});
