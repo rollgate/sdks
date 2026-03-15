@@ -282,11 +282,11 @@ Reason kinds:
 
 ## Documentation
 
-- [Getting Started](../../docs/GETTING-STARTED.md)
-- [Architecture](../../docs/ARCHITECTURE.md)
-- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+- [Getting Started](https://rollgate.io/docs/quickstart)
+- [Python SDK Reference](https://rollgate.io/docs/sdk/python)
+- [Core Concepts](https://rollgate.io/docs/concepts)
 
-Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+Full documentation: [rollgate.io/docs](https://rollgate.io/docs)
 
 ## About Rollgate
 
