@@ -299,11 +299,11 @@ The SDK automatically caches flags in AsyncStorage for offline use:
 
 ## Documentation
 
-- [Getting Started](../../docs/GETTING-STARTED.md)
-- [Architecture](../../docs/SDK-ARCHITECTURE.md)
-- [Production Setup](../../docs/PRODUCTION-SETUP.md)
+- [Getting Started](https://rollgate.io/docs/quickstart)
+- [React Native SDK Reference](https://rollgate.io/docs/sdk/react-native)
+- [Core Concepts](https://rollgate.io/docs/concepts)
 
-Full documentation: [docs.rollgate.io](https://rollgate.io/docs)
+Full documentation: [rollgate.io/docs](https://rollgate.io/docs)
 
 ## About Rollgate
 
