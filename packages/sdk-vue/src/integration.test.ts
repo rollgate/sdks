@@ -31,11 +31,18 @@ import { provideRollgate, useFlag, useFlags, useRollgate } from "./index";
 
 // Helper to create mock API response
 function createFlagsResponse(flags: Record<string, boolean>) {
+  const v2Flags: Record<
+    string,
+    { key: string; type: string; value: boolean; enabled: boolean }
+  > = {};
+  for (const [key, value] of Object.entries(flags)) {
+    v2Flags[key] = { key, type: "boolean", value, enabled: value };
+  }
   return {
     ok: true,
     status: 200,
     headers: new Headers({ "content-type": "application/json" }),
-    json: () => Promise.resolve({ flags }),
+    json: () => Promise.resolve({ flags: v2Flags }),
   };
 }
 
