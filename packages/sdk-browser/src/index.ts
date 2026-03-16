@@ -112,9 +112,18 @@ export interface RollgateClientConfig extends RollgateOptions {
   user?: UserContext;
 }
 
+/** Server response for /api/v1/sdk/flags - typed flag values */
+interface FlagValueResponse {
+  key: string;
+  type: string; // boolean, string, number, json
+  value: unknown;
+  enabled: boolean;
+  reason?: EvaluationReason;
+  variationId?: string;
+}
+
 interface FlagsResponse {
-  flags: Record<string, boolean>;
-  reasons?: Record<string, EvaluationReason>;
+  flags: Record<string, FlagValueResponse>;
 }
 
 type EventCallback = (...args: unknown[]) => void;
@@ -544,7 +553,11 @@ export class RollgateBrowserClient {
       try {
         const data = JSON.parse(event.data) as FlagsResponse;
         const oldFlags = new Map(this.flags);
-        this.flags = new Map(Object.entries(data.flags || {}));
+        const boolFlags: Record<string, boolean> = {};
+        for (const [key, flagVal] of Object.entries(data.flags || {})) {
+          boolFlags[key] = flagVal.enabled;
+        }
+        this.flags = new Map(Object.entries(boolFlags));
 
         // Emit changes
         for (const [key, value] of this.flags) {
@@ -661,18 +674,26 @@ export class RollgateBrowserClient {
           notModified: false,
         });
 
-        this.cache.set("flags", (data as FlagsResponse).flags || {});
+        // Parse typed flag values from server response
+        const boolFlags: Record<string, boolean> = {};
+        const reasons: Record<string, EvaluationReason> = {};
+        for (const [key, flagVal] of Object.entries(
+          (data as FlagsResponse).flags || {},
+        )) {
+          boolFlags[key] = flagVal.enabled;
+          if (flagVal.reason) {
+            reasons[key] = flagVal.reason;
+          }
+        }
+
+        this.cache.set("flags", boolFlags);
 
         const oldFlags = new Map(this.flags);
-        this.flags = new Map(
-          Object.entries((data as FlagsResponse).flags || {}),
-        );
+        this.flags = new Map(Object.entries(boolFlags));
 
         // Store reasons from server response
-        if ((data as FlagsResponse).reasons) {
-          this.flagReasons = new Map(
-            Object.entries((data as FlagsResponse).reasons || {}),
-          );
+        if (Object.keys(reasons).length > 0) {
+          this.flagReasons = new Map(Object.entries(reasons));
         }
 
         for (const [key, value] of this.flags) {
