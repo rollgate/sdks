@@ -389,7 +389,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Send initial flags (V1 format: map[string]bool)
+	// Send initial flags (V2 format: typed flag values)
 	userID := r.URL.Query().Get("user_id")
 	var userAttrs map[string]interface{}
 	if userID != "" {
@@ -398,10 +398,37 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		s.userMu.RUnlock()
 	}
 	allFlags := s.flags.GetAll()
-	evaluated := make(map[string]bool, len(allFlags))
+
+	type SSEFlagValue struct {
+		Key     string      `json:"key"`
+		Type    string      `json:"type"`
+		Value   interface{} `json:"value"`
+		Enabled bool        `json:"enabled"`
+	}
+
+	evaluated := make(map[string]SSEFlagValue, len(allFlags))
 	for key, flag := range allFlags {
 		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
-		evaluated[key] = result.Value
+		typedValue := s.resolveTypedValueFromResult(flag, result)
+
+		flagType := "boolean"
+		if flag.DefaultVariation != "" && len(flag.Variations) > 0 {
+			switch flag.Variations[flag.DefaultVariation].(type) {
+			case string:
+				flagType = "string"
+			case float64, int, int64:
+				flagType = "number"
+			case map[string]interface{}:
+				flagType = "json"
+			}
+		}
+
+		evaluated[key] = SSEFlagValue{
+			Key:     key,
+			Type:    flagType,
+			Value:   typedValue,
+			Enabled: result.Value,
+		}
 	}
 
 	initData, _ := json.Marshal(map[string]interface{}{"flags": evaluated})
