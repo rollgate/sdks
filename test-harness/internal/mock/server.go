@@ -112,8 +112,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setupRoutes() {
-	s.mux.HandleFunc("/api/v1/sdk/flags", s.handleFlags)
-	s.mux.HandleFunc("/api/v1/sdk/v2/flags", s.handleFlagsV2)
+	s.mux.HandleFunc("/api/v1/sdk/flags", s.handleFlagsV2)
 	s.mux.HandleFunc("/api/v1/sdk/stream", s.handleSSE)
 	s.mux.HandleFunc("/api/v1/sdk/identify", s.handleIdentify)
 	s.mux.HandleFunc("/api/v1/sdk/events", s.handleEvents)
@@ -293,54 +292,8 @@ func (s *Server) extractUserContext(r *http.Request) (string, map[string]interfa
 	return userID, userAttrs
 }
 
-func (s *Server) handleFlags(w http.ResponseWriter, r *http.Request) {
-	// Check for simulated errors first
-	if s.checkErrorSimulation(w) {
-		return
-	}
-
-	if !s.authenticate(r) {
-		http.Error(w, `{"error":"AuthenticationError","message":"Invalid API key"}`, http.StatusUnauthorized)
-		return
-	}
-
-	userID, userAttrs := s.extractUserContext(r)
-	includeReasons := r.URL.Query().Get("withReasons") == "true"
-
-	// Build V1 response: map[string]bool (enabled/disabled only)
-	allFlags := s.flags.GetAll()
-	evaluated := make(map[string]bool, len(allFlags))
-	reasons := make(map[string]EvaluationReason, len(allFlags))
-
-	for key, flag := range allFlags {
-		result := s.evaluateFlagWithReason(flag, userID, userAttrs)
-		evaluated[key] = result.Value
-		reasons[key] = result.Reason
-	}
-
-	// Generate ETag
-	etag := s.generateETag(evaluated)
-
-	// Check If-None-Match
-	if r.Header.Get("If-None-Match") == etag {
-		w.WriteHeader(http.StatusNotModified)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("ETag", etag)
-
-	response := map[string]interface{}{
-		"flags": evaluated,
-	}
-	if includeReasons {
-		response["reasons"] = reasons
-	}
-	json.NewEncoder(w).Encode(response)
-}
-
-// handleFlagsV2 returns flags with typed values (V2 format).
-// Matches production: /api/v1/sdk/v2/flags
+// handleFlagsV2 returns flags with typed values.
+// Matches production: /api/v1/sdk/flags
 func (s *Server) handleFlagsV2(w http.ResponseWriter, r *http.Request) {
 	if s.checkErrorSimulation(w) {
 		return
