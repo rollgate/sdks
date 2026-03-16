@@ -487,9 +487,22 @@ describe("RollgateClient", () => {
       const updateHandler = jest.fn();
       client.on("flags-updated", updateHandler);
 
-      // Use 'init' event which is what the SDK listens for
+      // Use 'init' event which is what the SDK listens for (V2 format)
       emitSSEEvent("init", {
-        flags: { "initial-flag": true, "new-flag": true },
+        flags: {
+          "initial-flag": {
+            key: "initial-flag",
+            type: "boolean",
+            value: true,
+            enabled: true,
+          },
+          "new-flag": {
+            key: "new-flag",
+            type: "boolean",
+            value: true,
+            enabled: true,
+          },
+        },
       });
 
       expect(client.isEnabled("initial-flag")).toBe(true);
