@@ -27,6 +27,7 @@ type Client struct {
 	client *http.Client
 
 	flags       map[string]bool
+	flagValues  map[string]interface{} // V2: typed flag values
 	flagReasons map[string]EvaluationReason
 	user        *UserContext
 	lastETag    string
@@ -50,10 +51,19 @@ type Client struct {
 	onCircuitClosedCallbacks []func()
 }
 
+// FlagValue represents a typed flag value from the API.
+type FlagValue struct {
+	Key         string              `json:"key"`
+	Type        string              `json:"type"`              // boolean, string, number, json
+	Value       interface{}         `json:"value"`             // The evaluated value
+	Enabled     bool                `json:"enabled"`           // Boolean flag state
+	Reason      *EvaluationReason   `json:"reason,omitempty"`  // Evaluation reason
+	VariationID string              `json:"variationId,omitempty"`
+}
+
 // flagsResponse represents the API response for flags.
 type flagsResponse struct {
-	Flags   map[string]bool              `json:"flags"`
-	Reasons map[string]EvaluationReason  `json:"reasons,omitempty"`
+	Flags   map[string]FlagValue         `json:"flags"`
 }
 
 // NewClient creates a new Rollgate client with the given config.
@@ -98,6 +108,7 @@ func NewClient(config Config) (*Client, error) {
 		config:         config,
 		client:         httpClient,
 		flags:          make(map[string]bool),
+		flagValues:     make(map[string]interface{}),
 		flagReasons:    make(map[string]EvaluationReason),
 		circuitBreaker: NewCircuitBreaker(config.CircuitBreaker),
 		cache:          NewFlagCache(config.Cache),
@@ -349,28 +360,46 @@ func (c *Client) GetAllFlags() map[string]bool {
 	return result
 }
 
-// GetString returns a string flag value, or defaultValue if not found.
-// Note: Currently the API only supports boolean flags. String flags will be
-// added in a future version. For now, this always returns the default value.
+// GetString returns a string flag value, or defaultValue if not found or wrong type.
 func (c *Client) GetString(flagKey string, defaultValue string) string {
-	// TODO: Implement when API supports typed flags
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	val, ok := c.flagValues[flagKey]
+	if !ok {
+		return defaultValue
+	}
+	if s, ok := val.(string); ok {
+		return s
+	}
 	return defaultValue
 }
 
-// GetNumber returns a numeric flag value, or defaultValue if not found.
-// Note: Currently the API only supports boolean flags. Number flags will be
-// added in a future version. For now, this always returns the default value.
+// GetNumber returns a numeric flag value, or defaultValue if not found or wrong type.
 func (c *Client) GetNumber(flagKey string, defaultValue float64) float64 {
-	// TODO: Implement when API supports typed flags
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	val, ok := c.flagValues[flagKey]
+	if !ok {
+		return defaultValue
+	}
+	if f, ok := val.(float64); ok {
+		return f
+	}
 	return defaultValue
 }
 
 // GetJSON returns a JSON flag value, or defaultValue if not found.
-// Note: Currently the API only supports boolean flags. JSON flags will be
-// added in a future version. For now, this always returns the default value.
 func (c *Client) GetJSON(flagKey string, defaultValue interface{}) interface{} {
-	// TODO: Implement when API supports typed flags
-	return defaultValue
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	val, ok := c.flagValues[flagKey]
+	if !ok {
+		return defaultValue
+	}
+	return val
 }
 
 // Identify sets the user context for flag targeting.
@@ -646,17 +675,30 @@ func (c *Client) doFetchRequest(ctx context.Context, statusCode *int) error {
 		return NewNetworkError("failed to parse response", err)
 	}
 
-	// Update flags and reasons
+	// Extract boolean flags, typed values, and reasons from FlagValue response
+	boolFlags := make(map[string]bool, len(flagsResp.Flags))
+	typedValues := make(map[string]interface{}, len(flagsResp.Flags))
+	reasons := make(map[string]EvaluationReason)
+	for key, fv := range flagsResp.Flags {
+		boolFlags[key] = fv.Enabled
+		typedValues[key] = fv.Value
+		if fv.Reason != nil {
+			reasons[key] = *fv.Reason
+		}
+	}
+
+	// Update flags, typed values, and reasons
 	c.mu.Lock()
-	c.flags = flagsResp.Flags
-	if flagsResp.Reasons != nil {
-		c.flagReasons = flagsResp.Reasons
+	c.flags = boolFlags
+	c.flagValues = typedValues
+	if len(reasons) > 0 {
+		c.flagReasons = reasons
 	}
 	c.mu.Unlock()
 
 	// Update cache
 	if c.config.Cache.Enabled {
-		c.cache.Set(flagsResp.Flags)
+		c.cache.Set(boolFlags)
 	}
 
 	return nil

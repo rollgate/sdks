@@ -911,10 +911,10 @@ export class RollgateClient extends EventEmitter {
       }
     }
 
-    // Check v2 values map if available
+    // Check v2 values map if available (with type safety)
     if (this.flagValues.has(flagKey)) {
       const val = this.flagValues.get(flagKey);
-      if (val !== undefined) {
+      if (val !== undefined && typeof val === typeof defaultValue) {
         return val as T;
       }
     }
@@ -1065,10 +1065,10 @@ export class RollgateClient extends EventEmitter {
       };
     }
 
-    // Check v2 values map
+    // Check v2 values map (with type safety)
     if (this.flagValues.has(flagKey)) {
       const val = this.flagValues.get(flagKey);
-      if (val !== undefined) {
+      if (val !== undefined && typeof val === typeof defaultValue) {
         return {
           value: val as T,
           reason: this.flagReasons?.get(flagKey) ?? { kind: "UNKNOWN" },
