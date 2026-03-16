@@ -323,7 +323,7 @@ describe("RollgateClient", () => {
 
     it("should emit error on fetch failure", async () => {
       mockFetch.mockResolvedValueOnce(
-        createMockResponse({}, { ok: false, status: 401 }),
+        createMockResponse({ flags: {} }, { ok: false, status: 401 }),
       );
 
       const client = new RollgateClient({
