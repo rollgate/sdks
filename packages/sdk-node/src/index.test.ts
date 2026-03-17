@@ -9,36 +9,14 @@ import {
 const mockFetch = jest.fn();
 global.fetch = mockFetch as any;
 
-// Helper: convert simple boolean flags to V2 response format
-const toV2Flags = (
-  flags: Record<string, boolean>,
-): Record<
-  string,
-  {
-    key: string;
-    type: string;
-    value: boolean;
-    enabled: boolean;
-  }
-> => {
-  const result: Record<
-    string,
-    { key: string; type: string; value: boolean; enabled: boolean }
-  > = {};
-  for (const [key, enabled] of Object.entries(flags)) {
-    result[key] = { key, type: "boolean", value: enabled, enabled };
-  }
-  return result;
-};
-
 // Helper to create mock response with headers (needed for ETag support)
 const createMockResponse = (
-  data: { flags: Record<string, boolean> },
+  data: unknown,
   options: { ok?: boolean; status?: number; etag?: string } = {},
 ) => ({
   ok: options.ok ?? true,
   status: options.status ?? 200,
-  json: async () => ({ flags: toV2Flags(data.flags) }),
+  json: async () => data,
   headers: {
     get: (name: string) => {
       if (name === "ETag" && options.etag) return options.etag;
@@ -323,7 +301,7 @@ describe("RollgateClient", () => {
 
     it("should emit error on fetch failure", async () => {
       mockFetch.mockResolvedValueOnce(
-        createMockResponse({ flags: {} }, { ok: false, status: 401 }),
+        createMockResponse({}, { ok: false, status: 401 }),
       );
 
       const client = new RollgateClient({
@@ -487,22 +465,9 @@ describe("RollgateClient", () => {
       const updateHandler = jest.fn();
       client.on("flags-updated", updateHandler);
 
-      // Use 'init' event which is what the SDK listens for (V2 format)
+      // Use 'init' event which is what the SDK listens for
       emitSSEEvent("init", {
-        flags: {
-          "initial-flag": {
-            key: "initial-flag",
-            type: "boolean",
-            value: true,
-            enabled: true,
-          },
-          "new-flag": {
-            key: "new-flag",
-            type: "boolean",
-            value: true,
-            enabled: true,
-          },
-        },
+        flags: { "initial-flag": true, "new-flag": true },
       });
 
       expect(client.isEnabled("initial-flag")).toBe(true);
