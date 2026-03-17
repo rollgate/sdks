@@ -151,11 +151,31 @@ jobs:
           git tag "v${{ inputs.version }}"
           git push origin "packages/sdk-go/v${{ inputs.version }}" "v${{ inputs.version }}"
 
+  # ── pub.dev (Flutter) ───────────────────────────────────────
+  publish-pubdev:
+    name: Publish Flutter SDK to pub.dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Setup pub.dev credentials
+        run: |
+          mkdir -p "$HOME/.config/dart"
+          echo '${{ secrets.PUB_DEV_CREDENTIALS }}' > "$HOME/.config/dart/pub-credentials.json"
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        run: |
+          cd packages/sdk-flutter
+          dart pub publish --force
+
   # ── Summary ────────────────────────────────────────────────
   summary:
     name: Publish Summary
     runs-on: ubuntu-latest
-    needs: [publish-npm, publish-pypi, publish-maven, publish-nuget, publish-go]
+    needs: [publish-npm, publish-pypi, publish-maven, publish-nuget, publish-go, publish-pubdev]
     if: always()
     steps:
       - name: Summary
@@ -169,6 +189,4 @@ jobs:
           echo "| Maven Central | ${{ needs.publish-maven.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| NuGet | ${{ needs.publish-nuget.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Go modules | ${{ needs.publish-go.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| pub.dev (Flutter) | ⚠️ manual |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note**: Flutter/pub.dev requires manual publish with \`dart pub publish\`" >> $GITHUB_STEP_SUMMARY
+          echo "| pub.dev (Flutter) | ${{ needs.publish-pubdev.result }} |" >> $GITHUB_STEP_SUMMARY

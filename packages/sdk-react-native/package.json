@@ -1,6 +1,6 @@
 {
   "name": "@rollgate/sdk-react-native",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Rollgate React Native SDK - Feature flags for React Native apps",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
