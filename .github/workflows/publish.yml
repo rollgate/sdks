@@ -31,16 +31,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - run: npm ci
-      - name: Build packages in dependency order
-        run: |
-          npm run build --workspace=packages/sdk-core
-          npm run build --workspace=packages/sdk-node
-          npm run build --workspace=packages/sdk-browser
-          npm run build --workspace=packages/sdk-react
-          npm run build --workspace=packages/sdk-vue
-          npm run build --workspace=packages/sdk-svelte
-          npm run build --workspace=packages/sdk-angular
-          npm run build --workspace=packages/sdk-react-native
+      - run: npm run build
 
       - name: Publish npm packages
         if: ${{ !inputs.dry_run }}
@@ -156,9 +147,9 @@ jobs:
       - name: Create Go module tag
         if: ${{ !inputs.dry_run }}
         run: |
-          git tag "packages/sdk-go/v${{ inputs.version }}"
-          git tag "v${{ inputs.version }}"
-          git push origin "packages/sdk-go/v${{ inputs.version }}" "v${{ inputs.version }}"
+          git tag "packages/sdk-go/v${{ inputs.version }}" 2>/dev/null || echo "Tag packages/sdk-go/v${{ inputs.version }} already exists"
+          git tag "v${{ inputs.version }}" 2>/dev/null || echo "Tag v${{ inputs.version }} already exists"
+          git push origin "packages/sdk-go/v${{ inputs.version }}" "v${{ inputs.version }}" 2>/dev/null || echo "Tags already pushed"
 
   # ── pub.dev (Flutter) ───────────────────────────────────────
   publish-pubdev:
