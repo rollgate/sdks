@@ -31,7 +31,16 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - run: npm ci
-      - run: npm run build
+      - name: Build packages in dependency order
+        run: |
+          npm run build --workspace=@rollgate/sdk-core
+          npm run build --workspace=@rollgate/sdk-browser
+          npm run build --workspace=@rollgate/sdk-node
+          npm run build --workspace=@rollgate/sdk-react
+          npm run build --workspace=@rollgate/sdk-vue
+          npm run build --workspace=@rollgate/sdk-svelte
+          npm run build --workspace=@rollgate/sdk-angular
+          npm run build --workspace=@rollgate/sdk-react-native
 
       - name: Publish npm packages
         if: ${{ !inputs.dry_run }}
