@@ -212,18 +212,9 @@ export interface EvalContext {
   attributes?: Record<string, string | number | boolean>;
 }
 
-/** Server response for /api/v1/sdk/flags - typed flag values */
-interface FlagValueResponse {
-  key: string;
-  type: string; // boolean, string, number, json
-  value: unknown;
-  enabled: boolean;
-  reason?: EvaluationReason;
-  variationId?: string;
-}
-
 interface FlagsResponse {
-  flags: Record<string, FlagValueResponse>;
+  flags: Record<string, boolean>;
+  reasons?: Record<string, EvaluationReason>;
 }
 
 export class RollgateClient extends EventEmitter {
@@ -530,20 +521,13 @@ export class RollgateClient extends EventEmitter {
       }
     }) as (event: Event) => void);
 
-    // Handle init event (initial flags - server-side evaluation)
+    // Handle init event (initial flags - legacy server-side evaluation)
     this.eventSource.addEventListener("init", ((event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data) as FlagsResponse;
         // Only use init if we don't have rules (fallback mode)
         if (!this.rules) {
-          const boolFlags: Record<string, boolean> = {};
-          const typedValues: Record<string, unknown> = {};
-          for (const [key, flagVal] of Object.entries(data.flags || {})) {
-            boolFlags[key] = flagVal.enabled;
-            typedValues[key] = flagVal.value;
-          }
-          this.flags = new Map(Object.entries(boolFlags));
-          this.flagValues = new Map(Object.entries(typedValues));
+          this.flags = new Map(Object.entries(data.flags || {}));
           this.emit("flags-updated", this.getAllFlags());
         }
       } catch (e) {
@@ -762,29 +746,15 @@ export class RollgateClient extends EventEmitter {
         this.emit("retry-success", { attempts });
       }
 
-      // Parse typed flag values from server response
-      const boolFlags: Record<string, boolean> = {};
-      const typedValues: Record<string, unknown> = {};
-      const reasons: Record<string, EvaluationReason> = {};
-
-      for (const [key, flagVal] of Object.entries(data.flags || {})) {
-        boolFlags[key] = flagVal.enabled;
-        typedValues[key] = flagVal.value;
-        if (flagVal.reason) {
-          reasons[key] = flagVal.reason;
-        }
-      }
-
-      // Update cache with boolean flags (backward compatible)
-      this.cache.set("flags", boolFlags);
+      // Update cache with fresh data
+      this.cache.set("flags", data.flags || {});
 
       const oldFlags = new Map(this.flags);
-      this.flags = new Map(Object.entries(boolFlags));
-      this.flagValues = new Map(Object.entries(typedValues));
+      this.flags = new Map(Object.entries(data.flags || {}));
 
       // Store reasons from server response
-      if (Object.keys(reasons).length > 0) {
-        this.flagReasons = new Map(Object.entries(reasons));
+      if (data.reasons) {
+        this.flagReasons = new Map(Object.entries(data.reasons));
       }
 
       // Emit change events for any flags that changed
@@ -911,10 +881,10 @@ export class RollgateClient extends EventEmitter {
       }
     }
 
-    // Check v2 values map if available (with type safety)
+    // Check v2 values map if available
     if (this.flagValues.has(flagKey)) {
       const val = this.flagValues.get(flagKey);
-      if (val !== undefined && typeof val === typeof defaultValue) {
+      if (val !== undefined) {
         return val as T;
       }
     }
@@ -1065,10 +1035,10 @@ export class RollgateClient extends EventEmitter {
       };
     }
 
-    // Check v2 values map (with type safety)
+    // Check v2 values map
     if (this.flagValues.has(flagKey)) {
       const val = this.flagValues.get(flagKey);
-      if (val !== undefined && typeof val === typeof defaultValue) {
+      if (val !== undefined) {
         return {
           value: val as T,
           reason: this.flagReasons?.get(flagKey) ?? { kind: "UNKNOWN" },

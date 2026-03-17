@@ -256,30 +256,17 @@ func (s *SSEClient) handleEvent(event SSEEvent) {
 
 	switch event.Event {
 	case "init", "flags":
-		// Full flags payload - try typed format first, then legacy
-		var typedData struct {
-			Flags map[string]FlagValue `json:"flags"`
+		// Full flags payload
+		var data struct {
+			Flags map[string]bool `json:"flags"`
 		}
-		if err := json.Unmarshal([]byte(event.Data), &typedData); err == nil && len(typedData.Flags) > 0 {
-			// Check if we actually got typed values (not empty structs)
-			boolFlags := make(map[string]bool, len(typedData.Flags))
-			for k, fv := range typedData.Flags {
-				boolFlags[k] = fv.Enabled
+		if err := json.Unmarshal([]byte(event.Data), &data); err != nil {
+			if s.config.Logger != nil {
+				s.config.Logger.Error("failed to parse flags event", "error", err)
 			}
-			onFlags(boolFlags)
-		} else {
-			// Fallback to legacy boolean format
-			var legacyData struct {
-				Flags map[string]bool `json:"flags"`
-			}
-			if err := json.Unmarshal([]byte(event.Data), &legacyData); err != nil {
-				if s.config.Logger != nil {
-					s.config.Logger.Error("failed to parse flags event", "error", err)
-				}
-				return
-			}
-			onFlags(legacyData.Flags)
+			return
 		}
+		onFlags(data.Flags)
 
 	case "flag-update":
 		// Single flag update

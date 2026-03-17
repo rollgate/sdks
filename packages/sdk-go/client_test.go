@@ -14,18 +14,8 @@ func newTestServer(flags map[string]bool) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/sdk/flags":
-			// Build V2 typed flag response
-			v2Flags := make(map[string]FlagValue, len(flags))
-			for key, enabled := range flags {
-				v2Flags[key] = FlagValue{
-					Key:     key,
-					Type:    "boolean",
-					Value:   enabled,
-					Enabled: enabled,
-				}
-			}
 			resp := map[string]interface{}{
-				"flags": v2Flags,
+				"flags": flags,
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
