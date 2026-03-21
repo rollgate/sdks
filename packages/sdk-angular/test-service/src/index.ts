@@ -6,11 +6,10 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
-// @ts-ignore - no types available
-import { EventSource as LDEventSource } from "launchdarkly-eventsource";
+import { EventSource } from "eventsource";
 
 // Setup globals for browser APIs
-(global as any).EventSource = LDEventSource;
+(global as any).EventSource = EventSource;
 
 // Import zone.js for Angular
 import "zone.js";

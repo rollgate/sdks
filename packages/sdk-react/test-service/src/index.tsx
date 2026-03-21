@@ -10,8 +10,7 @@
 
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { JSDOM } from "jsdom";
-// @ts-ignore - no types available
-import { EventSource as LDEventSource } from "launchdarkly-eventsource";
+import { EventSource } from "eventsource";
 
 // Setup global browser environment FIRST - before any React imports
 const dom = new JSDOM(
@@ -34,7 +33,7 @@ Object.defineProperty(global, "navigator", {
   writable: true,
 });
 Object.defineProperty(global, "EventSource", {
-  value: LDEventSource,
+  value: EventSource,
   writable: true,
 });
 

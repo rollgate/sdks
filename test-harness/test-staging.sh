@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run contract tests against staging API (k3s homelab)
+# Run contract tests against staging API
 # Usage: ./test-staging.sh [test-pattern]
 #
 # This script:
@@ -9,8 +9,8 @@
 
 set -e
 
-STAGING_URL="http://192.168.1.212:30510"
-STAGING_API_KEY="rg_live_staging_contract_tests_key_2026"
+STAGING_URL="${ROLLGATE_STAGING_URL:?ERROR: Set ROLLGATE_STAGING_URL environment variable}"
+STAGING_API_KEY="${ROLLGATE_STAGING_API_KEY:?ERROR: Set ROLLGATE_STAGING_API_KEY environment variable}"
 NODE_SERVICE_PORT=8001
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 

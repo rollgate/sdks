@@ -1,6 +1,6 @@
 # Rollgate SDK Architecture
 
-Architettura target degli SDK Rollgate, basata esattamente sul pattern LaunchDarkly.
+Multi-platform SDK architecture designed for consistency, minimal code duplication, and cross-SDK behavioral parity through contract testing.
 
 ## Overview
 
@@ -50,7 +50,7 @@ Architettura target degli SDK Rollgate, basata esattamente sul pattern LaunchDar
                      Only add: Provider, hooks/composables, reactivity
 ```
 
-## Implementazioni Separate (Nessun Codice Condiviso)
+## Standalone Implementations (No Shared Code)
 
 ```
     ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
@@ -69,17 +69,16 @@ Architettura target degli SDK Rollgate, basata esattamente sul pattern LaunchDar
     └───────────────┘    └───────────────┘
 ```
 
-Questi SDK sono implementazioni complete e indipendenti nelle rispettive lingue.
-Non condividono codice con gli SDK TypeScript.
+These SDKs are fully independent implementations in their respective languages, sharing no code with the TypeScript SDKs.
 
 ## Contract Tests
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                           TEST HARNESS (Go)                                      │
-│  - Orchestratore test                                                           │
+│  - Test orchestrator                                                            │
 │  - Mock Rollgate API                                                            │
-│  - Test cases parametrizzati                                                    │
+│  - Parameterized test cases                                                     │
 └───────────────────────────────────────────────────────────────────────────────────┘
                                     │ HTTP Protocol
                                     ▼
@@ -98,17 +97,17 @@ Non condividono codice con gli SDK TypeScript.
               └───────────┘              └───────────────┘              └───────────┘
 ```
 
-I contract test validano che TUTTI gli SDK abbiano comportamento identico:
+Contract tests validate that ALL SDKs have identical behavior:
 
-- Stessi test case parametrizzati
-- Stesse risposte attese
-- Stessa gestione errori
+- Same parameterized test cases
+- Same expected responses
+- Same error handling
 
-## Componenti
+## Components
 
-### sdk-core (interno)
+### sdk-core (internal)
 
-Utilities TypeScript condivise tra tutti gli SDK JavaScript:
+Shared TypeScript utilities used by all JavaScript SDKs:
 
 - Type definitions
 - HTTP client base class
@@ -116,72 +115,72 @@ Utilities TypeScript condivise tra tutti gli SDK JavaScript:
 - Cache utilities
 - Error types
 
-**NON è un SDK standalone** - è una libreria interna.
+**Not a standalone SDK** — it is an internal library.
 
 ### sdk-node
 
-SDK per applicazioni server-side Node.js:
+SDK for server-side Node.js applications:
 
 - `RollgateClient` class
-- Polling e SSE per aggiornamenti real-time
-- Context server-side (no localStorage)
-- Circuit breaker e retry
+- Polling and SSE for real-time updates
+- Server-side context (no localStorage)
+- Circuit breaker and retry
 
 ### sdk-browser
 
-SDK core per browser - **TUTTE le implementazioni browser derivano da questo**:
+Core browser SDK — **all browser implementations derive from this**:
 
 - `createClient()` factory
 - `isEnabled()`, `getString()`, `getNumber()`, `getJSON()`
-- `identify()` per cambio utente
-- `getAllFlags()` per tutti i flag
-- localStorage per cache
-- Fetch API per HTTP
+- `identify()` for user switching
+- `getAllFlags()` for all flags
+- localStorage for caching
+- Fetch API for HTTP
 
 ### sdk-react, sdk-vue, sdk-angular, sdk-svelte
 
-**Thin wrappers** (~50-100 LOC) attorno a sdk-browser:
+**Thin wrappers** (~50-100 LOC) around sdk-browser:
 
-- Aggiungono SOLO: Provider/Context, hooks/composables, reattività
-- Delegano TUTTO il resto a sdk-browser
-- Non duplicano logica HTTP, cache, polling
+- Only add: Provider/Context, hooks/composables, reactivity
+- Delegate everything else to sdk-browser
+- No duplicated HTTP, cache, or polling logic
 
-## Stato Implementazione
+## Implementation Status
 
-| Componente       | Stato       | Note                                       |
-| ---------------- | ----------- | ------------------------------------------ |
-| sdk-core         | ✅ Completo | Utilities condivise                        |
-| sdk-node         | ✅ Completo | Server-side SDK                            |
-| sdk-browser      | ✅ Completo | Core browser SDK                           |
-| sdk-react        | ✅ Completo | Wrapper sdk-browser                        |
-| sdk-vue          | ✅ Completo | Wrapper sdk-browser                        |
-| sdk-angular      | ✅ Completo | Wrapper sdk-browser                        |
-| sdk-svelte       | ✅ Completo | Wrapper sdk-browser                        |
-| sdk-react-native | ✅ Completo | Mobile SDK (AsyncStorage)                  |
-| sdk-go           | ✅ Completo | Implementazione nativa Go                  |
-| sdk-python       | ✅ Completo | Implementazione nativa Python              |
-| sdk-java         | ✅ Completo | Implementazione nativa Java                |
-| sdk-dotnet       | ✅ Completo | Implementazione nativa C#/.NET 8           |
-| sdk-flutter      | ✅ Completo | Implementazione nativa Dart (polling only) |
+| Component        | Status   | Notes                                     |
+| ---------------- | -------- | ----------------------------------------- |
+| sdk-core         | Complete | Shared utilities                          |
+| sdk-node         | Complete | Server-side SDK                           |
+| sdk-browser      | Complete | Core browser SDK                          |
+| sdk-react        | Complete | sdk-browser wrapper                       |
+| sdk-vue          | Complete | sdk-browser wrapper                       |
+| sdk-angular      | Complete | sdk-browser wrapper                       |
+| sdk-svelte       | Complete | sdk-browser wrapper                       |
+| sdk-react-native | Complete | Mobile SDK (AsyncStorage)                 |
+| sdk-go           | Complete | Native Go implementation                  |
+| sdk-python       | Complete | Native Python implementation              |
+| sdk-java         | Complete | Native Java implementation                |
+| sdk-dotnet       | Complete | Native C#/.NET 8 implementation           |
+| sdk-flutter      | Complete | Native Dart implementation (polling only) |
 
 ## Evaluation Reasons
 
-Tutti gli SDK supportano Evaluation Reasons - metadati che spiegano perché un flag ha un determinato valore.
+All SDKs support Evaluation Reasons — metadata explaining why a flag has a given value.
 
 ### Reason Kinds
 
-| Kind           | Descrizione                                    |
-| -------------- | ---------------------------------------------- |
-| `OFF`          | Flag disabilitato                              |
-| `TARGET_MATCH` | Utente nella lista target                      |
-| `RULE_MATCH`   | Utente ha matchato una regola di targeting     |
-| `FALLTHROUGH`  | Nessuna regola matchata, usato rollout globale |
-| `ERROR`        | Errore durante la valutazione                  |
-| `UNKNOWN`      | Flag non trovato                               |
+| Kind           | Description                          |
+| -------------- | ------------------------------------ |
+| `OFF`          | Flag is disabled                     |
+| `TARGET_MATCH` | User is in the target list           |
+| `RULE_MATCH`   | User matched a targeting rule        |
+| `FALLTHROUGH`  | No rule matched, global rollout used |
+| `ERROR`        | Error during evaluation              |
+| `UNKNOWN`      | Flag not found                       |
 
 ### API Pattern
 
-Tutti gli SDK seguono lo stesso pattern API:
+All SDKs follow the same API pattern:
 
 ```typescript
 // TypeScript (Node, Browser, React, Vue, etc.)
@@ -228,50 +227,44 @@ final detail = client.isEnabledDetail("flag-key", false);
 // detail.reason.kind: EvaluationReasonKind.FALLTHROUGH
 ```
 
-### Tipi Condivisi
+### Shared Types
 
-I tipi per le reasons sono definiti in `sdk-core` e ri-esportati da tutti gli SDK:
+Reason types are defined in `sdk-core` and re-exported by all SDKs:
 
-- `EvaluationReason` - Oggetto reason con `kind`, `ruleId`, `ruleIndex`, `inRollout`, `errorKind`
-- `EvaluationDetail<T>` - Risultato con `value`, `reason`, `variationId`
-- `EvaluationReasonKind` - Tipo union per i kind
-- `EvaluationErrorKind` - Tipo per errori (`FLAG_NOT_FOUND`, `CLIENT_NOT_READY`, etc.)
+- `EvaluationReason` — reason object with `kind`, `ruleId`, `ruleIndex`, `inRollout`, `errorKind`
+- `EvaluationDetail<T>` — result with `value`, `reason`, `variationId`
+- `EvaluationReasonKind` — union type for kinds
+- `EvaluationErrorKind` — error type (`FLAG_NOT_FOUND`, `CLIENT_NOT_READY`, etc.)
 
-## Principi Architetturali
+## Architectural Principles
 
 ### 1. DRY (Don't Repeat Yourself)
 
-La logica core (HTTP, cache, polling) esiste in UN solo posto:
+Core logic (HTTP, cache, polling) exists in ONE place only:
 
-- sdk-node per server JS
-- sdk-browser per client JS
-- Implementazioni native per Go/Python/Java
+- sdk-node for server JS
+- sdk-browser for client JS
+- Native implementations for Go/Python/Java/C#/Dart
 
 ### 2. Thin Wrappers
 
-I framework wrapper (React, Vue, Angular, Svelte) sono SOTTILI:
+Framework wrappers (React, Vue, Angular, Svelte) are THIN:
 
-- Massimo 50-100 LOC
-- Solo binding framework-specific
-- Zero logica di business
+- Maximum 50-100 LOC
+- Only framework-specific bindings
+- Zero business logic
 
 ### 3. Contract Testing
 
-Tutti gli SDK sono validati dagli stessi test:
+All SDKs are validated by the same tests:
 
-- Comportamento identico garantito
-- Regressioni catturate immediatamente
-- Documentazione vivente del comportamento atteso
+- Identical behavior guaranteed
+- Regressions caught immediately
+- Living documentation of expected behavior
 
 ### 4. Separation of Concerns
 
-- sdk-core: utilities condivise
-- sdk-browser/sdk-node: logica SDK
-- sdk-react/vue/etc: binding framework
-- Test harness: validazione cross-SDK
-
-## Riferimenti
-
-- [LaunchDarkly js-core](https://github.com/launchdarkly/js-core)
-- [LaunchDarkly browser contract-tests](https://github.com/launchdarkly/js-core/tree/main/packages/sdk/browser/contract-tests)
-- [Task Plan](../test-harness/browser-testing/task_plan.md)
+- sdk-core: shared utilities
+- sdk-browser/sdk-node: SDK logic
+- sdk-react/vue/etc: framework bindings
+- Test harness: cross-SDK validation

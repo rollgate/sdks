@@ -10,7 +10,6 @@
   "dependencies": {
     "@rollgate/sdk-vue": "file:..",
     "eventsource": "^2.0.2",
-    "launchdarkly-eventsource": "^2.2.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {

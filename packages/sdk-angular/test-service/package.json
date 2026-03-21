@@ -13,7 +13,6 @@
     "@angular/platform-browser": "^17.0.0",
     "@rollgate/sdk-angular": "file:..",
     "eventsource": "^2.0.2",
-    "launchdarkly-eventsource": "^2.2.0",
     "rxjs": "^7.8.0",
     "zone.js": "^0.14.0"
   },
