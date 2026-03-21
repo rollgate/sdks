@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.3 (2026-03-17)
+
+- Updated sdk-core dependency to 1.2.3
+
+## 1.2.2 (2026-03-16)
+
+- Fix: update documentation links in README to use absolute URLs
+- Fix: update repository URLs from private repo to public `rollgate/sdks`
+
+## 1.2.1 (2026-02-18)
+
+- Fix: align SDK API surface with official documentation
+
+## 1.2.0 (2026-02-17)
+
+- Evaluation stats telemetry via sdk-core dependency update
+
 ## 1.1.0
 
 - Event tracking: `track()` for A/B testing conversion events (via `useRollgate` hook or client)
