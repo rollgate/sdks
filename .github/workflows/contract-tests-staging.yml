@@ -1,8 +1,11 @@
 name: Contract Tests (Staging)
 
 on:
-  schedule:
-    - cron: "0 6 * * 1" # Every Monday at 6:00 UTC
+  # schedule (cron settimanale) disabilitato 2026-06-17: lo staging contract test e' rosso
+  # da ~2 mesi perche' lo staging non e' piu' seedato dopo il reset di aprile (la key fissa
+  # e i flag attesi sono spariti, e il harness non puo' seedare contro server esterno).
+  # Vedi Vault/Projects/rollgate-sdks-agenda.md. Lasciato solo trigger manuale finche'
+  # non si ricostruisce il seed staging (o si ridisegna la modalita' esterna del harness).
   workflow_dispatch: # Manual trigger
   push:
     branches: [main]
