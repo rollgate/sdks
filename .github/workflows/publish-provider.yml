@@ -1,0 +1,58 @@
+name: Publish OpenFeature Provider
+
+# Dedicated, npm-only publish for the independently-versioned OpenFeature
+# provider package(s). Unlike publish.yml (lockstep SDK release), this does NOT
+# create Go tags or touch the other registries. The published version is read
+# from the package's own package.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package dir under packages/ to publish"
+        required: true
+        default: "openfeature-server-provider"
+      dry_run:
+        description: "Dry run (skip actual publish)"
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  publish:
+    name: Build & publish npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: "https://registry.npmjs.org"
+
+      - run: npm ci
+
+      - name: Build dependencies + target in order
+        run: |
+          npm run build --workspace=@rollgate/sdk-core
+          npm run build --workspace=@rollgate/sdk-node
+          npm run build --workspace=packages/${{ inputs.package }}
+
+      - name: Verify (typecheck + tests)
+        run: |
+          npm run typecheck --workspace=packages/${{ inputs.package }}
+          npm test --workspace=packages/${{ inputs.package }}
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --workspace=packages/${{ inputs.package }} --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Dry run
+        if: ${{ inputs.dry_run }}
+        run: npm publish --workspace=packages/${{ inputs.package }} --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
