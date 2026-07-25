@@ -1,0 +1,60 @@
+{
+  "name": "@rollgate/openfeature-server-provider",
+  "version": "0.1.0",
+  "description": "OpenFeature server-side provider for Rollgate feature flags (wraps @rollgate/sdk-node)",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "openfeature",
+    "openfeature-provider",
+    "feature-flags",
+    "feature-toggles",
+    "rollgate",
+    "nodejs"
+  ],
+  "author": "Rollgate <hello@rollgate.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rollgate/sdks.git",
+    "directory": "packages/openfeature-server-provider"
+  },
+  "homepage": "https://rollgate.io/docs/sdk/openfeature",
+  "bugs": {
+    "url": "https://github.com/rollgate/sdks/issues"
+  },
+  "peerDependencies": {
+    "@openfeature/server-sdk": "^1.13.0"
+  },
+  "dependencies": {
+    "@rollgate/sdk-core": "^1.2.1",
+    "@rollgate/sdk-node": "^1.2.1"
+  },
+  "devDependencies": {
+    "@openfeature/server-sdk": "^1.13.0",
+    "@types/node": "^20.12.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.0.0"
+  }
+}

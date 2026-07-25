@@ -41,12 +41,13 @@ jobs:
           npm run build --workspace=@rollgate/sdk-svelte
           npm run build --workspace=@rollgate/sdk-angular
           npm run build --workspace=@rollgate/sdk-react-native
+          npm run build --workspace=@rollgate/openfeature-server-provider
 
       - name: Publish npm packages
         if: ${{ !inputs.dry_run }}
         run: |
-          for pkg in sdk-core sdk-browser sdk-node sdk-react sdk-vue sdk-svelte sdk-angular sdk-react-native; do
-            echo "Publishing @rollgate/$pkg@${{ inputs.version }}..."
+          for pkg in sdk-core sdk-browser sdk-node sdk-react sdk-vue sdk-svelte sdk-angular sdk-react-native openfeature-server-provider; do
+            echo "Publishing @rollgate/$pkg (version from its package.json)..."
             npm publish --workspace=packages/$pkg --access public || echo "⚠️ $pkg failed or already published"
           done
         env:
@@ -55,8 +56,8 @@ jobs:
       - name: Dry run
         if: ${{ inputs.dry_run }}
         run: |
-          for pkg in sdk-core sdk-browser sdk-node sdk-react sdk-vue sdk-svelte sdk-angular sdk-react-native; do
-            echo "[DRY RUN] Would publish @rollgate/$pkg@${{ inputs.version }}"
+          for pkg in sdk-core sdk-browser sdk-node sdk-react sdk-vue sdk-svelte sdk-angular sdk-react-native openfeature-server-provider; do
+            echo "[DRY RUN] Would publish @rollgate/$pkg (version from its package.json)"
           done
 
   # ── PyPI ───────────────────────────────────────────────────
@@ -193,7 +194,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Registry | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| npm (8 packages) | ${{ needs.publish-npm.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| npm (9 packages) | ${{ needs.publish-npm.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| PyPI | ${{ needs.publish-pypi.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Maven Central | ${{ needs.publish-maven.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| NuGet | ${{ needs.publish-nuget.result }} |" >> $GITHUB_STEP_SUMMARY
