@@ -2,8 +2,9 @@
 
 ## 1.2.3 (2026-03-17)
 
-- Fix: restore V1 flag format compatibility for production API alignment
+- Fix: restore V1 flag format compatibility for production API alignment (incorrect: see the note below)
 - Internal test improvements for typed flag format
+- Note (2026-11-02): Between this release and 2026-11-02 the hosted API returned a different response shape for `GET /api/v1/sdk/flags`, which the SDKs released as 1.2.3 could not read. This package does not call the API itself; see each SDK's changelog. The API was fixed server-side on 2026-11-02: if you are on 1.2.3, no upgrade is needed.
 
 ## 1.2.2 (2026-03-16)
 

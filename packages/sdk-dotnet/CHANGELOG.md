@@ -2,8 +2,9 @@
 
 ## 1.2.3 (2026-03-17)
 
-- Fix: restore V1 flag format compatibility for production API alignment
+- Fix: restore V1 flag format compatibility for production API alignment (incorrect: see the note below)
 - Fix: restore corrupted csproj file
+- Note (2026-11-02): Between this release and 2026-11-02 the hosted API returned a different response shape for `GET /api/v1/sdk/flags`, and this SDK could not read it: fetching flags failed, so evaluations fell back to cached or default values. The API was fixed server-side on 2026-11-02 and now returns the format this release expects: if you are on 1.2.3, no upgrade is needed.
 
 ## 1.2.2 (2026-03-16)
 
